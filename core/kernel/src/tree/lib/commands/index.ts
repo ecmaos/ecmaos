@@ -25,7 +25,7 @@ import * as zipjs from '@zip.js/zip.js'
 
 import { createCredentials, Fetch, InMemory, resolveMountConfig, useCredentials, Stats } from '@zenfs/core'
 import { IndexedDB } from '@zenfs/dom'
-import { Zip } from '@zenfs/zip'
+import { Zip } from '@zenfs/archives'
 
 import {
   KernelEvents,
