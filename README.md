@@ -278,27 +278,46 @@ echo "window.alert('Hello, world!')" > /root/hello.js
 load /root/hello.js
 ```
 
+## Scripting
+
+```txt
+#!ecmaos:bin:script
+echo "Hello, world!"
+install jquery
+```
+
 ## App Development
 
 The `apps` directory in the repository contains a number of examples of how to develop apps, but there are many approaches you could take.
 
-- `@ecmaos-apps/boilerplate`: A minimal boilerplate app for developing new apps
+- `@ecmaos-apps/boilerplate`: A minimal boilerplate app for reference
 - `@ecmaos-apps/code`: A simple code editor app using [Monaco](https://microsoft.github.io/monaco-editor/); serves as a good reference for more complex apps
 
 Basically, your app's [bin](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#bin) file has a `main` (or default) function export that is passed the kernel reference and can use it to interact with the system as needed. A shebang line of `#!ecmaos:bin:app:myappname` is required at the top of the bin file to identify it as an app.
 
-## Kernel Interface Example
+## App/Kernel Interface Example
+
+> See the [docs](https://docs.ecmaos.sh) for more information
 
 ```ts
-export default async function main({ kernel }: ProcessEntryParams) {
-  kernel.log.info("Hello, world!");
-  kernel.terminal.writeln("Hello, world!");
+#!ecmaos:bin:app:example
+// shebang format: ecmaos:exectype:execnamespace:execname
+export default async function main(params: ProcessEntryParams) {
+  const { args, kernel, terminal } = params
+  kernel.log.info('Hello, world!')
+  kernel.log.debug(args)
+  terminal.writeln('Hello, world!')
+  await kernel.filesystem.fs.writeFile('/tmp/hello.txt', 'Hello, world!')
+  const win = kernel.windows.create({ title: 'Example', width: 800, height: 600 })
+  const container = document.createElement('div')
+  container.innerHTML = '<h1>Hello, world!</h1>'
+  win.mount(container)
 }
 ```
 
 ## Early Days
 
-The kernel is currently in active development. It is not considered stable and the structure and API are very likely to change in unexpected and possibly unannounced ways until version 1.0.0. Use cautiously and at your own risk.
+ecmaOS is currently in active development. It is not considered stable and the structure and API are very likely to change in unexpected and possibly unannounced ways until version 1.0.0. Use cautiously and at your own risk.
 
 Things to keep in mind:
 
@@ -347,5 +366,7 @@ turbo gen module # generate a new module template
 Also see [turbo.json](./turbo.json) and [CONTRIBUTING.md](/CONTRIBUTING.md) for more information.
 
 ## Security Vulnerabilities
+
+See [SECURITY.md](/SECURITY.md) for more information.
 
 If you find a serious security vulnerability, please submit a new [Draft Security Advisory](https://github.com/ecmaos/ecmaos/security) or contact the project maintainer directly at [code@mathis.network](mailto:code@mathis.network).
