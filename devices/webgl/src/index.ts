@@ -81,7 +81,7 @@ export async function getDrivers(kernel: Kernel): Promise<DeviceDriver<WebGLDevi
       })
     }
   } catch (error) {
-    kernel.log?.error(`Failed to initialize WebGL device: ${error}`)
+    kernel.log.error(`Failed to initialize WebGL device: ${error}`)
   }
 
   return drivers

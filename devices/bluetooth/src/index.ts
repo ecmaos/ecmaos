@@ -43,7 +43,7 @@ export async function cli(options: KernelDeviceCLIOptions) {
           win.close()
           resolve(true)
         } catch (error) {
-          kernel.log?.error('Error requesting Bluetooth device', error)
+          kernel.log.error('Error requesting Bluetooth device', error)
           kernel.storage.session.removeItem('permission:bluetooth')
           // kernel.storage.session.setItem('hide:permission:bluetooth', '1')
           win.close()

@@ -22,16 +22,16 @@ export class Storage implements StorageProvider {
 
       open.onsuccess = () => {
         this._db = open.result
-        this._kernel.log?.silly(`IndexedDB connection to ${name} successful`)
+        this._kernel.log.silly(`IndexedDB connection to ${name} successful`)
       }
 
       open.onerror = () => {
-        this._kernel.log?.error('IndexedDB connection failed')
+        this._kernel.log.error('IndexedDB connection failed')
       }
 
       open.onupgradeneeded = (event) => {
         const db = open.result
-        db.onerror = event => this._kernel.log?.error('IndexedDB connection failed', event)
+        db.onerror = event => this._kernel.log.error('IndexedDB connection failed', event)
         const store = db.createObjectStore('ecmaos:storage', { keyPath: 'id', autoIncrement: true })
 
         switch (event.newVersion) {
@@ -40,7 +40,7 @@ export class Storage implements StorageProvider {
             break
         }
 
-        this._kernel.log?.silly(`IndexedDB schema ${event.newVersion === 1 ? 'created' : 'updated to version ${event.newVersion}'}`)
+        this._kernel.log.silly(`IndexedDB schema ${event.newVersion === 1 ? 'created' : 'updated to version ${event.newVersion}'}`)
       }
     }
   }
@@ -51,7 +51,7 @@ export class Storage implements StorageProvider {
       if (!usage) throw new Error('Storage usage not available')
       return usage
     } catch (error) {
-      this._kernel.log?.error('Storage usage failed', error)
+      this._kernel.log.error('Storage usage failed', error)
       return null
     }
   }

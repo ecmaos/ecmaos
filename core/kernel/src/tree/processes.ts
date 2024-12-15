@@ -93,7 +93,7 @@ export class Process implements IProcess {
     this._args = options.args || []
     this._command = options.command || ''
     this._cwd = options.cwd || options.shell?.cwd || '/'
-    this._entry = options.entry || ((params: ProcessEntryParams) => { options.kernel?.log?.silly(params); return Promise.resolve(0) })
+    this._entry = options.entry || ((params: ProcessEntryParams) => { options.kernel?.log.silly(params); return Promise.resolve(0) })
     this._events = new Events()
     this._gid = options.gid
     this._kernel = options.kernel

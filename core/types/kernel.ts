@@ -71,8 +71,8 @@ export interface Kernel {
   /** Shell for command interpretation and execution */
   readonly shell: Shell
 
-  /** Logging system, null if disabled */
-  readonly log: Log | null
+  /** Logging system */
+  readonly log: Log
 
   // Core services
 

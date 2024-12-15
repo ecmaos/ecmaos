@@ -68,6 +68,6 @@ describe('Kernel', () => {
       log: { name: 'custom-name' }
     })
 
-    expect(kernel2.log?.name).toBe('custom-name')
+    expect(kernel2.log.name).toBe('custom-name')
   })
 })

@@ -287,6 +287,15 @@ The `apps` directory in the repository contains a number of examples of how to d
 
 Basically, your app's [bin](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#bin) file has a `main` (or default) function export that is passed the kernel reference and can use it to interact with the system as needed. A shebang line of `#!ecmaos:bin:app:myappname` is required at the top of the bin file to identify it as an app.
 
+## Kernel Interface Example
+
+```ts
+export default async function main({ kernel }: ProcessEntryParams) {
+  kernel.log.info("Hello, world!");
+  kernel.terminal.writeln("Hello, world!");
+}
+```
+
 ## Early Days
 
 The kernel is currently in active development. It is not considered stable and the structure and API are very likely to change in unexpected and possibly unannounced ways until version 1.0.0. Use cautiously and at your own risk.

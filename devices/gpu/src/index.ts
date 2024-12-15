@@ -16,7 +16,7 @@ export const pkg = {
 }
 
 export async function cli(options: KernelDeviceCLIOptions) {
-  options.kernel.log?.debug(`${pkg.name} CLI`, options.args)
+  options.kernel.log.debug(`${pkg.name} CLI`, options.args)
 
   const usage = `
 Usage: gpu <command>

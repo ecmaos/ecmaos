@@ -1799,7 +1799,7 @@ export const socket = async () => {
   //     const privateKeyJWK = JSON.parse(decryptedPrivateKeyText)
   //     user.keypair.privateKey = privateKeyJWK
   //   } catch (error) {
-  //     kernel.log?.error(error)
+  //     kernel.log.error(error)
   //     terminal.writeln(chalk.red(kernel.i18n.t('Failed to decrypt private key')))
   //     return 1
   //   }

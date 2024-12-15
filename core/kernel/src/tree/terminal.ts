@@ -239,7 +239,7 @@ export class Terminal extends XTerm implements ITerminal {
 
         if (event.data.startsWith('@ecmaos/metal')) {
           const [name, version, id, encodedPublicKey] = event.data.split(':')
-          this._kernel.log?.info(`${name}:${version}:${id} connected`)
+          this._kernel.log.info(`${name}:${version}:${id} connected`)
           this._socketKey = JSON.parse(atob(encodedPublicKey))
         }
       })
@@ -477,7 +477,7 @@ export class Terminal extends XTerm implements ITerminal {
             this._history[uid] = this._history[uid] || []
             this._history[uid].push(this._cmd)
             try { this._kernel.storage.local.setItem(`history:${uid}`, JSON.stringify(this._history[uid] || [])) }
-            catch (error) { this._kernel.log?.error('Failed to save history', error) }
+            catch (error) { this._kernel.log.error('Failed to save history', error) }
           }
 
           this._historyPosition = this._history[uid]?.length || 0

@@ -64,7 +64,7 @@ export class Service implements IService {
           data: await this._kernel.filesystem.fs.readFile(data.file)
         })
       } catch (error) {
-        this._kernel.log?.error(error instanceof Error ? error.message : 'Unknown error')
+        this._kernel.log.error(error instanceof Error ? error.message : 'Unknown error')
         event.source?.postMessage({
           type: 'fs',
           file: data.file,
@@ -80,10 +80,10 @@ export class Service implements IService {
         try {
           switch (data.type) {
             case 'log':
-              this._kernel.log?.info(`[ServiceWorker] ${data.message}`)
+              this._kernel.log.info(`[ServiceWorker] ${data.message}`)
               break
             case 'error':
-              this._kernel.log?.error(`[ServiceWorker] ${data.message}`)
+              this._kernel.log.error(`[ServiceWorker] ${data.message}`)
               break
             case 'fs':
               sendFile(event)
@@ -91,7 +91,7 @@ export class Service implements IService {
           }
         } catch (error) {
           if (data.type === 'fs') {
-            this._kernel.log?.error(`[ServiceWorker] Error reading file ${data.file}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            this._kernel.log.error(`[ServiceWorker] Error reading file ${data.file}: ${error instanceof Error ? error.message : 'Unknown error'}`)
             event.source?.postMessage({
               type: 'fs',
               file: data.file,
@@ -133,7 +133,7 @@ export class Service implements IService {
     registration.addEventListener('progress', () => {
       if (!registration.downloadTotal) return
       const percent = Math.round(registration.downloaded / registration.downloadTotal * 100)
-      this._kernel.log?.info(`${percent}% of ${urls.length} files downloaded.`)
+      this._kernel.log.info(`${percent}% of ${urls.length} files downloaded.`)
     })
 
     navigator.serviceWorker.addEventListener('message', async e => {
@@ -148,9 +148,9 @@ export class Service implements IService {
             const response = await fetch(url)
             const buffer = await response.arrayBuffer()
             await this._kernel.filesystem.fs.writeFile(`${destination}/${url.split('/').pop()}`, new Uint8Array(buffer))
-            this._kernel.log?.info(`Saved ${url} to ${destination}/${url.split('/').pop()}.`)
+            this._kernel.log.info(`Saved ${url} to ${destination}/${url.split('/').pop()}.`)
           } catch (error) {
-            this._kernel.log?.error(`Failed to fetch ${url}: ${error}`)
+            this._kernel.log.error(`Failed to fetch ${url}: ${error}`)
           }
         }
 

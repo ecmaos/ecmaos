@@ -153,8 +153,8 @@ export class Kernel implements IKernel {
   public readonly intervals: Intervals
   /** Keyboard interface */
   public readonly keyboard: Keyboard
-  /** Logging system, null if disabled */
-  public readonly log: Log | null
+  /** Logging system */
+  public readonly log: Log
   /** Memory management service */
   public readonly memory: Memory
   /** Map of loaded modules */
@@ -210,7 +210,7 @@ export class Kernel implements IKernel {
     this.i18n = new I18n(this.options.i18n)
     this.intervals = new Intervals()
     this.keyboard = navigator.keyboard
-    this.log = this.options.log ? new Log(this.options.log) : null
+    this.log = this.options.log ? new Log(this.options.log) : new Log()
     this.memory = new Memory()
     this.modules = new Map()
     this.processes = new ProcessManager()
@@ -247,7 +247,7 @@ export class Kernel implements IKernel {
       this.dom.topbar()
       this.terminal.unlisten()
 
-      this.log?.attachTransport((logObj) => {
+      this.log.attachTransport((logObj) => {
         if (!logObj?.['_meta']) return
         const acceptedLevels = ['WARN', 'ERROR']
         if (!acceptedLevels.includes(logObj['_meta'].logLevelName)) return
@@ -294,7 +294,7 @@ export class Kernel implements IKernel {
           logoFiglet = figlet.textSync(import.meta.env['FIGLET_TEXT'] || 'ECMAOS', { font: figletFont as keyof typeof figlet.fonts })
           this.terminal.writeln(colorFiglet(figletColor, logoFiglet))
         } catch (error) {
-          this.log?.error(`Failed to load figlet font ${figletFont}: ${(error as Error).message}`)
+          this.log.error(`Failed to load figlet font ${figletFont}: ${(error as Error).message}`)
         }
 
         this.terminal.writeln(`${this.terminal.createSpecialLink(import.meta.env['HOMEPAGE'], import.meta.env['NAME'] || 'ecmaOS')} v${import.meta.env['VERSION']}`)
@@ -324,7 +324,7 @@ export class Kernel implements IKernel {
         this.log.info(`${import.meta.env['NAME'] || 'ecmaOS'} v${import.meta.env['VERSION']}`)
 
         if (Notification?.permission === 'default') Notification.requestPermission()
-        if (Notification?.permission === 'denied') this.log?.warn(t('kernel.permissionNotificationDenied', 'Notification permission denied'))
+        if (Notification?.permission === 'denied') this.log.warn(t('kernel.permissionNotificationDenied', 'Notification permission denied'))
 
         this.intervals.set('title-blink', () => {
           globalThis.document.title = globalThis.document.title.includes('_') ? 'ecmaos# ' : 'ecmaos# _'
@@ -356,7 +356,7 @@ export class Kernel implements IKernel {
       }
 
       // Log to /var/log/kernel.log
-      this.log?.attachTransport((logObj) => {
+      this.log.attachTransport((logObj) => {
         if (!logObj._meta) return
         const formattedDate = new Date(logObj._meta.date).toLocaleString(this.memory.config.get('locale') as string || 'en-US', {
           year: 'numeric',
@@ -395,10 +395,10 @@ export class Kernel implements IKernel {
             const name = spec?.[1]
             const version = spec?.[2]
 
-            if (!name) { this.log?.error(`Failed to load module ${mod}: Invalid package name format`); continue }
-            if (!version) { this.log?.error(`Failed to load module ${mod}: No version specified`); continue }
+            if (!name) { this.log.error(`Failed to load module ${mod}: Invalid package name format`); continue }
+            if (!version) { this.log.error(`Failed to load module ${mod}: No version specified`); continue }
 
-            this.log?.info(`Loading module ${name}@${version}`)
+            this.log.info(`Loading module ${name}@${version}`)
             const [scope, pkg] = name.split('/')
             const pkgPath = `/usr/lib/${scope ? `${scope}/` : ''}${pkg}/${version}`
             const exists = await this.filesystem.fs.exists(pkgPath)
@@ -423,7 +423,7 @@ export class Kernel implements IKernel {
             module.init?.(this.id)
             this.modules.set(modname, module)
           } catch (error) {
-            this.log?.error(`Failed to load module ${mod}: ${(error as Error).message}`)
+            this.log.error(`Failed to load module ${mod}: ${(error as Error).message}`)
           }
         }
       }
@@ -433,7 +433,7 @@ export class Kernel implements IKernel {
         if (!await this.filesystem.fs.exists('/etc/passwd')) await this.users.add({ username: 'root', password: 'root', home: '/root' }, { noHome: true })
         else await this.users.load()
       } catch (err) {
-        this.log?.error(err)
+        this.log.error(err)
         this.terminal.writeln(chalk.red((err as Error).message))
         throw err
       }
@@ -521,7 +521,7 @@ export class Kernel implements IKernel {
 
       // Init doesn't exit; tradition - init should become a more full-featured init system in the future
       class InitProcess extends Process { override async exit() {} }
-      if (!await this.filesystem.fs.exists('/boot/init')) await this.filesystem.fs.writeFile('/boot/init', '#!ecmaos:script:init\n\n')
+      if (!await this.filesystem.fs.exists('/boot/init')) await this.filesystem.fs.writeFile('/boot/init', '#!ecmaos:bin:script:init\n\n')
 
       const initProcess = new InitProcess({
         args: [],
@@ -559,7 +559,7 @@ export class Kernel implements IKernel {
       this.terminal.focus()
       this.terminal.listen()
     } catch (error) {
-      this.log?.error(error)
+      this.log.error(error)
       this._state = KernelState.PANIC
       this.events.dispatch<KernelPanicEvent>(KernelEvents.PANIC, { error: error as Error })
       this.toast.error({
@@ -642,7 +642,7 @@ export class Kernel implements IKernel {
   async execute(options: KernelExecuteOptions) {
     try {
       if (!await this.filesystem.exists(options.command)) {
-        this.log?.error(`File not found for execution: ${options.command}`)
+        this.log.error(`File not found for execution: ${options.command}`)
         return -1
       }
 
@@ -660,23 +660,22 @@ export class Kernel implements IKernel {
       switch (header.type) {
         case 'bin':
           switch (header.namespace) {
-            case 'terminal': {
+            case 'terminal': // left for backward-compatibility
+            case 'command':
               if (!header.name) return -1
               exitCode = await this.executeCommand({ ...options, command: header.name })
               break
-            }
-            case 'app': {
+            case 'app':
               if (!header.name) return -1
               exitCode = await this.executeApp({ ...options, command: header.name, file: options.command })
               break
-            }
+            case 'script':
+              exitCode = await this.executeScript(options)
+              break
+            case 'node': // we'll do what we can to try to make it run, but it may fail
+              exitCode = await this.executeNode(options) // TODO: Use WebContainer if possible
+              break
           }; break
-        case 'node': // we'll do what we can to try to make it run, but it may fail
-          exitCode = await this.executeNode(options) // TODO: Use WebContainer if possible
-          break
-        case 'script':
-          exitCode = await this.executeScript(options)
-          break
       }
 
       exitCode = exitCode ?? 0
@@ -685,7 +684,7 @@ export class Kernel implements IKernel {
       return exitCode
     } catch (error) {
       console.error(error)
-      this.log?.error(error)
+      this.log.error(error)
       options.shell.env.set('?', '-1')
       return -1
     }
@@ -728,7 +727,7 @@ export class Kernel implements IKernel {
         URL.revokeObjectURL(url)
       }
     } catch (error) {
-      this.log?.error(`Failed to execute app: ${error}`)
+      this.log.error(`Failed to execute app: ${error}`)
       options.terminal?.writeln(chalk.red((error as Error).message))
       return -1
     }
@@ -770,7 +769,7 @@ export class Kernel implements IKernel {
    */
   async executeDevice(device: KernelDevice, args: string[] = [], shell: Shell = this.shell): Promise<number> {
     if (!device || !device.cli) {
-      this.log?.error(`Device not found or does not have a CLI`)
+      this.log.error(`Device not found or does not have a CLI`)
       return -1
     }
 
@@ -795,7 +794,7 @@ export class Kernel implements IKernel {
       shell.setPositionalParameters([`/dev/${device.pkg.name}`, ...args])
       await deviceProcess.start()
     } catch (error) {
-      this.log?.error(error)
+      this.log.error(error)
       this.terminal.writeln(chalk.red((error as Error).message))
       return -2
     } finally {
@@ -845,7 +844,7 @@ export class Kernel implements IKernel {
       await process.start()
       return 0
     } catch (error) {
-      this.log?.error(`Failed to execute node script: ${error}`)
+      this.log.error(`Failed to execute node script: ${error}`)
       this.terminal.writeln(chalk.red((error as Error).message))
       return -1
     }
@@ -860,8 +859,8 @@ export class Kernel implements IKernel {
     const header = await this.readFileHeader(options.command)
     if (!header) return -1
 
-    if (header.type !== 'script') {
-      this.log?.error(`File is not a script: ${options.command}`)
+    if (header.type !== 'bin' || header.namespace !== 'script') {
+      this.log.error(`File is not a script: ${options.command}`)
       return -1
     }
 
@@ -873,7 +872,7 @@ export class Kernel implements IKernel {
       }
 
       return 0
-    } else this.log?.error(`Script ${options.command} not found`)
+    } else this.log.error(`Script ${options.command} not found`)
 
     return -1
   }
@@ -923,10 +922,7 @@ export class Kernel implements IKernel {
         return { type, namespace, name }
       }
 
-      if (header.startsWith('#!/usr/bin/env node')) {
-        return { type: 'node' }
-      }
-
+      if (header.startsWith('#!/usr/bin/env node')) return { type: 'bin', namespace: 'node', name: 'node' }
       return null
     }
 
@@ -939,7 +935,7 @@ export class Kernel implements IKernel {
           readable.on('error', (error: Error) => reject(error))
           readable.on('close', () => resolve(null))
         } catch (error) {
-          this.log?.error(error)
+          this.log.error(error)
           reject(error)
         }
       })()
@@ -950,7 +946,7 @@ export class Kernel implements IKernel {
    * Reboots the kernel by performing a shutdown and page reload
    */
   async reboot() {
-    this.log?.warn(this.i18n.t('Rebooting'))
+    this.log.warn(this.i18n.t('Rebooting'))
     await this.shutdown()
     globalThis.location.reload()
   }
@@ -964,7 +960,7 @@ export class Kernel implements IKernel {
     const whitelistedCommands = Object.entries(TerminalCommands(this, this.shell, this.terminal)).filter(([name]) => !this.options.blacklist?.commands?.includes(name))
     for (const [name] of whitelistedCommands) {
       if (await this.filesystem.fs.exists(`/bin/${name}`)) continue
-      await this.filesystem.fs.writeFile(`/bin/${name}`, `#!ecmaos:bin:terminal:${name}`, { mode: 0o755 })
+      await this.filesystem.fs.writeFile(`/bin/${name}`, `#!ecmaos:bin:command:${name}`, { mode: 0o755 })
     }
   }
 
@@ -992,10 +988,10 @@ export class Kernel implements IKernel {
       this.events.on(event, async (detail: unknown) => {
         switch (event) {
           case KernelEvents.PANIC:
-            this.log?.fatal('KernelPanic:', detail)
+            this.log.fatal('KernelPanic:', detail)
             break
           // default:
-          //   this.log?.debug('KernelEvent:', event, { command, args, exitCode })
+          //   this.log.debug('KernelEvent:', event, { command, args, exitCode })
         }
       })
     }
@@ -1025,11 +1021,11 @@ export class Kernel implements IKernel {
         const blob = new Blob([fileContents], { type: 'text/javascript' })
         const url = URL.createObjectURL(blob)
         try {
-          this.log?.info(`Loading package ${name} v${version}`)
+          this.log.info(`Loading package ${name} v${version}`)
           const imports = await import(/* @vite-ignore */ url)
           this.packages.set(name, imports as Module)
         } catch (err) {
-          this.log?.error(`Failed to load package ${name} v${version}: ${err}`)
+          this.log.error(`Failed to load package ${name} v${version}: ${err}`)
         } finally {
           URL.revokeObjectURL(url)
         }
@@ -1066,7 +1062,7 @@ export class Kernel implements IKernel {
         const { downlink, effectiveType, rtt, saveData } = navigator.connection as { downlink: number; effectiveType: string; rtt: number; saveData: boolean }
         contents.connection = JSON.stringify({ downlink, effectiveType, rtt, saveData }, null, 2)
       } catch {
-        this.log?.warn('Failed to get connection data')
+        this.log.warn('Failed to get connection data')
       }
     }
 
@@ -1076,7 +1072,7 @@ export class Kernel implements IKernel {
       try {
         await this.filesystem.fs.writeFile(`/proc/${key}`, value ?? new Uint8Array(), { flag: 'w+', mode: 0o777 })
       } catch (error) {
-        this.log?.warn(`Failed to write proc data: ${key}`, error)
+        this.log.warn(`Failed to write proc data: ${key}`, error)
       }
     }
   }
@@ -1133,7 +1129,7 @@ export class Kernel implements IKernel {
       useCredentials(cred)
       result = await operation()
     } catch (error) {
-      this.log?.error(error)
+      this.log.error(error)
     } finally {
       useCredentials(currentCredentials)
     }

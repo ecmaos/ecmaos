@@ -113,7 +113,7 @@ export class Users {
       if (shadowEntry) {
         const [,,, password, publicKey, encryptedPrivateKey] = shadowEntry.split(':')
         if (!publicKey || !encryptedPrivateKey) {
-          kernel.log?.warn(`User ${username} has no keypair`)
+          kernel.log.warn(`User ${username} has no keypair`)
           continue
         }
 
@@ -129,7 +129,7 @@ export class Users {
           keypair
         }, { noWrite: true, noHome: true, noHash: true })
       } else {
-        kernel.log?.warn(`User ${username} not found in /etc/shadow`)
+        kernel.log.warn(`User ${username} not found in /etc/shadow`)
       }
     }
   }
