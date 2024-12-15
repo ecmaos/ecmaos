@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.2.4
+
+### Patch Changes
+
+- 38dec37: Update README; kernel.log is now mandatory; changes to script format
+
 ## 0.2.3
 
 ### Patch Changes

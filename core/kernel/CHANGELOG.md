@@ -1,5 +1,24 @@
 # @ecmaos/kernel
 
+## 0.2.7
+
+### Patch Changes
+
+- 38dec37: Update README; kernel.log is now mandatory; changes to script format
+  - @ecmaos-devices/audio@0.0.2
+  - @ecmaos-devices/battery@0.0.2
+  - @ecmaos-devices/bluetooth@0.0.2
+  - @ecmaos-devices/gamepad@0.0.2
+  - @ecmaos-devices/geo@0.0.2
+  - @ecmaos-devices/gpu@0.0.2
+  - @ecmaos-devices/hid@0.0.2
+  - @ecmaos-devices/midi@0.0.2
+  - @ecmaos-devices/presentation@0.0.2
+  - @ecmaos-devices/sensors@0.0.2
+  - @ecmaos-devices/serial@0.0.2
+  - @ecmaos-devices/usb@0.0.2
+  - @ecmaos-devices/webgl@0.0.2
+
 ## 0.2.6
 
 ### Patch Changes
