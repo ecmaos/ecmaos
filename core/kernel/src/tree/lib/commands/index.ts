@@ -1,10 +1,11 @@
 /**
  * This file represents the commands provided by the terminal itself.
- * 
+ *
  * @remarks
  * TODO: Eventually this will be refactored to have a more consistent (and familiar) CLI interface.
+ * Most of these were slapped together to bootstrap development and test features, and will be refactored.
  * This file is getting large and many larger commands are being moved to their own files or packages.
- * I think simple commands should still be bundled together though, to reduce the need for file jumping.
+ * This will probably eventually lead to a coreutils-type package.
  * Although it looks unweildy, if your editor supports code folding, a simple Fold All makes it much easier to navigate.
  * Looking for a command definition in two places might be annoying, but just use this trick:
  * Ctrl-F "command:" (colon) for the TerminalCommand definition and Ctrl-F "command =" (equals) for the command implementation.
@@ -734,7 +735,7 @@ export const ai = async ({ process, args }: CommandArgs) => {
   return 0
 }
 
-export const cat = async ({ kernel, shell, process, args }: CommandArgs) => {
+export const cat = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   if (!process) return 1
 
   // FIXME: input redirection doesn't work
@@ -814,6 +815,7 @@ export const cat = async ({ kernel, shell, process, args }: CommandArgs) => {
     return 0
   } finally {
     writer.releaseLock()
+    terminal.write('\n')
   }
 }
 

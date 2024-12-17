@@ -9,7 +9,14 @@ import pkg from './package.json'
 
 export default defineConfig({
   plugins: [
-    nodePolyfills({ include: ['module', 'os', 'path'] }),
+    nodePolyfills({
+      protocolImports: true,
+      include: [
+        'assert', 'child_process', 'cluster', 'console', 'constants', 'crypto',
+        'events', 'fs', 'http', 'http2', 'https', 'os', 'path', 'punycode', 'querystring',
+        'stream', 'string_decoder', 'timers', 'timers/promises', 'tty', 'url', 'util', 'vm', 'zlib'
+      ]
+    }),
     i18nextLoader({ namespaceResolution: 'basename', paths: ['locales'] }),
     dts({ rollupTypes: true, exclude: ['src/ui.ts'] })
   ] as ViteUserConfig['plugins'],

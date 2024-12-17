@@ -146,7 +146,7 @@ export class Filesystem {
         const filePath = path.join(extractPath, relativePath)
         await this.fs.writeFile(filePath, binaryData, { encoding: 'binary', mode: 0o644 })
       } catch (error) {
-        console.error(`Failed to extract file ${file.name}: ${error}`) 
+        globalThis.kernel?.terminal.writeln(`Failed to extract file ${file.name}: ${error}`)
       }
     }
   }

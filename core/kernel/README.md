@@ -321,6 +321,7 @@ ecmaOS is currently in active development. It is not considered stable and the s
 
 Things to keep in mind:
 
+- If things go wrong or break, clear your browser cache and site data for ecmaOS
 - Things have changed a lot since the tests were written, so they need to be updated and fixed
 - The kernel is designed to be run in an environment with a DOM (i.e. a browser)
 - Many features are only available on Chromium-based browsers, and many more behind feature flags
@@ -331,6 +332,14 @@ Things to keep in mind:
 ## Development
 
 [Turborepo](https://turbo.build/repo) is used to manage the monorepo, and [pnpm](https://pnpm.io) is used for package management.
+
+PNPM Workspaces:
+
+- [apps](/apps)
+- [core](/core)
+- [devices](/devices)
+- [modules](/modules)
+- [utils](/utils)
 
 A good place to start is viewing the `scripts` property of [package.json](./package.json) in the root of the repository.
 

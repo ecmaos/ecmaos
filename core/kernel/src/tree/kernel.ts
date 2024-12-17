@@ -243,10 +243,88 @@ export class Kernel implements IKernel {
     let spinner
     const t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
 
+    // @ts-expect-error
+    globalThis.process.exit = () => {}
+    globalThis.process.cwd = () => this.shell.cwd
+    globalThis.process.chdir = (dir: string) => {
+      this.shell.cwd = dir
+      localStorage.setItem(`cwd:${this.shell.credentials.uid}`, dir)
+    }
+
     try {
       this.dom.topbar()
       this.terminal.unlisten()
 
+      // TODO: Customize and synchronize with vite.config.ts to allow slimmer builds
+      const polyfills = {
+        assert: await import('node:assert'),
+        child_process: await import('node:child_process'),
+        cluster: await import('node:cluster'),
+        console: await import('node:console'),
+        constants: await import('node:constants'),
+        crypto: await import('node:crypto'),
+        events: await import('node:events'),
+        fs: this.filesystem.fsSync,
+        'fs/promises': this.filesystem.fs,
+        http: await import('node:http'),
+        http2: await import('node:http2'),
+        https: await import('node:https'),
+        os: await import('node:os'),
+        path: await import('node:path'),
+        punycode: await import('node:punycode'),
+        querystring: await import('node:querystring'),
+        stream: await import('node:stream'),
+        string_decoder: await import('node:string_decoder'),
+        timers: await import('node:timers'),
+        timers_promises: await import('node:timers/promises'),
+        tty: await import('node:tty'),
+        url: await import('node:url'),
+        util: await import('node:util'),
+        vm: await import('node:vm'),
+        zlib: await import('node:zlib')
+      }
+
+      polyfills.tty.isatty = () => true
+      globalThis.module = { exports: {} } as NodeModule
+
+      // @ts-expect-error
+      globalThis.requiremap = new Map()
+      // @ts-expect-error
+      globalThis.require = (id: string) => {
+        // TODO: One day, I'm sure a more professional solution will be found
+        // A lot of this complexity is necessary only because of this unfortunate combination of issues:
+        // 1. Using IndexedDB gets unusably slow with lots of files unless disableAsyncCache is true
+        // 2. When disabling sync caching, we lose all synchronous fs methods
+        // 3. Require has to be synchronous
+        if (id.startsWith('node:')) return polyfills[id.replace('node:', '') as keyof typeof polyfills]
+
+        const caller = (new Error()).stack?.split("\n")[2]?.trim().split(" ")[1]
+        const url = caller?.replace(/:\d+:\d+$/, '')
+        if (!id.startsWith('blob:') && url === 'eval' && polyfills[id.includes(':') ? id.split(':')[1] as keyof typeof polyfills : id as keyof typeof polyfills]) {
+          return polyfills[id.includes(':') ? id.split(':')[1] as keyof typeof polyfills : id as keyof typeof polyfills]
+        }
+
+        if (url && (globalThis.requiremap.has(url) || url === 'eval')) {
+          const { code } = globalThis.requiremap.get(id)
+          const cleanCode = code.startsWith('#!') ? code.split('\n').slice(1).join('\n') : code
+          let finalCode = cleanCode
+
+          // const defaultExport = code.match(/module.exports = (.*)/)?.[1]
+          // if (defaultExport) finalCode = finalCode.replace(/module.exports = (.*)/, 'globalThis.module.exports.default = $1')
+          // finalCode = finalCode.replace(/module.exports = (.*)/, 'globalThis.module.exports.default = $1')
+
+          const func = new Function(finalCode)
+          console.log({ func })
+          const result = func.call(globalThis)
+          console.log(result, globalThis.module)
+          return globalThis.module.exports
+        }
+
+        const mod = id.split(':').length > 1 ? id.split(':')[1] : id
+        return polyfills[mod as keyof typeof polyfills]
+      }
+
+      // Setup kernel logging
       this.log.attachTransport((logObj) => {
         if (!logObj?.['_meta']) return
         const acceptedLevels = ['WARN', 'ERROR']
@@ -265,6 +343,7 @@ export class Kernel implements IKernel {
         this.terminal.writeln(logMessage)
       })
 
+      // Show verbose boot messages
       if (!options.silent && this.log) {
         const figletFont = options.figletFontRandom
           ? DefaultFigletFonts[Math.floor(Math.random() * DefaultFigletFonts.length)]
@@ -704,6 +783,8 @@ export class Kernel implements IKernel {
       const blob = new Blob([await this.replaceImports(contents, filePath)], { type: 'text/javascript' })
       const url = URL.createObjectURL(blob)
 
+      let exitCode = -1
+
       try {
         const module = await import(/* @vite-ignore */ url)
         const main = module?.main || module?.default
@@ -722,10 +803,12 @@ export class Kernel implements IKernel {
         })
 
         await process.start()
-        return 0
+        exitCode = 0
       } finally {
         URL.revokeObjectURL(url)
       }
+
+      return exitCode
     } catch (error) {
       this.log.error(`Failed to execute app: ${error}`)
       options.terminal?.writeln(chalk.red((error as Error).message))
@@ -815,6 +898,8 @@ export class Kernel implements IKernel {
    */
   async executeNode(options: KernelExecuteOptions): Promise<number> {
     if (!options.command) return -1
+    let exitCode = -1
+    let url
 
     try {
       const contents = await this.filesystem.fs.readFile(options.command, 'utf-8')
@@ -823,31 +908,39 @@ export class Kernel implements IKernel {
       const binLink = await this.filesystem.fs.readlink(options.command)
       const filePath = path.dirname(binLink)
 
-      const blob = new Blob([await this.replaceImports(contents, filePath)], { type: 'text/javascript' })
-      const url = URL.createObjectURL(blob)
-      const module = await import(/* @vite-ignore */ url)
+      globalThis.process.execPath = '/sbin/ecmanode'
+      globalThis.process.execArgv = []
+      globalThis.process.argv = [globalThis.process.execPath, binLink, ...(options.args || [])]
+      globalThis.process.argv0 = options.command
 
-      const main = module?.main || module?.default
-      if (typeof main !== 'function') throw new Error('No main function found in module')
+      const debugContents = contents.split('\n').map((line, i) => i === 1 ? `debugger\n${line}` : line).join('\n')
+      const finalContents = debugContents
+      // const finalContents = contents
 
-      const process = this.processes.create({
-        args: options.args || [],
+      const code = await this.replaceImports(finalContents, filePath)
+      const blob = new Blob([code], { type: 'text/javascript' })
+      url = URL.createObjectURL(blob)
+
+      globalThis.requiremap.set(url, {
         command: options.command,
-        kernel: this,
-        shell: options.shell || this.shell,
-        terminal: options.terminal || this.terminal,
-        uid: options.shell.credentials.uid,
-        gid: options.shell.credentials.gid,
-        entry: async () => await main()
+        code,
+        filePath,
+        binLink,
+        argv: [...globalThis.process.argv],
+        argv0: globalThis.process.argv0
       })
 
-      await process.start()
-      return 0
+      await import(/* @vite-ignore */ url)
+      exitCode = 0
     } catch (error) {
       this.log.error(`Failed to execute node script: ${error}`)
       this.terminal.writeln(chalk.red((error as Error).message))
-      return -1
+      exitCode = -1
+    } finally {
+      globalThis.requiremap.delete(url)
     }
+
+    return exitCode
   }
 
   /**
@@ -1090,15 +1183,50 @@ export class Kernel implements IKernel {
   async replaceImports(contents: string, packagePath: string): Promise<string> {
     const replacements: Record<string, string> = {}
     const importRegex = /from ['"]([^'"]+)['"]/g
-    const matches = contents.match(importRegex)
-
-    for (const match of matches || []) {
+    const imports = contents.match(importRegex) || []
+    for (const match of imports) {
       const importPath = match.replace(/from ['"]|['"]/g, '')
       const exists = await this.filesystem.fs.exists(`/usr/lib/${path.join(packagePath, importPath)}`)
       if (exists) replacements[match] = `from "${location.protocol}//${location.host}/swapi/fs${path.join(packagePath, importPath)}"`
     }
 
     for (const [match, replacement] of Object.entries(replacements)) contents = contents.replace(match, replacement)
+
+    // process requires
+    const requireRegex = /require\(['"]([^'"]+)['"]\)/g
+    const requires = contents.matchAll(requireRegex) || []
+    for (const match of requires) {
+      const id = match[1]
+      if (!id || !id.startsWith('.')) continue
+
+      const resolvedPath = path.resolve(packagePath, id)
+      const depContents = await this.filesystem.fs.readFile(resolvedPath, 'utf-8')
+      const finalContents = await this.replaceImports(depContents, path.dirname(resolvedPath))
+
+      let depUrl = id
+
+      for (const [key, value] of Object.entries(globalThis.requiremap.entries())) {
+        if ((value as { filePath: string }).filePath === resolvedPath) {
+          depUrl = key
+          break
+        }
+      }
+
+      // // if (!globalThis.requiremap.has(resolvedPath)) {
+      const blob = new Blob([finalContents], { type: 'text/javascript' })
+      depUrl = URL.createObjectURL(blob)
+      globalThis.requiremap.set(depUrl, {
+        code: finalContents,
+        command: 'ecmaos:require',
+        filePath: resolvedPath,
+        binLink: null,
+        argv: [...globalThis.process.argv],
+        argv0: globalThis.process.argv0
+      })
+
+      contents = contents.replace(id, depUrl)
+    }
+
     return contents
   }
 

@@ -18,7 +18,7 @@ const install = async ({ kernel, shell, terminal, args }: CommandArgs) => {
   }
 
   const registry = registryArg || shell.env.get('REGISTRY') || 'https://registry.npmjs.org'
-  const packageName = spec[1]
+  const packageName = spec[1]?.replace('vnpm:', '')
   let version = spec[2] || 'latest'
 
   if (!packageName) {
@@ -103,7 +103,7 @@ const install = async ({ kernel, shell, terminal, args }: CommandArgs) => {
         }
 
         await kernel.filesystem.fs.symlink(binPath, path.join('/usr/bin', packageJson.name))
-        terminal.writeln(chalk.green(`Linked ${packageJson.name} to ${path.join('/usr/bin', packageJson.name)}`))
+        terminal.writeln(chalk.blue(`Linked ${packageJson.name} to ${path.join('/usr/bin', packageJson.name)}`))
       } else if (typeof packageJson.bin === 'object') {
         for (const bin in packageJson.bin) {
           const binPath = path.join('/usr/lib', packageName, version, packageJson.bin[bin])
@@ -113,7 +113,7 @@ const install = async ({ kernel, shell, terminal, args }: CommandArgs) => {
           }
 
           await kernel.filesystem.fs.symlink(binPath, path.join('/usr/bin', bin))
-          terminal.writeln(chalk.green(`Linked ${bin} to ${path.join('/usr/bin', bin)}`))
+          terminal.writeln(chalk.blue(`Linked ${bin} to ${path.join('/usr/bin', bin)}`))
         }
       }
     }
