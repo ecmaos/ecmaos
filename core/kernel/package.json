@@ -22,6 +22,7 @@
     "email": "code@mathis.network"
   },
   "knownIssues": [
+    "It's best to stick to Chromium-based browsers for the most features",
     "Keyboard is broken on mobile; ecmaOS is not mobile-friendly at this time",
     "Don't expect any sort of POSIX compliance at this stage",
     "Most commands/devices are very basic implementations, not complete reproductions",
