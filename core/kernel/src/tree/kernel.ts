@@ -287,7 +287,7 @@ export class Kernel implements IKernel {
         zlib: await import('node:zlib')
       }
 
-      polyfills.tty.isatty = () => true
+      // polyfills.tty.isatty = () => true
       globalThis.module = { exports: {} } as NodeModule
 
       globalThis.requiremap = new Map()
