@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.2.5
+
+### Patch Changes
+
+- 9acd5b4: Basic experimental Node emulation
+
 ## 0.2.4
 
 ### Patch Changes
