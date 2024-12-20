@@ -11,7 +11,6 @@ export default defineConfig({
   plugins: [
     nodePolyfills({
       protocolImports: true,
-      globals: { global: true, process: true },
       include: [
         'assert', 'child_process', 'cluster', 'console', 'constants', 'crypto',
         'events', 'fs', 'http', 'http2', 'https', 'os', 'path', 'punycode', 'querystring',
