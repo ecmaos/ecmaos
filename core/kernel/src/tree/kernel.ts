@@ -14,11 +14,11 @@ import Module from 'node:module'
 import path from 'node:path'
 import semver from 'semver'
 
-import { JSONSchemaForNPMPackageJsonFiles } from '@schemastore/package'
-
-import { Notyf } from 'notyf'
 import { addDevice, CredentialInit, credentials, DeviceDriver, resolveMountConfig, useCredentials } from '@zenfs/core'
 import { Emscripten } from '@zenfs/emscripten'
+import { JSONSchemaForNPMPackageJsonFiles } from '@schemastore/package'
+import { Notyf } from 'notyf'
+import { WebContainer } from '@webcontainer/api'
 
 import './../themes/default.scss'
 import 'notyf/notyf.min.css'
@@ -139,6 +139,8 @@ export class Kernel implements IKernel {
   public readonly channel: BroadcastChannel
   /** Web Components manager */
   public readonly components: Components
+  /** WebContainer instance */
+  public container?: WebContainer
   /** DOM manipulation service */
   public readonly dom: Dom
   /** Map of registered devices and their drivers */
@@ -232,6 +234,8 @@ export class Kernel implements IKernel {
       resolveMountConfig({ backend: Emscripten, FS: biosModule.FS })
         .then(config => this.filesystem.fsSync.mount('/bios', config))
     })
+
+    WebContainer.boot().then(container => this.container = container)
   }
 
   /**
@@ -287,16 +291,16 @@ export class Kernel implements IKernel {
       polyfills.tty.isatty = () => true
       globalThis.module = { exports: {} } as NodeModule
 
-      // @ts-expect-error
       globalThis.requiremap = new Map()
       // @ts-expect-error
       globalThis.require = (id: string) => {
         // TODO: One day, I'm sure a more professional solution will be found
         // A lot of this complexity is necessary only because of this unfortunate combination of issues:
         // 1. Using IndexedDB gets unusably slow with lots of files unless disableAsyncCache is true
-        // 2. When disabling sync caching, we lose all synchronous fs methods
+        // 2. When disabling caching, we lose all synchronous fs methods
         // 3. Require has to be synchronous
         if (id.startsWith('node:')) return polyfills[id.replace('node:', '') as keyof typeof polyfills]
+        if (!globalThis.requiremap) globalThis.requiremap = new Map()
 
         const caller = (new Error()).stack?.split("\n")[2]?.trim().split(" ")[1]
         const url = caller?.replace(/:\d+:\d+$/, '')
@@ -305,23 +309,46 @@ export class Kernel implements IKernel {
         }
 
         if (url && (globalThis.requiremap.has(url) || url === 'eval')) {
-          const { code } = globalThis.requiremap.get(id)
+          const { code } = globalThis.requiremap.get(id)!
           const cleanCode = code.startsWith('#!') ? code.split('\n').slice(1).join('\n') : code
-          let finalCode = cleanCode
-
-          // const defaultExport = code.match(/module.exports = (.*)/)?.[1]
-          // if (defaultExport) finalCode = finalCode.replace(/module.exports = (.*)/, 'globalThis.module.exports.default = $1')
-          // finalCode = finalCode.replace(/module.exports = (.*)/, 'globalThis.module.exports.default = $1')
-
-          const func = new Function(finalCode)
-          console.log({ func })
-          const result = func.call(globalThis)
-          console.log(result, globalThis.module)
+          const func = new Function(cleanCode)
+          func.call(globalThis)
           return globalThis.module.exports
         }
 
         const mod = id.split(':').length > 1 ? id.split(':')[1] : id
         return polyfills[mod as keyof typeof polyfills]
+      }
+
+      // Hacky, but just an initial experiment with node modules
+      const originalConsole = globalThis.console
+      globalThis.console = {
+        ...originalConsole,
+        log: (...args) => {
+          originalConsole.log(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+        },
+        error: (...args) => {
+          originalConsole.error(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(chalk.red(args.join(' ')))
+        },
+        warn: (...args) => {
+          originalConsole.warn(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(chalk.yellow(args.join(' ')))
+        },
+        info: (...args) => {
+          originalConsole.info(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+        },
+        debug: (...args) => {
+          originalConsole.debug(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+        }
       }
 
       // Setup kernel logging
@@ -752,7 +779,7 @@ export class Kernel implements IKernel {
               exitCode = await this.executeScript(options)
               break
             case 'node': // we'll do what we can to try to make it run, but it may fail
-              exitCode = await this.executeNode(options) // TODO: Use WebContainer if possible
+              exitCode = await this.executeNode(options) // TODO: Use WebContainer later if experiments fail
               break
           }; break
       }
@@ -892,6 +919,7 @@ export class Kernel implements IKernel {
    *
    * @remarks
    * Don't expect it to work; this will help develop further emulation layers
+   * We still need to resolve the IndexedDB/sync issues before sync fs calls will work
    *
    * @param options - Execution options containing script path and shell
    * @returns Exit code of the script
@@ -913,19 +941,21 @@ export class Kernel implements IKernel {
       globalThis.process.argv = [globalThis.process.execPath, binLink, ...(options.args || [])]
       globalThis.process.argv0 = options.command
 
-      const debugContents = contents.split('\n').map((line, i) => i === 1 ? `debugger\n${line}` : line).join('\n')
-      const finalContents = debugContents
-      // const finalContents = contents
+      // const debugContents = contents.split('\n').map((line, i) => i === 1 ? `debugger\n${line}` : line).join('\n')
+      // const finalContents = debugContents
+      const finalContents = contents
 
       const code = await this.replaceImports(finalContents, filePath)
       const blob = new Blob([code], { type: 'text/javascript' })
       url = URL.createObjectURL(blob)
+      if (!url) throw new Error('Failed to create object URL')
 
+      if (!globalThis.requiremap) globalThis.requiremap = new Map()
       globalThis.requiremap.set(url, {
-        command: options.command,
         code,
         filePath,
         binLink,
+        command: options.command,
         argv: [...globalThis.process.argv],
         argv0: globalThis.process.argv0
       })
@@ -935,9 +965,11 @@ export class Kernel implements IKernel {
     } catch (error) {
       this.log.error(`Failed to execute node script: ${error}`)
       this.terminal.writeln(chalk.red((error as Error).message))
+      console.error(error)
       exitCode = -1
+      globalThis.requiremap?.delete(url!)
     } finally {
-      globalThis.requiremap.delete(url)
+      URL.revokeObjectURL(url!)
     }
 
     return exitCode
@@ -1193,6 +1225,7 @@ export class Kernel implements IKernel {
     for (const [match, replacement] of Object.entries(replacements)) contents = contents.replace(match, replacement)
 
     // process requires
+    if (!globalThis.requiremap) globalThis.requiremap = new Map()
     const requireRegex = /require\(['"]([^'"]+)['"]\)/g
     const requires = contents.matchAll(requireRegex) || []
     for (const match of requires) {
@@ -1200,28 +1233,24 @@ export class Kernel implements IKernel {
       if (!id || !id.startsWith('.')) continue
 
       const resolvedPath = path.resolve(packagePath, id)
-      const depContents = await this.filesystem.fs.readFile(resolvedPath, 'utf-8')
-      const finalContents = await this.replaceImports(depContents, path.dirname(resolvedPath))
+      const resolvedStat = await this.filesystem.fs.stat(resolvedPath)
+      const finalPath = resolvedStat.isFile() ? resolvedPath : path.resolve(resolvedPath, 'index.js')
+      const depContents = await this.filesystem.fs.readFile(finalPath, 'utf-8')
+      const finalContents = await this.replaceImports(depContents, path.dirname(finalPath))
 
       let depUrl = id
-
-      for (const [key, value] of Object.entries(globalThis.requiremap.entries())) {
-        if ((value as { filePath: string }).filePath === resolvedPath) {
-          depUrl = key
-          break
-        }
+      for (const key of globalThis.requiremap.keys()) {
+        depUrl = key
+        break
       }
 
-      // // if (!globalThis.requiremap.has(resolvedPath)) {
-      const blob = new Blob([finalContents], { type: 'text/javascript' })
-      depUrl = URL.createObjectURL(blob)
       globalThis.requiremap.set(depUrl, {
-        code: finalContents,
         command: 'ecmaos:require',
         filePath: resolvedPath,
-        binLink: null,
+        binLink: '',
         argv: [...globalThis.process.argv],
-        argv0: globalThis.process.argv0
+        argv0: globalThis.process.argv0,
+        code: finalContents
       })
 
       contents = contents.replace(id, depUrl)

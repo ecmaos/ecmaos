@@ -28,7 +28,7 @@
     "build:docs": "typedoc && echo docs.ecmaos.sh > docs/CNAME",
     "build:kernel": "turbo run build --filter=@ecmaos/* --filter=@ecmaos-devices/*",
     "cp:readme": "cp README.md core/kernel/README.md",
-    "dev": "turbo run dev --concurrency=20",
+    "dev": "turbo run dev --filter=@ecmaos/* --concurrency=20",
     "dev:kernel": "turbo run dev --filter=@ecmaos/kernel",
     "dev:docs": "pnpm cp:readme && concurrently nodemon \"pnpx serve -l 30444 ./docs\"",
     "fix": "prettier --write \"**/*.{ts,tsx,md}\"",

@@ -144,7 +144,6 @@
     "vitest": "^2.1.2"
   },
   "dependencies": {
-    "@ecmaos/bios": "workspace:^",
     "@ecmaos-devices/audio": "workspace:^",
     "@ecmaos-devices/battery": "workspace:^",
     "@ecmaos-devices/bluetooth": "workspace:^",
@@ -158,11 +157,12 @@
     "@ecmaos-devices/serial": "workspace:^",
     "@ecmaos-devices/usb": "workspace:^",
     "@ecmaos-devices/webgl": "workspace:^",
+    "@ecmaos/bios": "workspace:^",
     "@gera2ld/tarjs": "^0.3.1",
     "@thi.ng/emoji": "^0.2.3",
     "@thi.ng/text-canvas": "^3.0.41",
     "@thi.ng/text-format": "^2.2.14",
-    "@webcontainer/api": "^1.4.0",
+    "@webcontainer/api": "^1.5.1",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-image": "^0.8.0",
     "@xterm/addon-search": "^0.15.0",
