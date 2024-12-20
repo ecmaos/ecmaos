@@ -141,6 +141,7 @@ The goal is to create a kernel and supporting apps that tie together modern web 
   - Terminal (xterm.js)
   - User Manager
   - WASM Loader
+  - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps
   - Window Manager (WinBox)
   - Workers (Web Workers)
 
@@ -169,6 +170,8 @@ The goal is to create a kernel and supporting apps that tie together modern web 
 
 - Packages are [NPM packages](https://www.npmjs.com) that are installed into the ecmaOS environment
 - They can be installed from the terminal using the `install` command, e.g. `# install jquery`
+- Client-side packages should work well
+- Some basic Node emulation is in place, but don't expect anything to work at this point
 - NPM version specifiers are supported, e.g.:
   - `# install jquery@3.7.1`
   - `# install jquery@^3.7.1`

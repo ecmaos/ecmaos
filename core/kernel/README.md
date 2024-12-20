@@ -141,6 +141,7 @@ The goal is to create a kernel and supporting apps that tie together modern web 
   - Terminal (xterm.js)
   - User Manager
   - WASM Loader
+  - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps
   - Window Manager (WinBox)
   - Workers (Web Workers)
 
@@ -169,6 +170,8 @@ The goal is to create a kernel and supporting apps that tie together modern web 
 
 - Packages are [NPM packages](https://www.npmjs.com) that are installed into the ecmaOS environment
 - They can be installed from the terminal using the `install` command, e.g. `# install jquery`
+- Client-side packages should work well
+- Some basic Node emulation is in place, but don't expect anything to work at this point
 - NPM version specifiers are supported, e.g.:
   - `# install jquery@3.7.1`
   - `# install jquery@^3.7.1`
@@ -199,7 +202,7 @@ The goal is to create a kernel and supporting apps that tie together modern web 
 - `/dev/`: All devices are here
 - `/etc/packages`: A list of installed packages to load on boot
 - `/home/`: Contains user home directories
-- `/proc/`: A directory containing various dynamic system information
+- `/proc/`: Contains various dynamic system information
 - `/root/`: The home directory for the root user
 - `/usr/bin/`: Executable packages get linked here
 - `/usr/lib/`: All installed packages are here
@@ -285,6 +288,13 @@ load /root/hello.js
 echo "Hello, world!"
 install jquery
 ```
+
+## Startup
+
+- `/boot/init` is a script that runs on boot inside the init process (PID 0)
+- `/etc/packages` is a list of already installed packages to load on boot; one per line
+- The env var `VITE_KERNEL_MODULES` is a list of modules to load on boot; CSV with pinned versions
+- The env var `VITE_RECOMMENDED_APPS` is a list of apps to suggest to new users
 
 ## App Development
 
