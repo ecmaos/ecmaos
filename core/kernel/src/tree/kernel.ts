@@ -247,13 +247,12 @@ export class Kernel implements IKernel {
     let spinner
     const t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
 
-    // @ts-expect-error
-    globalThis.process.exit = () => {}
-    globalThis.process.cwd = () => this.shell.cwd
-    globalThis.process.chdir = (dir: string) => {
-      this.shell.cwd = dir
-      localStorage.setItem(`cwd:${this.shell.credentials.uid}`, dir)
-    }
+    // globalThis.process.exit = () => {}
+    // globalThis.process.cwd = () => this.shell.cwd
+    // globalThis.process.chdir = (dir: string) => {
+    //   this.shell.cwd = dir
+    //   localStorage.setItem(`cwd:${this.shell.credentials.uid}`, dir)
+    // }
 
     try {
       this.dom.topbar()
