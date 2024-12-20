@@ -235,7 +235,7 @@ export class Kernel implements IKernel {
         .then(config => this.filesystem.fsSync.mount('/bios', config))
     })
 
-    WebContainer.boot().then(container => this.container = container)
+    // WebContainer.boot().then(container => this.container = container)
   }
 
   /**
