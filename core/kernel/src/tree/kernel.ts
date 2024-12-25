@@ -247,9 +247,10 @@ export class Kernel implements IKernel {
     let spinner
     const t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
 
-    // globalThis.process.exit = () => {}
-    // globalThis.process.cwd = () => this.shell.cwd
-    // globalThis.process.chdir = (dir: string) => {
+    if (!globalThis.process.nextTick) globalThis.process.nextTick = (fn: () => void) => setTimeout(fn, 0)
+    // if (!globalThis.process.exit) globalThis.process.exit = () => {}
+    // if (!globalThis.process.cwd) globalThis.process.cwd = () => this.shell.cwd
+    // if (!globalThis.process.chdir) globalThis.process.chdir = (dir: string) => {
     //   this.shell.cwd = dir
     //   localStorage.setItem(`cwd:${this.shell.credentials.uid}`, dir)
     // }
@@ -287,7 +288,7 @@ export class Kernel implements IKernel {
         zlib: await import('node:zlib')
       }
 
-      // polyfills.tty.isatty = () => true
+      if (polyfills.tty) polyfills.tty.isatty = () => true
       globalThis.module = { exports: {} } as NodeModule
 
       globalThis.requiremap = new Map()

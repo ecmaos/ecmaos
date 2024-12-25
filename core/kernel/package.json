@@ -34,6 +34,7 @@
     "If it ever fails to boot, check your logs or try clearing all data",
     "You can run some devices that offer a CLI - e.g. '/dev/battery --help'",
     "Use the 'install' command to install packages - e.g. 'install @ecmaos-apps/news'",
+    "You can install any NPM package - e.g. 'install jquery'",
     "Use the 'news' command to see the latest news about ecmaOS",
     "Type 'ls /bin' to see all built-in commands"
   ],
