@@ -259,37 +259,37 @@ export class Kernel implements IKernel {
       this.dom.topbar()
       this.terminal.unlisten()
 
+      // Setup polyfills and other features for node compatibility
       // TODO: Customize and synchronize with vite.config.ts to allow slimmer builds
-      const polyfills = {}
-      // const polyfills = {
-      //   assert: await import('node:assert'),
-      //   child_process: await import('node:child_process'),
-      //   cluster: await import('node:cluster'),
-      //   console: await import('node:console'),
-      //   constants: await import('node:constants'),
-      //   crypto: await import('node:crypto'),
-      //   events: await import('node:events'),
-      //   fs: this.filesystem.fsSync,
-      //   'fs/promises': this.filesystem.fs,
-      //   http: await import('node:http'),
-      //   http2: await import('node:http2'),
-      //   https: await import('node:https'),
-      //   os: await import('node:os'),
-      //   path: await import('node:path'),
-      //   punycode: await import('node:punycode'),
-      //   querystring: await import('node:querystring'),
-      //   stream: await import('node:stream'),
-      //   string_decoder: await import('node:string_decoder'),
-      //   timers: await import('node:timers'),
-      //   timers_promises: await import('node:timers/promises'),
-      //   tty: await import('node:tty'),
-      //   url: await import('node:url'),
-      //   util: await import('node:util'),
-      //   vm: await import('node:vm'),
-      //   zlib: await import('node:zlib')
-      // }
+      const polyfills = {
+        assert: await import('node:assert'),
+        child_process: await import('node:child_process'),
+        cluster: await import('node:cluster'),
+        console: await import('node:console'),
+        constants: await import('node:constants'),
+        crypto: await import('node:crypto'),
+        events: await import('node:events'),
+        fs: this.filesystem.fsSync,
+        'fs/promises': this.filesystem.fs,
+        http: await import('node:http'),
+        http2: await import('node:http2'),
+        https: await import('node:https'),
+        os: await import('node:os'),
+        path: await import('node:path'),
+        punycode: await import('node:punycode'),
+        querystring: await import('node:querystring'),
+        stream: await import('node:stream'),
+        string_decoder: await import('node:string_decoder'),
+        timers: await import('node:timers'),
+        timers_promises: await import('node:timers/promises'),
+        tty: await import('node:tty'),
+        url: await import('node:url'),
+        util: await import('node:util'),
+        vm: await import('node:vm'),
+        zlib: await import('node:zlib')
+      }
 
-      // if (polyfills.tty) polyfills.tty.isatty = () => true
+      if (polyfills.tty) polyfills.tty.isatty = () => true
       globalThis.module = { exports: {} } as NodeModule
 
       globalThis.requiremap = new Map()
@@ -322,35 +322,35 @@ export class Kernel implements IKernel {
       }
 
       // Hacky, but just an initial experiment with node modules
-      // const originalConsole = globalThis.console
-      // globalThis.console = {
-      //   ...originalConsole,
-      //   log: (...args) => {
-      //     originalConsole.log(...args)
-      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-      //     if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
-      //   },
-      //   error: (...args) => {
-      //     originalConsole.error(...args)
-      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-      //     if (caller?.includes('blob:')) this.terminal.writeln(chalk.red(args.join(' ')))
-      //   },
-      //   warn: (...args) => {
-      //     originalConsole.warn(...args)
-      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-      //     if (caller?.includes('blob:')) this.terminal.writeln(chalk.yellow(args.join(' ')))
-      //   },
-      //   info: (...args) => {
-      //     originalConsole.info(...args)
-      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-      //     if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
-      //   },
-      //   debug: (...args) => {
-      //     originalConsole.debug(...args)
-      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-      //     if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
-      //   }
-      // }
+      const originalConsole = globalThis.console
+      globalThis.console = {
+        ...originalConsole,
+        log: (...args) => {
+          originalConsole.log(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+        },
+        error: (...args) => {
+          originalConsole.error(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(chalk.red(args.join(' ')))
+        },
+        warn: (...args) => {
+          originalConsole.warn(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(chalk.yellow(args.join(' ')))
+        },
+        info: (...args) => {
+          originalConsole.info(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+        },
+        debug: (...args) => {
+          originalConsole.debug(...args)
+          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+        }
+      }
 
       // Setup kernel logging
       this.log.attachTransport((logObj) => {
