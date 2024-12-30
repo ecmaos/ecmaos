@@ -247,7 +247,7 @@ export class Kernel implements IKernel {
     let spinner
     const t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
 
-    if (!globalThis.process.nextTick) globalThis.process.nextTick = (fn: () => void) => setTimeout(fn, 0)
+    // if (!globalThis.process.nextTick) globalThis.process.nextTick = (fn: () => void) => setTimeout(fn, 0)
     // if (!globalThis.process.exit) globalThis.process.exit = () => {}
     // if (!globalThis.process.cwd) globalThis.process.cwd = () => this.shell.cwd
     // if (!globalThis.process.chdir) globalThis.process.chdir = (dir: string) => {
@@ -321,35 +321,35 @@ export class Kernel implements IKernel {
       }
 
       // Hacky, but just an initial experiment with node modules
-      const originalConsole = globalThis.console
-      globalThis.console = {
-        ...originalConsole,
-        log: (...args) => {
-          originalConsole.log(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
-        },
-        error: (...args) => {
-          originalConsole.error(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(chalk.red(args.join(' ')))
-        },
-        warn: (...args) => {
-          originalConsole.warn(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(chalk.yellow(args.join(' ')))
-        },
-        info: (...args) => {
-          originalConsole.info(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
-        },
-        debug: (...args) => {
-          originalConsole.debug(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
-        }
-      }
+      // const originalConsole = globalThis.console
+      // globalThis.console = {
+      //   ...originalConsole,
+      //   log: (...args) => {
+      //     originalConsole.log(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+      //   },
+      //   error: (...args) => {
+      //     originalConsole.error(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(chalk.red(args.join(' ')))
+      //   },
+      //   warn: (...args) => {
+      //     originalConsole.warn(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(chalk.yellow(args.join(' ')))
+      //   },
+      //   info: (...args) => {
+      //     originalConsole.info(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+      //   },
+      //   debug: (...args) => {
+      //     originalConsole.debug(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+      //   }
+      // }
 
       // Setup kernel logging
       this.log.attachTransport((logObj) => {
