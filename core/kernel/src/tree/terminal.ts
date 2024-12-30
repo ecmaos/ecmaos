@@ -55,7 +55,7 @@ export enum CommandPath {
 }
 
 export const DefaultTerminalOptions: TerminalOptions = {
-  fontFamily: 'FiraCode Nerd Font Mono',
+  fontFamily: 'FiraCode Nerd Font Mono, Ubuntu Mono, courier-new, courier, monospace',
   fontSize: 16,
   smoothScrollDuration: 100,
   convertEol: true,
