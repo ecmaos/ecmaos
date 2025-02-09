@@ -399,7 +399,8 @@ export class Kernel implements IKernel {
           const loadedFont = await import('figlet/importable-fonts/Poison.js')
           figlet.parseFont(figletFont || 'Poison', loadedFont.default)
           logoFiglet = figlet.textSync(import.meta.env['FIGLET_TEXT'] || 'ECMAOS', { font: figletFont as keyof typeof figlet.fonts })
-          this.terminal.writeln(colorFiglet(figletColor, logoFiglet))
+          // TODO: Fancier detection of figlet width and terminal width
+          if (document.body.clientWidth >= 650) this.terminal.writeln(colorFiglet(figletColor, logoFiglet))
         } catch (error) {
           this.log.error(`Failed to load figlet font ${figletFont}: ${(error as Error).message}`)
         }
