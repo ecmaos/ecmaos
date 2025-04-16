@@ -9,13 +9,13 @@
  */
 
 import { TFunction } from 'i18next'
-import { configure, fs, InMemory, DeviceFS, credentials } from '@zenfs/core'
+import { configure, fs, InMemory, DeviceFS } from '@zenfs/core'
 import { IndexedDB } from '@zenfs/dom'
 import { TarReader } from '@gera2ld/tarjs'
 import pako from 'pako'
 import path from 'path'
 
-import type { ConfigMounts, Credentials, MountConfiguration } from '@zenfs/core'
+import type { ConfigMounts, Credentials } from '@zenfs/core'
 
 import type {
   FilesystemConfigMounts,
@@ -26,14 +26,15 @@ export const DefaultFilesystemOptions: FilesystemOptions<FilesystemConfigMounts>
   uid: 0,
   gid: 0,
   addDevices: true,
-  cachePaths: false,
-  cacheStats: false,
   disableAccessChecks: false,
   disableAsyncCache: true,
-  disableUpdateOnRead: false,
   onlySyncOnClose: false,
+  log: {
+    level: 'debug',
+    enabled: true
+  },
   mounts: {
-    '/': { backend: IndexedDB, storeName: 'root' } as MountConfiguration<IndexedDB>,
+    '/': { backend: IndexedDB, name: 'root' },
     '/media': { backend: InMemory, name: 'media' },
     '/mnt': { backend: InMemory, name: 'mnt' },
     '/proc': { backend: InMemory, name: 'procfs' },
@@ -67,7 +68,7 @@ export class Filesystem {
   /**
    * @returns The filesystem credentials.
    */
-  get credentials(): Credentials { return credentials }
+  // get credentials(): Credentials { return credentials }
 
   /**
    * @returns {DeviceFS} The device filesystem.
