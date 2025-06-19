@@ -18,7 +18,7 @@ export type FilesystemMountConfiguration<T extends Backend<FileSystem>> = MountC
 /**
  * Options for configuring the filesystem
  */
-export type FilesystemOptions<T extends FilesystemConfigMounts> = Configuration<T>
+export type FilesystemOptions<T extends FilesystemConfigMounts> = Configuration<T> & MountConfiguration<any>
 
 /**
  * Represents a path in the filesystem
@@ -56,15 +56,15 @@ export interface Filesystem {
   /** Get filesystem constants */
   readonly constants: any
   /** Get filesystem credentials */
-  readonly credentials: any
+  // readonly credentials: any
   /** Get the device filesystem */
-  readonly devfs: any
+  // readonly devfs: any
   /** Get the asynchronous filesystem instance */
   readonly fs: any
   /** Get the synchronous filesystem instance */
   readonly fsSync: any
   /** Get mounted filesystems */
-  readonly mounts: Map<string, any>
+  // readonly mounts: Map<string, any>
 
   /**
    * Configure the filesystem

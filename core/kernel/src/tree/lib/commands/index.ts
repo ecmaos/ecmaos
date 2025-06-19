@@ -24,9 +24,9 @@ import path from 'path'
 // import * as jose from 'jose'
 import * as zipjs from '@zip.js/zip.js'
 
-import { createCredentials, Fetch, InMemory, resolveMountConfig, useCredentials, Stats } from '@zenfs/core'
+import { bindContext, createCredentials, Fetch, InMemory, resolveMountConfig, Stats } from '@zenfs/core'
 import { IndexedDB } from '@zenfs/dom'
-import { Zip } from '@zenfs/archives'
+// import { Zip } from '@zenfs/archives'
 
 import {
   KernelEvents,
@@ -1330,8 +1330,8 @@ export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
   }
 
   // TODO: .mounts is deprecated - find a proper way
-  const mounts = Array.from(kernel.filesystem.fsSync.mounts.entries() as [string, FileSystem][])
-    .filter(([target]) => path.dirname(target) === fullPath && target !== '/')
+  // const mounts = Array.from(kernel.filesystem.fsSync.mounts.entries() as [string, FileSystem][])
+  //   .filter(([target]) => path.dirname(target) === fullPath && target !== '/')
 
   const filesMap = await Promise.all(entries
     .map(async entry => {
@@ -1351,11 +1351,11 @@ export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
 
   const directories = directoryMap
     .filter(entry => entry.stats.isDirectory())
-    .concat(mounts.map(([target]) => ({
-      target,
-      name: path.basename(target),
-      stats: { isDirectory: () => true, mtime: new Date(), mode: 0o755 } as Stats
-    })))
+    // .concat(mounts.map(([target]) => ({
+    //   target,
+    //   name: path.basename(target),
+    //   stats: { isDirectory: () => true, mtime: new Date(), mode: 0o755 } as Stats
+    // })))
     .filter((entry, index, self) => self.findIndex(e => e?.name === entry?.name) === index)
     .filter((entry): entry is NonNullable<typeof entry> => entry !== null && entry !== undefined)
 
@@ -1368,13 +1368,13 @@ export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
         getTimestampString(directory.stats.mtime),
         getModeString(directory.stats),
         getOwnerString(directory.stats),
-        (() => {
-          const mount = mounts.find(([target]) => target.endsWith(`/${directory.name}`))
-          // TODO: store does not exist on FileSystem (but we can access it here)
-          // @ts-ignore
-          if (mount) return chalk.white(`(${mount[1].store?.constructor.name || mount[1].constructor.name}/${mount[1].metadata().name})`)
-          return descriptions.get(path.resolve(fullPath, directory.name)) || ''
-        })()
+        // (() => {
+        //   const mount = mounts.find(([target]) => target.endsWith(`/${directory.name}`))
+        //   // TODO: store does not exist on FileSystem (but we can access it here)
+        //   // @ts-ignore
+        //   if (mount) return chalk.white(`(${mount[1].store?.constructor.name || mount[1].constructor.name}/${mount[1].metadata().name})`)
+        //   return descriptions.get(path.resolve(fullPath, directory.name)) || ''
+        // })()
       ]
     }),
     ...files.sort((a, b) => a.name.localeCompare(b.name)).map(file => {
@@ -1390,11 +1390,11 @@ export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
           if (ext && descriptions.has('.' + ext)) return descriptions.get('.' + ext)
           if (file.stats.isBlockDevice() || file.stats.isCharacterDevice()) {
             // TODO: zenfs `fs.mounts` is deprecated - use a better way of getting device info
-            const device = kernel.filesystem.devfs.devices.get(`/${file.name}`)
-            const kdevice = kernel.devices.get(file.name)
-            const description = kdevice?.device.pkg?.description || ''
-            const version = kdevice?.device.pkg?.version || ''
-            if (device) return `${description ? `${description}:` : ''}${version ? `v${version}:` : ''}M${device.major ?? '?'},m${device.minor ?? '?'}`
+            // const device = kernel.filesystem.devfs.devices.get(`/${file.name}`)
+            // const kdevice = kernel.devices.get(file.name)
+            // const description = kdevice?.device.pkg?.description || ''
+            // const version = kdevice?.device.pkg?.version || ''
+            // if (device) return `${description ? `${description}:` : ''}${version ? `v${version}:` : ''}M${device.major ?? '?'},m${device.minor ?? '?'}`
           }
 
           return ''
@@ -1461,13 +1461,13 @@ export const mount = async ({ kernel, shell, terminal, args }: CommandArgs) => {
 
   switch (type.toLowerCase()) {
     case 'fetch':
-      kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: Fetch, index: fullSourcePath, baseUrl: (options as { baseUrl?: string })?.baseUrl })); break
+      kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: Fetch, index: fullSourcePath, baseUrl: (options as { baseUrl?: string })?.baseUrl || '' })); break
     case 'indexeddb':
       kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: IndexedDB, storeName: fullSourcePath })); break
     case 'memory':
-      kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: InMemory, name: fullSourcePath })); break
-    case 'zip':
-      kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: Zip, name: fullSourcePath, data: new Uint8Array(await kernel.filesystem.fs.readFile(fullSourcePath)).buffer })); break
+      kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: InMemory })); break
+    // case 'zip': // TODO: fix issue with @zenfs/archives (bundler renaming Function.name?)
+    //   kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: Zip, name: fullSourcePath, data: new Uint8Array(await kernel.filesystem.fs.readFile(fullSourcePath)).buffer })); break
   }
 
   return 0
@@ -1877,9 +1877,8 @@ export const su = async ({ kernel, shell, terminal, args }: CommandArgs) => {
     return 1
   }
 
-  shell.credentials = createCredentials(user)
-  useCredentials(shell.credentials)
-
+  shell.context = bindContext({ root: '/', pwd: '/', credentials: user })
+  shell.credentials = createCredentials({ uid: user.uid, gid: user.gid, suid: currentUser.uid, sgid: currentUser.gid, euid: user.uid, egid: user.gid, groups: user.groups })
   terminal.promptTemplate = `{user}:{cwd}${user.uid === 0 ? '#' : '$'} `
 }
 

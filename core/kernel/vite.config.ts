@@ -53,6 +53,10 @@ export default defineConfig({
       }
     }
   },
+  esbuild: {
+    minifyIdentifiers: false,
+    keepNames: true
+  },
   build: {
     sourcemap: true,
     minify: false,

@@ -14,7 +14,7 @@ import Module from 'node:module'
 import path from 'node:path'
 import semver from 'semver'
 
-import { addDevice, CredentialInit, credentials, DeviceDriver, resolveMountConfig, useCredentials } from '@zenfs/core'
+import { addDevice, bindContext, Credentials, DeviceDriver, resolveMountConfig } from '@zenfs/core'
 import { Emscripten } from '@zenfs/emscripten'
 import { JSONSchemaForNPMPackageJsonFiles } from '@schemastore/package'
 import { Notyf } from 'notyf'
@@ -229,11 +229,11 @@ export class Kernel implements IKernel {
     this.workers = new Workers()
 
     this.shell.attach(this.terminal)
-    createBIOS().then((biosModule: BIOSModule) => {
-      this.bios = biosModule
-      resolveMountConfig({ backend: Emscripten, FS: biosModule.FS })
-        .then(config => this.filesystem.fsSync.mount('/bios', config))
-    })
+    // createBIOS().then((biosModule: BIOSModule) => {
+    //   this.bios = biosModule
+    //   resolveMountConfig({ backend: Emscripten, FS: biosModule.FS })
+    //     .then(config => this.filesystem.fsSync.mount('/bios', config))
+    // })
 
     // WebContainer.boot().then(container => this.container = container)
   }
@@ -381,8 +381,8 @@ export class Kernel implements IKernel {
             
 
         const figletColor = options.figletColor
-        || getComputedStyle(document.documentElement).getPropertyValue('--figlet-color').trim()
-        || '#00FF00'
+          || getComputedStyle(document.documentElement).getPropertyValue('--figlet-color').trim()
+          || '#00FF00'
 
         const colorFiglet = (color: string, text: string) => {
           const rgb = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/)
@@ -552,7 +552,7 @@ export class Kernel implements IKernel {
       if (this.options.credentials) {
         const { cred } = await this.users.login(this.options.credentials.username, this.options.credentials.password)
         this.shell.credentials = cred
-        useCredentials(cred)
+        this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
       } else {
         if (import.meta.env['VITE_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold('Default Login: root / root\n'))
 
@@ -577,7 +577,7 @@ export class Kernel implements IKernel {
             const password = await this.terminal.readline(`🔒  ${this.i18n.t('Password')}: `, true)
             const { cred } = await this.users.login(username, password)
             this.shell.credentials = cred
-            useCredentials(cred)
+            this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
             break
           } catch (err) {
             console.error(err)
@@ -1279,18 +1279,21 @@ export class Kernel implements IKernel {
    */
   private async sudo<T>(
     operation: () => Promise<T>,
-    cred: CredentialInit = { uid: 0, gid: 0 }
+    cred: Credentials = { uid: 0, gid: 0, suid: 0, sgid: 0, euid: 0, egid: 0, groups: [] }
   ): Promise<T | undefined> {
-    const currentCredentials = { ...credentials }
+    const currentCredentials = { ...this.shell.credentials }
+    const currentContext = { ...this.shell.context }
     let result: T | undefined
 
     try {
-      useCredentials(cred)
+      this.shell.credentials = cred
+      this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
       result = await operation()
     } catch (error) {
       this.log.error(error)
     } finally {
-      useCredentials(currentCredentials)
+      this.shell.credentials = currentCredentials
+      this.shell.context = currentContext
     }
 
     return result

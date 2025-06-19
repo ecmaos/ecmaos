@@ -13,6 +13,6 @@
   "devDependencies": {
     "@ecmaos/config-typescript": "workspace:^",
     "@ecmaos/types": "workspace:^",
-    "@zenfs/core": "^1.6.6"
+    "@zenfs/core": "^2.1.0"
   }
 }

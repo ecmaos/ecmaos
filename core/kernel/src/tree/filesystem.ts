@@ -9,13 +9,13 @@
  */
 
 import { TFunction } from 'i18next'
-import { configure, fs, InMemory, DeviceFS } from '@zenfs/core'
+import { configure, fs, InMemory } from '@zenfs/core'
 import { IndexedDB } from '@zenfs/dom'
 import { TarReader } from '@gera2ld/tarjs'
 import pako from 'pako'
 import path from 'path'
 
-import type { ConfigMounts, Credentials } from '@zenfs/core'
+import type { ConfigMounts } from '@zenfs/core'
 
 import type {
   FilesystemConfigMounts,
@@ -31,10 +31,10 @@ export const DefaultFilesystemOptions: FilesystemOptions<FilesystemConfigMounts>
   onlySyncOnClose: false,
   log: {
     level: 'debug',
-    enabled: true
+    enabled: false
   },
   mounts: {
-    '/': { backend: IndexedDB, name: 'root' },
+    '/': { backend: IndexedDB, storeName: 'root' },
     '/media': { backend: InMemory, name: 'media' },
     '/mnt': { backend: InMemory, name: 'mnt' },
     '/proc': { backend: InMemory, name: 'procfs' },
@@ -74,7 +74,7 @@ export class Filesystem {
    * @returns {DeviceFS} The device filesystem.
    * @remarks Remove or replace this; zenfs.mounts is deprecated.
    */
-  get devfs(): DeviceFS { return this._fs.mounts.get('/dev') as DeviceFS }
+  // get devfs(): DeviceFS { return this._fs.mounts.get('/dev') as DeviceFS }
 
   /**
    * @returns {ZenFS.fs.promises} The asynchronous ZenFS filesystem instance.
@@ -90,7 +90,7 @@ export class Filesystem {
    * @returns {ZenFS.mounts} The mounted filesystems.
    * @remarks Remove or replace this; zenfs.mounts is deprecated.
    */
-  get mounts(): typeof fs.mounts { return this._fs.mounts }
+  // get mounts(): typeof fs.mounts { return this._fs.mounts }
 
   /**
    * Configures the filesystem with the given options.
