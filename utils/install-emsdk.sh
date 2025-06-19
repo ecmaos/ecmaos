@@ -4,14 +4,14 @@ set -e
 
 echo "Installing Emscripten SDK (emsdk)..."
 
-if [ -d "emsdk" ]; then
+if [ -d "$HOME/emsdk" ]; then
     echo "emsdk directory already exists, updating..."
-    cd emsdk
+    cd "$HOME/emsdk"
     git pull
 else
     echo "Cloning emsdk repository..."
-    git clone https://github.com/emscripten-core/emsdk.git
-    cd emsdk
+    git clone https://github.com/emscripten-core/emsdk.git "$HOME/emsdk"
+    cd "$HOME/emsdk"
 fi
 
 echo "Installing latest SDK tools..."

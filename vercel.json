@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm build",
+  "installCommand": "yum -y install gcc-c++ cairo-devel pango-devel libjpeg-turbo-devel giflib-devel && pnpm install && ./utils/install-emsdk.sh",
+  "outputDirectory": "core/kernel/dist"
+}
