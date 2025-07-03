@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  canvas: Automattic/node-canvas#master
+
 pnpmfileChecksum: g5t73guyf72fmho4hxqmeb6yt4
 
 importers:

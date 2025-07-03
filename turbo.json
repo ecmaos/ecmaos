@@ -6,7 +6,13 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"],
-      "env": ["EMSDK"]
+      "env": [
+        "EMSDK",
+        "VITE_RECOMMENDED_APPS",
+        "VITE_APP_SHOW_DEFAULT_LOGIN", 
+        "TURBO_TEAM",
+        "SKIP_BUILD_BIOS"
+      ]
     },
     "dev": {
       "cache": false,
