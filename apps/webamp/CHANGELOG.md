@@ -1,13 +1,7 @@
-# @ecmaos-apps/code
+# @ecmaos-apps/webamp
 
 ## 0.2.0
 
 ### Minor Changes
 
 - ae313df: updated zenfs; proper shell contexts; device updates; fixes
-
-## 0.1.1
-
-### Patch Changes
-
-- f5e173c: add code editor app; misc improvements

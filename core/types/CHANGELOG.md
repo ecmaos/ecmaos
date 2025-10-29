@@ -1,5 +1,16 @@
 # @ecmaos/types
 
+## 0.3.0
+
+### Minor Changes
+
+- ae313df: updated zenfs; proper shell contexts; device updates; fixes
+
+### Patch Changes
+
+- Updated dependencies [ae313df]
+  - @ecmaos/bios@0.2.0
+
 ## 0.2.5
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @ecmaos-apps/boilerplate
 
+## 0.2.0
+
+### Minor Changes
+
+- ae313df: updated zenfs; proper shell contexts; device updates; fixes
+
 ## 0.1.2
 
 ### Patch Changes

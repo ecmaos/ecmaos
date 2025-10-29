@@ -1,5 +1,29 @@
 # @ecmaos/kernel
 
+## 0.4.0
+
+### Minor Changes
+
+- ae313df: updated zenfs; proper shell contexts; device updates; fixes
+
+### Patch Changes
+
+- Updated dependencies [ae313df]
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos/bios@0.2.0
+
 ## 0.2.8
 
 ### Patch Changes

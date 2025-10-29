@@ -1,6 +1,6 @@
 {
   "name": "@ecmaos/swapi",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "EcmaOS Service Worker API",
   "author": "Jay Mathis <code@mathis.network>",
   "type": "module",
