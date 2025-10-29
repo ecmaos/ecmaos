@@ -601,6 +601,7 @@ export class Terminal extends XTerm implements ITerminal {
         const matches = await this.getCompletionMatches(this._lastTabCommand) // Use original command for matches
         if (this._cmd.endsWith('/')) { // show possible entries in directory
           const path = this._cmd.split(' ').slice(-1)[0]
+          if (!path) break
           if (!(await this._kernel.filesystem.fs.exists(path))) break
           await this.write('\n')
           await this._shell.execute(`ls ${path}`)
