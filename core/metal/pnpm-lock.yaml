@@ -7,8 +7,6 @@ settings:
 overrides:
   cross-spawn: '>=7.0.5'
 
-pnpmfileChecksum: sha256-Zzw6AUu2SJputeGoAFT8YK9JWXNZcYWS/QbYOLDEi5E=
-
 importers:
 
   .:
@@ -18,13 +16,13 @@ importers:
         version: 9.1.0
       '@hono/node-server':
         specifier: ^1.13.2
-        version: 1.13.2(hono@4.6.7)
+        version: 1.13.2(hono@4.10.3)
       '@hono/node-ws':
         specifier: ^1.0.4
-        version: 1.0.4(@hono/node-server@1.13.2(hono@4.6.7))
+        version: 1.0.4(@hono/node-server@1.13.2(hono@4.10.3))
       hono:
         specifier: ^4.6.7
-        version: 4.6.7
+        version: 4.10.3
       jose:
         specifier: ^5.9.6
         version: 5.9.6
@@ -194,6 +192,7 @@ packages:
   '@faker-js/faker@9.1.0':
     resolution: {integrity: sha512-GJvX9iM9PBtKScJVlXQ0tWpihK3i0pha/XAhzQa1hPK/ILLa1Wq3I63Ij7lRtqTwmdTxRCyrUhLC5Sly9SLbug==}
     engines: {node: '>=18.0.0', npm: '>=9.0.0'}
+    deprecated: Please update to a newer version
 
   '@hono/node-server@1.13.2':
     resolution: {integrity: sha512-0w8nEmAyx0Ul0CQp8BL2VtAG4YVdpzXd/mvvM+l0G5Oq22pUyHS+KeFFPSY+czLOF5NAiV3MUNPD1n14Ol5svg==}
@@ -377,8 +376,8 @@ packages:
     resolution: {integrity: sha512-sKJf1+ceQBr4SMkvQnBDNDtf4TXpVhVGateu0t918bl30FnbE2m4vNLX+VWe/dpjlb+HugGYzW7uQXH98HPEYw==}
     engines: {node: '>=4'}
 
-  hono@4.6.7:
-    resolution: {integrity: sha512-wX4ZbOnzfNO61hUjuQbJ7OPGs1fWXXVVJ8VTPDb2Ls/x9HjCbVTm80Je6VTHMz5n5RGDtBgV9d9ZFZxBqx56ng==}
+  hono@4.10.3:
+    resolution: {integrity: sha512-2LOYWUbnhdxdL8MNbNg9XZig6k+cZXm5IjHn2Aviv7honhBMOHb+jxrKIeJRZJRmn+htUCKhaicxwXuUDlchRA==}
     engines: {node: '>=16.9.0'}
 
   http-cache-semantics@4.1.1:
@@ -778,13 +777,13 @@ snapshots:
 
   '@faker-js/faker@9.1.0': {}
 
-  '@hono/node-server@1.13.2(hono@4.6.7)':
+  '@hono/node-server@1.13.2(hono@4.10.3)':
     dependencies:
-      hono: 4.6.7
+      hono: 4.10.3
 
-  '@hono/node-ws@1.0.4(@hono/node-server@1.13.2(hono@4.6.7))':
+  '@hono/node-ws@1.0.4(@hono/node-server@1.13.2(hono@4.10.3))':
     dependencies:
-      '@hono/node-server': 1.13.2(hono@4.6.7)
+      '@hono/node-server': 1.13.2(hono@4.10.3)
       ws: 8.18.0
     transitivePeerDependencies:
       - bufferutil
@@ -997,7 +996,7 @@ snapshots:
 
   has-flag@3.0.0: {}
 
-  hono@4.6.7: {}
+  hono@4.10.3: {}
 
   http-cache-semantics@4.1.1: {}
 
