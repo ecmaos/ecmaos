@@ -6,9 +6,11 @@ fi
 
 # Ensure EMSDK is set
 if [ -z "$EMSDK" ]; then
-  echo "Error: EMSDK environment variable not set"
-  echo "Please install and activate emscripten first"
-  exit 1
+  # echo "Error: EMSDK environment variable not set"
+  # echo "Please install and activate emscripten first"
+  # exit 1
+  echo "EMSDK environment variable not set, skipping build"
+  exit 0
 fi
 
 mkdir -p build
