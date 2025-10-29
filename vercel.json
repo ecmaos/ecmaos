@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "source ~/emsdk/emsdk_env.sh && pnpm build",
+  "buildCommand": "source ~/emsdk/emsdk_env.sh ; pnpm build",
   "installCommand": "yum -y install gcc-c++ cairo-devel pango-devel libjpeg-turbo-devel giflib-devel && pnpm install && ./utils/install-emsdk.sh",
   "outputDirectory": "core/kernel/dist"
 }
