@@ -2,18 +2,13 @@
  * Filesystem types and interfaces
  */
 
-import type { Backend, Configuration, ConfigMounts, FileSystem, MountConfiguration } from '@zenfs/core'
+import type { Configuration, ConfigMounts, fs } from '@zenfs/core'
 import type { TFunction } from 'i18next'
 
 /**
  * Type alias for filesystem mount configurations
  */
 export type FilesystemConfigMounts = ConfigMounts
-
-/**
- * Type alias for filesystem mount configuration with generic backend
- */
-export type FilesystemMountConfiguration<T extends Backend<FileSystem>> = MountConfiguration<T>
 
 /**
  * Options for configuring the filesystem
@@ -56,15 +51,15 @@ export interface Filesystem {
   /** Get filesystem constants */
   readonly constants: any
   /** Get filesystem credentials */
-  readonly credentials: any
+  // readonly credentials: any
   /** Get the device filesystem */
-  readonly devfs: any
+  // readonly devfs: any
   /** Get the asynchronous filesystem instance */
-  readonly fs: any
+  readonly fs: typeof fs.promises
   /** Get the synchronous filesystem instance */
-  readonly fsSync: any
+  readonly fsSync: typeof fs
   /** Get mounted filesystems */
-  readonly mounts: Map<string, any>
+  // readonly mounts: Map<string, any>
 
   /**
    * Configure the filesystem

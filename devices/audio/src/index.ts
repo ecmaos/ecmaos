@@ -1,5 +1,5 @@
-import type { DeviceDriver, DeviceFile } from '@zenfs/core'
-import type { Kernel, KernelDeviceCLIOptions, KernelDeviceData } from '@ecmaos/types'
+import type { DeviceDriver, Device } from '@zenfs/core'
+import type { Kernel, KernelDeviceCLIOptions, KernelDeviceData, Shell } from '@ecmaos/types'
 
 interface AudioDeviceData extends KernelDeviceData {
   context?: AudioContext
@@ -33,7 +33,7 @@ Commands:
 
   switch (options.args[0]) {
     case 'test':
-      await test(options.kernel)
+      await test(options.kernel, options.shell)
       break
     default:
       options.terminal.writeln(`Unknown command: ${options.args[0]}`)
@@ -44,7 +44,7 @@ Commands:
   return 0
 }
 
-async function test(kernel: Kernel) {
+async function test(kernel: Kernel, shell: Shell) {
   const sampleRate = 44100
   const noteLength = 0.25  // 250ms for regular notes
   const shortNoteLength = 0.125  // 125ms for shorter notes
@@ -136,7 +136,7 @@ async function test(kernel: Kernel) {
 
   try {
     kernel.terminal.writeln('Playing test beeps...')
-    const fd = await kernel.filesystem.fs.open('/dev/audio', 'w', 0o666)
+    const fd = await shell.context.fs.promises.open('/dev/audio', 'w', 0o666)
     await fd.write(finalBuffer)
     await fd.close()
   } catch (error) {
@@ -161,8 +161,8 @@ export async function getDrivers(kernel: Kernel): Promise<DeviceDriver<AudioDevi
         context: new AudioContext()
       } 
     }),
-    read: (file: DeviceFile, buffer: ArrayBufferView, offset: number, length: number) => {
-      const deviceData = file.device.data as AudioDeviceData
+    read: (file: Device<AudioDeviceData>, buffer: ArrayBufferView, offset: number, length: number) => {
+      const deviceData = file.data
       if (!deviceData.context) return 0
 
       try {
@@ -206,13 +206,12 @@ export async function getDrivers(kernel: Kernel): Promise<DeviceDriver<AudioDevi
         return 0
       }
     },
-    write: (file: DeviceFile, buffer: ArrayBufferView, offset: number, length: number) => {
-      const deviceData = file.device.data as AudioDeviceData
+    write: (file: Device<AudioDeviceData>, buffer: Uint8Array, offset: number) => {
+      const deviceData = file.data
       if (!deviceData.context) return 0
 
       try {
-        const view = new Uint8Array(buffer.buffer)
-        const tempBuffer = view.slice(offset, offset + length)
+        const tempBuffer = buffer.slice(offset)
         const audioData = new ArrayBuffer(tempBuffer.length)
         new Uint8Array(audioData).set(tempBuffer)
         
@@ -230,8 +229,7 @@ export async function getDrivers(kernel: Kernel): Promise<DeviceDriver<AudioDevi
             console.error('Audio decoding error:', error)
           }
         )
-        
-        return length
+        return audioData.byteLength
       } catch (error) {
         console.error('Audio playback error:', error)
         return 0

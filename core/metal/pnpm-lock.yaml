@@ -7,8 +7,6 @@ settings:
 overrides:
   cross-spawn: '>=7.0.5'
 
-pnpmfileChecksum: g5t73guyf72fmho4hxqmeb6yt4
-
 importers:
 
   .:

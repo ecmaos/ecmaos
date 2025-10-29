@@ -7,6 +7,11 @@ import dts from 'vite-plugin-dts'
 
 import pkg from './package.json'
 
+const xterm = pkg.dependencies['@xterm/xterm']
+const xtermVersion = xterm.replace('^', '').replace('~', '')
+const zenfs = pkg.dependencies['@zenfs/core']
+const zenfsVersion = zenfs.replace('^', '').replace('~', '')
+
 export default defineConfig({
   plugins: [
     nodePolyfills({
@@ -24,6 +29,8 @@ export default defineConfig({
   define: {
     'import.meta.env.NAME': JSON.stringify(pkg.name),
     'import.meta.env.VERSION': JSON.stringify(pkg.version),
+    'import.meta.env.XTERM_VERSION': JSON.stringify(xtermVersion),
+    'import.meta.env.ZENFS_VERSION': JSON.stringify(zenfsVersion),
     'import.meta.env.DESCRIPTION': JSON.stringify(pkg.description),
     'import.meta.env.HOMEPAGE': JSON.stringify(pkg.homepage),
     'import.meta.env.REPOSITORY': JSON.stringify(pkg.repository),
@@ -52,6 +59,10 @@ export default defineConfig({
         api: 'modern-compiler'
       }
     }
+  },
+  esbuild: {
+    minifyIdentifiers: false,
+    keepNames: true
   },
   build: {
     sourcemap: true,

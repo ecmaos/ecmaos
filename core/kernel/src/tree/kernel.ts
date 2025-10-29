@@ -14,8 +14,8 @@ import Module from 'node:module'
 import path from 'node:path'
 import semver from 'semver'
 
-import { addDevice, CredentialInit, credentials, DeviceDriver, resolveMountConfig, useCredentials } from '@zenfs/core'
-import { Emscripten } from '@zenfs/emscripten'
+import { addDevice, bindContext, Credentials, DeviceDriver } from '@zenfs/core'
+// import { Emscripten } from '@zenfs/emscripten'
 import { JSONSchemaForNPMPackageJsonFiles } from '@schemastore/package'
 import { Notyf } from 'notyf'
 import { WebContainer } from '@webcontainer/api'
@@ -44,7 +44,7 @@ import { Wasm } from '#wasm.ts'
 import { Windows } from '#windows.ts'
 import { Workers } from '#workers.ts'
 
-import createBIOS, { BIOSModule } from '@ecmaos/bios'
+// import createBIOS, { BIOSModule } from '@ecmaos/bios'
 import { TerminalCommands } from '#lib/commands/index.js'
 
 import {
@@ -134,7 +134,7 @@ export class Kernel implements IKernel {
   /** Authentication and authorization service */
   public readonly auth: Auth
   /** BIOS module providing low-level functionality */
-  public bios?: BIOSModule
+  // public bios?: BIOSModule
   /** Broadcast channel for inter-kernel communication */
   public readonly channel: BroadcastChannel
   /** Web Components manager */
@@ -229,11 +229,11 @@ export class Kernel implements IKernel {
     this.workers = new Workers()
 
     this.shell.attach(this.terminal)
-    createBIOS().then((biosModule: BIOSModule) => {
-      this.bios = biosModule
-      resolveMountConfig({ backend: Emscripten, FS: biosModule.FS })
-        .then(config => this.filesystem.fsSync.mount('/bios', config))
-    })
+    // createBIOS().then((biosModule: BIOSModule) => {
+    //   this.bios = biosModule
+    //   resolveMountConfig({ backend: Emscripten, FS: biosModule.FS })
+    //     .then(config => this.filesystem.fsSync.mount('/bios', config))
+    // })
 
     // WebContainer.boot().then(container => this.container = container)
   }
@@ -247,6 +247,7 @@ export class Kernel implements IKernel {
     let spinner
     const t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
 
+    // TODO: Remnants of experiments - to clean up or resume later
     // if (!globalThis.process.nextTick) globalThis.process.nextTick = (fn: () => void) => setTimeout(fn, 0)
     // if (!globalThis.process.exit) globalThis.process.exit = () => {}
     // if (!globalThis.process.cwd) globalThis.process.cwd = () => this.shell.cwd
@@ -261,96 +262,96 @@ export class Kernel implements IKernel {
 
       // Setup polyfills and other features for node compatibility
       // TODO: Customize and synchronize with vite.config.ts to allow slimmer builds
-      const polyfills = {
-        assert: await import('node:assert'),
-        child_process: await import('node:child_process'),
-        cluster: await import('node:cluster'),
-        console: await import('node:console'),
-        constants: await import('node:constants'),
-        crypto: await import('node:crypto'),
-        events: await import('node:events'),
-        fs: this.filesystem.fsSync,
-        'fs/promises': this.filesystem.fs,
-        http: await import('node:http'),
-        http2: await import('node:http2'),
-        https: await import('node:https'),
-        os: await import('node:os'),
-        path: await import('node:path'),
-        punycode: await import('node:punycode'),
-        querystring: await import('node:querystring'),
-        stream: await import('node:stream'),
-        string_decoder: await import('node:string_decoder'),
-        timers: await import('node:timers'),
-        timers_promises: await import('node:timers/promises'),
-        tty: await import('node:tty'),
-        url: await import('node:url'),
-        util: await import('node:util'),
-        vm: await import('node:vm'),
-        zlib: await import('node:zlib')
-      }
+      // const polyfills = {
+      //   assert: await import('node:assert'),
+      //   child_process: await import('node:child_process'),
+      //   cluster: await import('node:cluster'),
+      //   console: await import('node:console'),
+      //   constants: await import('node:constants'),
+      //   crypto: await import('node:crypto'),
+      //   events: await import('node:events'),
+      //   fs: this.filesystem.fsSync,
+      //   'fs/promises': this.filesystem.fs,
+      //   http: await import('node:http'),
+      //   http2: await import('node:http2'),
+      //   https: await import('node:https'),
+      //   os: await import('node:os'),
+      //   path: await import('node:path'),
+      //   punycode: await import('node:punycode'),
+      //   querystring: await import('node:querystring'),
+      //   stream: await import('node:stream'),
+      //   string_decoder: await import('node:string_decoder'),
+      //   timers: await import('node:timers'),
+      //   timers_promises: await import('node:timers/promises'),
+      //   tty: await import('node:tty'),
+      //   url: await import('node:url'),
+      //   util: await import('node:util'),
+      //   vm: await import('node:vm'),
+      //   zlib: await import('node:zlib')
+      // }
 
-      // if (polyfills.tty) polyfills.tty.isatty = () => true
-      globalThis.module = { exports: {} } as NodeModule
+      // // if (polyfills.tty) polyfills.tty.isatty = () => true
+      // globalThis.module = { exports: {} } as NodeModule
 
-      globalThis.requiremap = new Map()
-      // @ts-expect-error
-      globalThis.require = (id: string) => {
-        // TODO: One day, I'm sure a more professional solution will be found
-        // A lot of this complexity is necessary only because of this unfortunate combination of issues:
-        // 1. Using IndexedDB gets unusably slow with lots of files unless disableAsyncCache is true
-        // 2. When disabling caching, we lose all synchronous fs methods
-        // 3. Require has to be synchronous
-        if (id.startsWith('node:')) return polyfills[id.replace('node:', '') as keyof typeof polyfills]
-        if (!globalThis.requiremap) globalThis.requiremap = new Map()
+      // globalThis.requiremap = new Map()
+      // // @ts-expect-error
+      // globalThis.require = (id: string) => {
+      //   // TODO: One day, I'm sure a more professional solution will be found
+      //   // A lot of this complexity is necessary only because of this unfortunate combination of issues:
+      //   // 1. Using IndexedDB gets unusably slow with lots of files unless disableAsyncCache is true
+      //   // 2. When disabling caching, we lose all synchronous fs methods
+      //   // 3. Require has to be synchronous
+      //   if (id.startsWith('node:')) return polyfills[id.replace('node:', '') as keyof typeof polyfills]
+      //   if (!globalThis.requiremap) globalThis.requiremap = new Map()
 
-        const caller = (new Error()).stack?.split("\n")[2]?.trim().split(" ")[1]
-        const url = caller?.replace(/:\d+:\d+$/, '')
-        if (!id.startsWith('blob:') && url === 'eval' && polyfills[id.includes(':') ? id.split(':')[1] as keyof typeof polyfills : id as keyof typeof polyfills]) {
-          return polyfills[id.includes(':') ? id.split(':')[1] as keyof typeof polyfills : id as keyof typeof polyfills]
-        }
+      //   const caller = (new Error()).stack?.split("\n")[2]?.trim().split(" ")[1]
+      //   const url = caller?.replace(/:\d+:\d+$/, '')
+      //   if (!id.startsWith('blob:') && url === 'eval' && polyfills[id.includes(':') ? id.split(':')[1] as keyof typeof polyfills : id as keyof typeof polyfills]) {
+      //     return polyfills[id.includes(':') ? id.split(':')[1] as keyof typeof polyfills : id as keyof typeof polyfills]
+      //   }
 
-        if (url && (globalThis.requiremap.has(url) || url === 'eval')) {
-          const { code } = globalThis.requiremap.get(id)!
-          const cleanCode = code.startsWith('#!') ? code.split('\n').slice(1).join('\n') : code
-          const func = new Function(cleanCode)
-          func.call(globalThis)
-          return globalThis.module.exports
-        }
+      //   if (url && (globalThis.requiremap.has(url) || url === 'eval')) {
+      //     const { code } = globalThis.requiremap.get(id)!
+      //     const cleanCode = code.startsWith('#!') ? code.split('\n').slice(1).join('\n') : code
+      //     const func = new Function(cleanCode)
+      //     func.call(globalThis)
+      //     return globalThis.module.exports
+      //   }
 
-        const mod = id.split(':').length > 1 ? id.split(':')[1] : id
-        return polyfills[mod as keyof typeof polyfills]
-      }
+      //   const mod = id.split(':').length > 1 ? id.split(':')[1] : id
+      //   return polyfills[mod as keyof typeof polyfills]
+      // }
 
-      // Hacky, but just an initial experiment with node modules
-      const originalConsole = globalThis.console
-      globalThis.console = {
-        ...originalConsole,
-        log: (...args) => {
-          originalConsole.log(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
-        },
-        error: (...args) => {
-          originalConsole.error(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(chalk.red(args.join(' ')))
-        },
-        warn: (...args) => {
-          originalConsole.warn(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(chalk.yellow(args.join(' ')))
-        },
-        info: (...args) => {
-          originalConsole.info(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
-        },
-        debug: (...args) => {
-          originalConsole.debug(...args)
-          const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
-          if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
-        }
-      }
+      // // Hacky, but just an initial experiment with node modules
+      // const originalConsole = globalThis.console
+      // globalThis.console = {
+      //   ...originalConsole,
+      //   log: (...args) => {
+      //     originalConsole.log(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+      //   },
+      //   error: (...args) => {
+      //     originalConsole.error(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(chalk.red(args.join(' ')))
+      //   },
+      //   warn: (...args) => {
+      //     originalConsole.warn(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(chalk.yellow(args.join(' ')))
+      //   },
+      //   info: (...args) => {
+      //     originalConsole.info(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+      //   },
+      //   debug: (...args) => {
+      //     originalConsole.debug(...args)
+      //     const caller = (new Error()).stack //?.split("\n")[2]?.trim().split(" ")[1]
+      //     if (caller?.includes('blob:')) this.terminal.writeln(args.join(' '))
+      //   }
+      // }
 
       // Setup kernel logging
       this.log.attachTransport((logObj) => {
@@ -381,8 +382,8 @@ export class Kernel implements IKernel {
             
 
         const figletColor = options.figletColor
-        || getComputedStyle(document.documentElement).getPropertyValue('--figlet-color').trim()
-        || '#00FF00'
+          || getComputedStyle(document.documentElement).getPropertyValue('--figlet-color').trim()
+          || '#00FF00'
 
         const colorFiglet = (color: string, text: string) => {
           const rgb = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/)
@@ -405,7 +406,15 @@ export class Kernel implements IKernel {
           this.log.error(`Failed to load figlet font ${figletFont}: ${(error as Error).message}`)
         }
 
-        this.terminal.writeln(`${this.terminal.createSpecialLink(import.meta.env['HOMEPAGE'], import.meta.env['NAME'] || 'ecmaOS')} v${import.meta.env['VERSION']}`)
+        const dependencyLinks = [
+          { name: '@xterm/xterm', link: this.terminal.createSpecialLink('https://github.com/xtermjs/xterm.js', '@xterm/xterm') + `@${import.meta.env['XTERM_VERSION']}` },
+          { name: '@zen-fs/core', link: this.terminal.createSpecialLink('https://github.com/zen-fs/core', '@zenfs/core') + `@${import.meta.env['ZENFS_VERSION']}` },
+        ]
+
+        this.terminal.writeln(
+          `${this.terminal.createSpecialLink(import.meta.env['HOMEPAGE'], import.meta.env['NAME'] || 'ecmaOS')}@${import.meta.env['VERSION']}`
+          + chalk.cyan(` [${dependencyLinks.map(link => link.link).join(', ')}]`))
+
         this.terminal.writeln(`${t('kernel.madeBy', 'Made with ❤️  by Jay Mathis')} ${this.terminal.createSpecialLink(
           import.meta.env['AUTHOR']?.url || 'https://github.com/mathiscode',
           `${import.meta.env['AUTHOR']?.name} <${import.meta.env['AUTHOR']?.email}>`
@@ -449,7 +458,7 @@ export class Kernel implements IKernel {
         '/bin', '/sbin', '/boot', '/proc', '/tmp', '/home', '/lib', '/run', '/root', '/opt', '/sys',
         '/etc', '/etc/opt',
         '/var', '/var/cache', '/var/lib', '/var/log', '/var/spool', '/var/tmp', '/var/lock', '/var/opt', '/var/games',
-        '/usr', '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/include', '/usr/local'
+        '/usr', '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/licenses', '/usr/include', '/usr/local'
       ]
 
       const specialPermissions: Record<string, number> = {
@@ -552,7 +561,7 @@ export class Kernel implements IKernel {
       if (this.options.credentials) {
         const { cred } = await this.users.login(this.options.credentials.username, this.options.credentials.password)
         this.shell.credentials = cred
-        useCredentials(cred)
+        this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
       } else {
         if (import.meta.env['VITE_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold('Default Login: root / root\n'))
 
@@ -565,19 +574,21 @@ export class Kernel implements IKernel {
           second: '2-digit'
         }).format(new Date())}`)
 
+        // Display issue file if it exists
         const issue = await this.filesystem.fs.exists('/etc/issue')
           ? await this.filesystem.fs.readFile('/etc/issue', 'utf-8')
           : null
 
         if (issue) this.terminal.writeln(issue)
 
+        // Main login loop
         while (true) {
           try {
             const username = await this.terminal.readline(`👤  ${this.i18n.t('Username')}: `)
             const password = await this.terminal.readline(`🔒  ${this.i18n.t('Password')}: `, true)
             const { cred } = await this.users.login(username, password)
             this.shell.credentials = cred
-            useCredentials(cred)
+            this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
             break
           } catch (err) {
             console.error(err)
@@ -586,6 +597,7 @@ export class Kernel implements IKernel {
         }
       }
 
+      // Display motd if it exists
       const motd = await this.filesystem.fs.exists('/etc/motd')
         ? await this.filesystem.fs.readFile('/etc/motd', 'utf-8')
         : null
@@ -1279,18 +1291,21 @@ export class Kernel implements IKernel {
    */
   private async sudo<T>(
     operation: () => Promise<T>,
-    cred: CredentialInit = { uid: 0, gid: 0 }
+    cred: Credentials = { uid: 0, gid: 0, suid: 0, sgid: 0, euid: 0, egid: 0, groups: [] }
   ): Promise<T | undefined> {
-    const currentCredentials = { ...credentials }
+    const currentCredentials = { ...this.shell.credentials }
+    const currentContext = { ...this.shell.context }
     let result: T | undefined
 
     try {
-      useCredentials(cred)
+      this.shell.credentials = cred
+      this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
       result = await operation()
     } catch (error) {
       this.log.error(error)
     } finally {
-      useCredentials(currentCredentials)
+      this.shell.credentials = currentCredentials
+      this.shell.context = currentContext
     }
 
     return result

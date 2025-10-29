@@ -2,7 +2,7 @@
  * Shell types and interfaces
  */
 
-import type { Credentials } from '@zenfs/core'
+import type { BoundContext, Credentials } from '@zenfs/core'
 import type { Kernel } from './kernel.ts'
 import type { Terminal } from './terminal.ts'
 
@@ -38,6 +38,8 @@ export interface Shell {
   readonly id: string
   /** Current user's credentials */
   credentials: Credentials
+  /** Shell context */
+  context: BoundContext
   /** Current username */
   readonly username: string
 

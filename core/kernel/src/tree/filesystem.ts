@@ -9,36 +9,38 @@
  */
 
 import { TFunction } from 'i18next'
-import { configure, fs, InMemory, DeviceFS, credentials } from '@zenfs/core'
+import { configure as configureZenFS, fs, InMemory } from '@zenfs/core'
 import { IndexedDB } from '@zenfs/dom'
 import { TarReader } from '@gera2ld/tarjs'
 import pako from 'pako'
 import path from 'path'
 
-import type { ConfigMounts, Credentials, MountConfiguration } from '@zenfs/core'
+import type { ConfigMounts, Configuration } from '@zenfs/core'
 
 import type {
   FilesystemConfigMounts,
   FilesystemOptions
 } from '@ecmaos/types'
 
-export const DefaultFilesystemOptions: FilesystemOptions<FilesystemConfigMounts> = {
+export const DefaultFilesystemOptions: Configuration<ConfigMounts> = {
   uid: 0,
   gid: 0,
   addDevices: true,
-  cachePaths: false,
-  cacheStats: false,
+  defaultDirectories: true,
   disableAccessChecks: false,
-  disableAsyncCache: true,
-  disableUpdateOnRead: false,
+  disableAsyncCache: false,
   onlySyncOnClose: false,
+  log: {
+    level: 'debug',
+    enabled: false
+  },
   mounts: {
-    '/': { backend: IndexedDB, storeName: 'root' } as MountConfiguration<IndexedDB>,
-    '/media': { backend: InMemory, name: 'media' },
-    '/mnt': { backend: InMemory, name: 'mnt' },
-    '/proc': { backend: InMemory, name: 'procfs' },
-    '/tmp': { backend: InMemory, name: 'tmpfs' }
-  }
+    '/': { backend: IndexedDB, options: { storeName: 'root' } },
+    '/media': { backend: InMemory, options: { name: 'media' } },
+    '/mnt': { backend: InMemory, options: { name: 'mnt' } },
+    '/proc': { backend: InMemory, options: { name: 'procfs' } },
+    '/tmp': { backend: InMemory, options: { name: 'tmpfs' } }
+  },
 }
 
 /**
@@ -51,7 +53,7 @@ export const DefaultFilesystemOptions: FilesystemOptions<FilesystemConfigMounts>
  *
  */
 export class Filesystem {
-  private _config: FilesystemOptions<ConfigMounts> = DefaultFilesystemOptions
+  private _config: Configuration<ConfigMounts> = DefaultFilesystemOptions
   private _fs: typeof fs = fs
 
   /**
@@ -67,13 +69,13 @@ export class Filesystem {
   /**
    * @returns The filesystem credentials.
    */
-  get credentials(): Credentials { return credentials }
+  // get credentials(): Credentials { return credentials }
 
   /**
    * @returns {DeviceFS} The device filesystem.
    * @remarks Remove or replace this; zenfs.mounts is deprecated.
    */
-  get devfs(): DeviceFS { return this._fs.mounts.get('/dev') as DeviceFS }
+  // get devfs(): DeviceFS { return this._fs.mounts.get('/dev') as DeviceFS }
 
   /**
    * @returns {ZenFS.fs.promises} The asynchronous ZenFS filesystem instance.
@@ -89,17 +91,33 @@ export class Filesystem {
    * @returns {ZenFS.mounts} The mounted filesystems.
    * @remarks Remove or replace this; zenfs.mounts is deprecated.
    */
-  get mounts(): typeof fs.mounts { return this._fs.mounts }
+  // get mounts(): typeof fs.mounts { return this._fs.mounts }
 
   /**
    * Configures the filesystem with the given options.
    * @param {FilesystemOptions} options - The options for the filesystem.
    * @returns {Promise<void>} A promise that resolves when the filesystem is configured.
    */
-  async configure(options: Partial<FilesystemOptions<ConfigMounts>>) {
+  async configure(options: Partial<Configuration<ConfigMounts>>) {
     if (!options) return
-    this._config = options as FilesystemOptions<ConfigMounts>
-    await configure(options)
+    this._config = options as Configuration<ConfigMounts>
+    const store = await indexedDB.databases()
+    await configureZenFS(options)
+
+    if (store.length === 0 && import.meta.env['VITE_INITFS']) {
+      try {
+        const response = await fetch(import.meta.env['VITE_INITFS'])
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+        const arrayBuffer = await response.arrayBuffer()
+        // The browser will likely automatically decompress the tarball; either way, extractTarball will handle it
+        await this.fs.writeFile('/tmp/initfs.tar', new Uint8Array(arrayBuffer))
+        await this.extractTarball('/tmp/initfs.tar', '/')
+        await this.fs.unlink('/tmp/initfs.tar')
+      } catch (error) {
+        globalThis.kernel?.log.error(`Failed to fetch ${import.meta.env['VITE_INITFS']}: ${error}`)
+        console.error(error)
+      }
+    }
   }
 
   /**
@@ -117,12 +135,19 @@ export class Filesystem {
    * Extracts a tarball to the given path.
    * @param {string} tarballPath - The path to the tarball.
    * @param {string} extractPath - The path to extract the tarball to.
+   * @param {number} fileMode - The mode to set for files. Defaults to 0o644.
+   * @param {number} directoryMode - The mode to set for directories. Defaults to 0o755.
    * @returns {Promise<void>} A promise that resolves when the tarball is extracted.
    */
-  async extractTarball(tarballPath: string, extractPath: string) {
+  async extractTarball(tarballPath: string, extractPath: string, fileMode: number = 0o644, directoryMode: number = 0o755) {
     const tarball = await this.fs.readFile(tarballPath)
-    const decompressed = pako.ungzip(tarball)
-    const tar = await TarReader.load(decompressed)
+    
+    // Check if the file is gzipped by looking at the magic bytes
+    const isGzipped = tarball.length >= 2 && tarball[0] === 0x1f && tarball[1] === 0x8b
+    
+    // Only decompress if the file is actually gzipped
+    const tarData = isGzipped ? pako.ungzip(tarball) : tarball
+    const tar = await TarReader.load(tarData)
 
     const hasPackageDir = tar.fileInfos.some(file => file.name.startsWith('package/'))
     const stripPrefix = hasPackageDir ? 'package/' : ''
@@ -135,16 +160,16 @@ export class Filesystem {
 
       try {
         if (relativePath.endsWith('/')) {
-          await this.fs.mkdir(path.join(extractPath, relativePath), { mode: 0o755, recursive: true })
+          await this.fs.mkdir(path.join(extractPath, relativePath), { mode: directoryMode, recursive: true })
           continue
         }
 
-        await this.fs.mkdir(path.join(extractPath, path.dirname(relativePath)), { mode: 0o755, recursive: true })
+        await this.fs.mkdir(path.join(extractPath, path.dirname(relativePath)), { mode: directoryMode, recursive: true })
 
         const blob = tar.getFileBlob(file.name)
         const binaryData = await blob.arrayBuffer().then(buffer => new Uint8Array(buffer))
         const filePath = path.join(extractPath, relativePath)
-        await this.fs.writeFile(filePath, binaryData, { encoding: 'binary', mode: 0o644 })
+        await this.fs.writeFile(filePath, binaryData, { encoding: 'binary', mode: fileMode })
       } catch (error) {
         globalThis.kernel?.terminal.writeln(`Failed to extract file ${file.name}: ${error}`)
       }
@@ -157,7 +182,7 @@ export class Filesystem {
    * @returns {FilesystemOptions} The filesystem options with the given extensions.
    *
    */
-  static options<T extends ConfigMounts>(extensions?: Partial<FilesystemOptions<T>>): FilesystemOptions<T> {
+  static options<T extends FilesystemConfigMounts>(extensions?: Partial<FilesystemOptions<T>>): FilesystemOptions<T> {
     return {
       ...DefaultFilesystemOptions,
       ...(extensions || {})

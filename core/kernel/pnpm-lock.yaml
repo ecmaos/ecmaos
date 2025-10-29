@@ -86,17 +86,17 @@ importers:
         specifier: ^5.5.0
         version: 5.5.0
       '@zenfs/archives':
-        specifier: ^1.0.0
-        version: 1.0.0(@zenfs/core@1.6.6)
+        specifier: ^1.3.1
+        version: 1.3.1(@zenfs/core@2.4.2)(kerium@1.3.4)(memium@0.3.10)(utilium@2.5.7)
       '@zenfs/core':
-        specifier: ^1.6.6
-        version: 1.6.6
+        specifier: ^2.4.2
+        version: 2.4.2
       '@zenfs/dom':
-        specifier: ^1.0.7
-        version: 1.0.7(@zenfs/core@1.6.6)
+        specifier: ^1.2.5
+        version: 1.2.5(@zenfs/core@2.4.2)(kerium@1.3.4)(utilium@2.5.7)
       '@zenfs/emscripten':
-        specifier: ^1.0.0
-        version: 1.0.0(@zenfs/core@1.6.6)
+        specifier: ^1.0.5
+        version: 1.0.5(@zenfs/core@2.4.2)(kerium@1.3.4)(utilium@2.5.7)
       '@zip.js/zip.js':
         specifier: ^2.7.52
         version: 2.7.53
@@ -1081,17 +1081,14 @@ packages:
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
-  '@types/node@22.10.1':
-    resolution: {integrity: sha512-qKgsUwfHZV2WCWLAnVP1JqnpE6Im6h3Y0+fYgMTasNQ7V++CBX5OT1as0g0f+OyubbFqhf6XVNIsmN4IIhEgGQ==}
-
   '@types/node@22.9.1':
     resolution: {integrity: sha512-p8Yy/8sw1caA8CdRIQBG5tiLHmxtQKObCijiAa9Ez+d4+PRffM4054xbju0msf+cvhJpnFEeNjxmVT/0ipktrg==}
 
+  '@types/node@24.9.1':
+    resolution: {integrity: sha512-QoiaXANRkSXK6p0Duvt56W208du4P9Uye9hWLWgGMDTEoKPhuenzNcC4vGUmrNkiOKTlIrBoyNQYNpSwfEZXSg==}
+
   '@types/pako@2.0.3':
     resolution: {integrity: sha512-bq0hMV9opAcrmE0Byyo0fY3Ew4tgOevJmQ9grUhpXQhYfyLJ1Kqg3P33JT5fdbT2AjeAjR51zqqVjAL/HMkx7Q==}
-
-  '@types/readable-stream@4.0.18':
-    resolution: {integrity: sha512-21jK/1j+Wg+7jVw1xnSwy/2Q1VgVjWuFssbYGTREPUBeZ+rqVFl2udq0IkxzPC0ZhOzVceUbyIACFZKLqKEBlA==}
 
   '@types/semver@7.5.8':
     resolution: {integrity: sha512-I8EUhyrgfLrcTkzV3TSsGyl1tSuPrEDzr0yd5m90UgNxQkyDXULk3b6MlQqTCpZpNtWe1K0hzclnZkTcLBe2UQ==}
@@ -1146,9 +1143,6 @@ packages:
 
   '@types/webrtc@0.0.44':
     resolution: {integrity: sha512-4BJZdzrApNFeuXgucyqs24k69f7oti3wUcGEbFbaV08QBh7yEe3tnRRuYXlyXJNXiumpZujiZqUZZ2/gMSeO0g==}
-
-  '@types/wicg-file-system-access@2020.9.8':
-    resolution: {integrity: sha512-ggMz8nOygG7d/stpH40WVaNvBwuyYLnrg5Mbyf6bmsj/8+gb6Ei4ZZ9/4PNpcPNTT8th9Q8sM8wYmWGjMWLX/A==}
 
   '@types/winbox@0.2.5':
     resolution: {integrity: sha512-9GdE6bwyg55eqmUbv4PChLjCp3pz/IS57NYwT5+c9r7EM6/tqi2iXpUoSeTDPgoBKDrq2mzdk5YU/Z9aTBWJfw==}
@@ -1357,28 +1351,35 @@ packages:
   '@zeit/schemas@2.36.0':
     resolution: {integrity: sha512-7kjMwcChYEzMKjeex9ZFXkt1AyNov9R5HZtjBKVsmVpw7pa7ZtlCGvCBC2vnnXctaYN+aRI61HjIqeetZW5ROg==}
 
-  '@zenfs/archives@1.0.0':
-    resolution: {integrity: sha512-PpnWHnUYjf02DwS3Cpl+cTG01njITve54xFdnro4AbJfk9mLHXotqw1ejvRlRHeiBirLROs2bIpbCnQ4PbhbsA==}
-    engines: {node: '>= 18'}
+  '@zenfs/archives@1.3.1':
+    resolution: {integrity: sha512-Ot6B2PSjkquFHijjONZresmITQfh4kj5dRpnFbssZs9uIrX6GzzqGnsP3EZ2DiS4qIjvmLk5ed/oIMiIb/ZmCw==}
+    engines: {node: '>= 20'}
     peerDependencies:
-      '@zenfs/core': ^1.4.2
+      '@zenfs/core': ^2.4.2
+      kerium: ^1.3.4
+      memium: ^0.3.8
+      utilium: ^2.5.0
 
-  '@zenfs/core@1.6.6':
-    resolution: {integrity: sha512-dciOscuQfElSyS2pZJwhJ0EoKNxYsn227hwXmZi+gcAmaupcHdBuAS52QA8iYmZR58PjhOljRAJAhWsXFpMsdQ==}
-    engines: {node: '>= 16'}
+  '@zenfs/core@2.4.2':
+    resolution: {integrity: sha512-vqSX3Og0vz92uUkC2/FTZTp8zoP+5A0ZRyUKpdxBmpBASJsaM/2xEeYtT+OTfv5RVxgAGFnaK4g2EzBST6KOYA==}
+    engines: {node: '>= 18'}
     hasBin: true
 
-  '@zenfs/dom@1.0.7':
-    resolution: {integrity: sha512-kCdM1C9yBBVMK3YJKeTUv5WBVt2RipvYtDvUN6bRQ83jkRkluKJht+IBgT8twp8yaLbv+IYV798q+n9WEc829A==}
-    engines: {node: '>= 18'}
+  '@zenfs/dom@1.2.5':
+    resolution: {integrity: sha512-DdQzmROGvgen3JmBVdovnaIyAexPPlCNJ5Tb0e48N8W9TQJA5IuVsBgohBKGwDiGEDPquEMxzoycFD4RC6kjzA==}
+    engines: {node: '>= 22'}
     peerDependencies:
-      '@zenfs/core': ^1.6.4
+      '@zenfs/core': ^2.3.11
+      kerium: ^1.3.4
+      utilium: ^2.5.0
 
-  '@zenfs/emscripten@1.0.0':
-    resolution: {integrity: sha512-QvxoqmXNRnVRnKlliDNu/hBaIMeDYGkP4PHoxOzeVyY0J3Mah/I0wzG1S+atWynld6g7Y+H64HwsOjrlMPY5wA==}
+  '@zenfs/emscripten@1.0.5':
+    resolution: {integrity: sha512-pesd+hvOSwUtmSA6/0mCDCx0HmMPJiYZjOzTfIhwX9lX0F126ZoohpHdoAuwY30WFFNw4rKeiKos+aII4RkTjg==}
     engines: {node: '>= 18'}
     peerDependencies:
-      '@zenfs/core': ^1.3.0
+      '@zenfs/core': ^2.4.2
+      kerium: ^1.3.4
+      utilium: ^2.5.0
 
   '@zip.js/zip.js@2.7.53':
     resolution: {integrity: sha512-G6Bl5wN9EXXVaTUIox71vIX5Z454zEBe+akKpV4m1tUboIctT5h7ID3QXCJd/Lfy2rSvmkTmZIucf1jGRR4f5A==}
@@ -2094,10 +2095,6 @@ packages:
       picomatch:
         optional: true
 
-  fetch-blob@3.2.0:
-    resolution: {integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==}
-    engines: {node: ^12.20 || >= 14.13}
-
   fflate@0.8.2:
     resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
 
@@ -2109,10 +2106,6 @@ packages:
   file-entry-cache@8.0.0:
     resolution: {integrity: sha512-XXTUwCvisa5oacNGRP9SfNtYBNAMi+RPwBFmblZEF7N7swHYQS6/Zfk7SRwx4D5j3CH211YNRco1DEMNVfZCnQ==}
     engines: {node: '>=16.0.0'}
-
-  file-system-access@1.0.4:
-    resolution: {integrity: sha512-JDlhH+gJfZu/oExmtN4/6VX+q1etlrbJbR5uzoBa4BzfTRQbEXGFuGIBRk3ZcPocko3WdEclZSu+d/SByjG6Rg==}
-    engines: {node: '>=14'}
 
   fill-range@7.1.1:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
@@ -2508,6 +2501,9 @@ packages:
   jsonfile@4.0.0:
     resolution: {integrity: sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg==}
 
+  kerium@1.3.4:
+    resolution: {integrity: sha512-kRfgAw4qAVNm2h1w7vlSRSgVGn0ICke/seBaQ9J0Iaxs6ZkMNiXwWnMO4EUrOs37FUhvR4KCbrKE2CM2JCB/Ew==}
+
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
@@ -2596,6 +2592,9 @@ packages:
 
   mdurl@2.0.0:
     resolution: {integrity: sha512-Lf+9+2r+Tdp5wXDXC4PcIBjTDtq4UKjCPMQhKIuzpJNW0b96kVqSwW0bT7FhRSfmAiFYgP+SCRvdrDozfh0U5w==}
+
+  memium@0.3.10:
+    resolution: {integrity: sha512-7LdicWe1tGBLrstNXdcH1Wh2iiAC4u8eU/iGuBvoVAkG20qU2d8bQk3/y40FIrM6mk5N+hpiqFI7PmOlR1hNOg==}
 
   merge-stream@2.0.0:
     resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
@@ -2751,10 +2750,6 @@ packages:
   negotiator@0.6.3:
     resolution: {integrity: sha512-+EUsqGPLsM+j/zdChZjsnX51g4XrHFOIXwfnCVPGlQk/k5giakcKsuxCObBRu6DSm9opw/O6slWbJdghQM4bBg==}
     engines: {node: '>= 0.6'}
-
-  node-domexception@1.0.0:
-    resolution: {integrity: sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==}
-    engines: {node: '>=10.5.0'}
 
   node-emoji@2.1.3:
     resolution: {integrity: sha512-E2WEOVsgs7O16zsURJ/eH8BqhF029wGpEOnv7Urwdo2wmQanOACwJQh0devF9D9RhoZru0+9JXIS0dBXIAz+lA==}
@@ -3647,8 +3642,8 @@ packages:
   undici-types@6.19.8:
     resolution: {integrity: sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw==}
 
-  undici-types@6.20.0:
-    resolution: {integrity: sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg==}
+  undici-types@7.16.0:
+    resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
 
   undici@6.21.0:
     resolution: {integrity: sha512-BUgJXc752Kou3oOIuU1i+yZZypyZRqNPW0vqoMPl8VaoalSfeR0D8/t4iAS3yirs79SSMTxTag+ZC86uswv+Cw==}
@@ -3703,11 +3698,10 @@ packages:
   util@0.12.5:
     resolution: {integrity: sha512-kZf/K6hEIrWHI6XqOFUiiMa+79wE/D8Q+NCNAWclkyg3b4d2k7s0QGepNjiABc+aR3N1PAyHL7p6UcLY6LmrnA==}
 
-  utilium@1.1.1:
-    resolution: {integrity: sha512-uNwrjhLA+KN5/EuDJaofvRerLffPSQ1aj6uot21tCwiU2oHKWHU2F3xW+wETgjJ3JFqDIloY6zSutQRmTbjAVw==}
-
-  utilium@1.1.2:
-    resolution: {integrity: sha512-RWgBwS+PsbXmcOA+Fa+rmnB7asPBSco4MRmeP1Zul6Qz1tworLixbTCcl8vhGNKdzL1S/VWnwku7AwT62iFofQ==}
+  utilium@2.5.7:
+    resolution: {integrity: sha512-8F/HW+6g4v6k3yYR1bhSG+OVnoxjbuZeelLa4IyyNdwFaqGj8HpxKdOQf07xmB2jWIuUs1sq2wXcsqiERRWvEA==}
+    engines: {node: '>=22.0.0'}
+    hasBin: true
 
   varint@6.0.0:
     resolution: {integrity: sha512-cXEIW6cfr15lFv563k4GuVuW/fiwjknytD37jIOLSdSWuOI6WnO/oKwmP2FQTU2l01LP8/M5TSAJpzUaGe3uWg==}
@@ -3864,10 +3858,6 @@ packages:
   wabt@1.0.36:
     resolution: {integrity: sha512-GAfEcFyvYRZ51xIZKeeCmIKytTz3ejCeEU9uevGNhEnqt9qXp3a8Q2O4ByZr6rKWcd8jV/Oj5cbDJFtmTYdchg==}
     hasBin: true
-
-  web-streams-polyfill@3.3.3:
-    resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
-    engines: {node: '>= 8'}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
@@ -4703,20 +4693,15 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
 
-  '@types/node@22.10.1':
-    dependencies:
-      undici-types: 6.20.0
-
   '@types/node@22.9.1':
     dependencies:
       undici-types: 6.19.8
 
-  '@types/pako@2.0.3': {}
-
-  '@types/readable-stream@4.0.18':
+  '@types/node@24.9.1':
     dependencies:
-      '@types/node': 22.10.1
-      safe-buffer: 5.1.2
+      undici-types: 7.16.0
+
+  '@types/pako@2.0.3': {}
 
   '@types/semver@7.5.8': {}
 
@@ -4757,9 +4742,6 @@ snapshots:
   '@types/webmidi@2.1.0': {}
 
   '@types/webrtc@0.0.44': {}
-
-  '@types/wicg-file-system-access@2020.9.8':
-    optional: true
 
   '@types/winbox@0.2.5': {}
 
@@ -5035,34 +5017,35 @@ snapshots:
 
   '@zeit/schemas@2.36.0': {}
 
-  '@zenfs/archives@1.0.0(@zenfs/core@1.6.6)':
+  '@zenfs/archives@1.3.1(@zenfs/core@2.4.2)(kerium@1.3.4)(memium@0.3.10)(utilium@2.5.7)':
     dependencies:
-      '@zenfs/core': 1.6.6
+      '@zenfs/core': 2.4.2
       fflate: 0.8.2
-      utilium: 1.1.2
+      kerium: 1.3.4
+      memium: 0.3.10
+      utilium: 2.5.7
 
-  '@zenfs/core@1.6.6':
+  '@zenfs/core@2.4.2':
     dependencies:
-      '@types/node': 22.10.1
-      '@types/readable-stream': 4.0.18
+      '@types/node': 24.9.1
       buffer: 6.0.3
       eventemitter3: 5.0.1
+      kerium: 1.3.4
+      memium: 0.3.10
       readable-stream: 4.5.2
-      utilium: 1.1.1
-    optionalDependencies:
-      minimatch: 9.0.5
+      utilium: 2.5.7
 
-  '@zenfs/dom@1.0.7(@zenfs/core@1.6.6)':
+  '@zenfs/dom@1.2.5(@zenfs/core@2.4.2)(kerium@1.3.4)(utilium@2.5.7)':
     dependencies:
-      '@zenfs/core': 1.6.6
-    optionalDependencies:
-      fake-indexeddb: 6.0.0
-      file-system-access: 1.0.4
+      '@zenfs/core': 2.4.2
+      kerium: 1.3.4
+      utilium: 2.5.7
 
-  '@zenfs/emscripten@1.0.0(@zenfs/core@1.6.6)':
+  '@zenfs/emscripten@1.0.5(@zenfs/core@2.4.2)(kerium@1.3.4)(utilium@2.5.7)':
     dependencies:
-      '@zenfs/core': 1.6.6
-      utilium: 1.1.1
+      '@zenfs/core': 2.4.2
+      kerium: 1.3.4
+      utilium: 2.5.7
 
   '@zip.js/zip.js@2.7.53': {}
 
@@ -5896,12 +5879,6 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.2
 
-  fetch-blob@3.2.0:
-    dependencies:
-      node-domexception: 1.0.0
-      web-streams-polyfill: 3.3.3
-    optional: true
-
   fflate@0.8.2: {}
 
   figlet@1.8.0: {}
@@ -5909,15 +5886,6 @@ snapshots:
   file-entry-cache@8.0.0:
     dependencies:
       flat-cache: 4.0.1
-
-  file-system-access@1.0.4:
-    dependencies:
-      '@types/wicg-file-system-access': 2020.9.8
-      fetch-blob: 3.2.0
-      node-domexception: 1.0.0
-    optionalDependencies:
-      web-streams-polyfill: 3.3.3
-    optional: true
 
   fill-range@7.1.1:
     dependencies:
@@ -6327,6 +6295,10 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
+  kerium@1.3.4:
+    dependencies:
+      utilium: 2.5.7
+
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
@@ -6432,6 +6404,11 @@ snapshots:
       vfile: 6.0.3
 
   mdurl@2.0.0: {}
+
+  memium@0.3.10:
+    dependencies:
+      kerium: 1.3.4
+      utilium: 2.5.7
 
   merge-stream@2.0.0: {}
 
@@ -6586,9 +6563,6 @@ snapshots:
   natural-compare@1.4.0: {}
 
   negotiator@0.6.3: {}
-
-  node-domexception@1.0.0:
-    optional: true
 
   node-emoji@2.1.3:
     dependencies:
@@ -7466,7 +7440,7 @@ snapshots:
 
   undici-types@6.19.8: {}
 
-  undici-types@6.20.0: {}
+  undici-types@7.16.0: {}
 
   undici@6.21.0: {}
 
@@ -7530,13 +7504,7 @@ snapshots:
       is-typed-array: 1.1.13
       which-typed-array: 1.1.15
 
-  utilium@1.1.1:
-    dependencies:
-      eventemitter3: 5.0.1
-    optionalDependencies:
-      '@xterm/xterm': 5.5.0
-
-  utilium@1.1.2:
+  utilium@2.5.7:
     dependencies:
       eventemitter3: 5.0.1
     optionalDependencies:
@@ -7690,9 +7658,6 @@ snapshots:
       xml-name-validator: 5.0.0
 
   wabt@1.0.36: {}
-
-  web-streams-polyfill@3.3.3:
-    optional: true
 
   webidl-conversions@3.0.1: {}
 

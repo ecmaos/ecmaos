@@ -9,7 +9,8 @@
 import path from 'path'
 import shellQuote from 'shell-quote'
 
-import type { Credentials } from '@zenfs/core'
+import { bindContext } from '@zenfs/core'
+import type { BoundContext, Credentials } from '@zenfs/core'
 import type { Kernel, Shell as IShell, ShellOptions, Terminal } from '@ecmaos/types'
 
 const DefaultShellPath = '$HOME/bin:/bin:/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/sbin'
@@ -32,13 +33,17 @@ const DefaultShellOptions = {
   * 
  */
 export class Shell implements IShell {
-  private _cred: Credentials = { uid: 0, gid: 0, suid: 0, sgid: 0, euid: 0, egid: 0, groups: [] }
+  // private _cred: Credentials = { uid: 0, gid: 0, suid: 0, sgid: 0, euid: 0, egid: 0, groups: [] }
+  // private _context: BoundContext
   private _cwd: string
   private _env: Map<string, string>
   private _id: string = crypto.randomUUID()
   private _kernel: Kernel
   private _terminal: Terminal
   private _terminalWriter?: WritableStreamDefaultWriter<Uint8Array>
+
+  public credentials: Credentials = { uid: 0, gid: 0, suid: 0, sgid: 0, euid: 0, egid: 0, groups: [] }
+  public context: BoundContext = bindContext({ root: '/', pwd: '/', credentials: this.credentials })
 
   get cwd() { return this._cwd }
   set cwd(path: string) { this._cwd = path === '/' ? path : path.endsWith('/') ? path.slice(0, -1) : path }
@@ -48,10 +53,13 @@ export class Shell implements IShell {
   get id() { return this._id }
   get kernel() { return this._kernel }
   get terminal() { return this._terminal }
-  get username() { return this._kernel.users.get(this._cred.uid)?.username || 'root' }
+  get username() { return this._kernel.users.get(this.credentials.uid)?.username || 'root' }
 
-  get credentials() { return this._cred }
-  set credentials(cred: Credentials) { this._cred = cred }
+  // get credentials() { return this.credentials }
+  // set credentials(cred: Credentials) { this.credentials = cred }
+
+  // get context() { return this._context }
+  // set context(context: BoundContext) { this._context = context }
 
   constructor(_options: ShellOptions) {
     const options = { ...DefaultShellOptions, ..._options }

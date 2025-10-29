@@ -1,0 +1,3 @@
+ZenFS, LGPL-3.0-or-later, Copyright © James Prevett and other ZenFS contributors
+https://github.com/zen-fs/core
+
