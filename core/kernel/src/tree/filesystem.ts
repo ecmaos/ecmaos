@@ -19,7 +19,8 @@ import type { ConfigMounts, Configuration } from '@zenfs/core'
 
 import type {
   FilesystemConfigMounts,
-  FilesystemOptions
+  FilesystemOptions,
+  Kernel
 } from '@ecmaos/types'
 
 export const DefaultFilesystemOptions: Configuration<ConfigMounts> = {
@@ -55,6 +56,11 @@ export const DefaultFilesystemOptions: Configuration<ConfigMounts> = {
 export class Filesystem {
   private _config: Configuration<ConfigMounts> = DefaultFilesystemOptions
   private _fs: typeof fs = fs
+  private _kernel: Kernel
+
+  constructor(kernel: Kernel) {
+    this._kernel = kernel
+  }
 
   /**
    * @returns {FilesystemOptions} The filesystem options.
@@ -88,6 +94,11 @@ export class Filesystem {
   get fsSync() { return this._fs }
 
   /**
+   * @returns {Kernel} The kernel instance.
+   */
+  get kernel() { return this._kernel }
+
+  /**
    * @returns {ZenFS.mounts} The mounted filesystems.
    * @remarks Remove or replace this; zenfs.mounts is deprecated.
    */
@@ -101,10 +112,10 @@ export class Filesystem {
   async configure(options: Partial<Configuration<ConfigMounts>>) {
     if (!options) return
     this._config = options as Configuration<ConfigMounts>
-    const store = await indexedDB.databases()
     await configureZenFS(options)
+    const fsInitialized = await this.kernel.storage.local.getItem('ecmaos:filesystem:initialized')
 
-    if (store.length === 0 && import.meta.env['VITE_INITFS']) {
+    if (import.meta.env['VITE_INITFS'] && !fsInitialized) {
       try {
         const response = await fetch(import.meta.env['VITE_INITFS'])
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
@@ -113,6 +124,7 @@ export class Filesystem {
         await this.fs.writeFile('/tmp/initfs.tar', new Uint8Array(arrayBuffer))
         await this.extractTarball('/tmp/initfs.tar', '/')
         await this.fs.unlink('/tmp/initfs.tar')
+        await this.kernel.storage.local.setItem('ecmaos:filesystem:initialized', 'true')
       } catch (error) {
         globalThis.kernel?.log.error(`Failed to fetch ${import.meta.env['VITE_INITFS']}: ${error}`)
         console.error(error)

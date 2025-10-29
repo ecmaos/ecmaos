@@ -208,7 +208,7 @@ export class Kernel implements IKernel {
     this.dom = new Dom(this.options.dom)
     this.devices = new Map<string, { device: KernelDevice, drivers?: DeviceDriver[] }>()
     this.events = new Events()
-    this.filesystem = new Filesystem()
+    this.filesystem = new Filesystem(this)
     this.i18n = new I18n(this.options.i18n)
     this.intervals = new Intervals()
     this.keyboard = navigator.keyboard
