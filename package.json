@@ -22,7 +22,7 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@9.14.3",
+  "packageManager": "pnpm@10.20.0",
   "scripts": {
     "build": "turbo run build",
     "build:docs": "typedoc && echo docs.ecmaos.sh > docs/CNAME",

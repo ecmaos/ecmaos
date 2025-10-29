@@ -13,7 +13,7 @@
     "@ecmaos/types": "workspace:^",
     "@types/ansi-escape-sequences": "^4.0.4",
     "@types/w3c-web-usb": "^1.0.10",
-    "@zenfs/core": "^2.1.0",
+    "@zenfs/core": "^2.4.2",
     "typescript": "^5.6.3"
   },
   "dependencies": {

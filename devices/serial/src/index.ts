@@ -1,6 +1,6 @@
 /// <reference types="w3c-web-serial" />
 
-import type { DeviceDriver, DeviceFile } from '@zenfs/core'
+import type { DeviceDriver, Device } from '@zenfs/core'
 import type { Kernel, KernelDeviceCLIOptions, KernelDeviceData } from '@ecmaos/types'
 
 const availablePorts = new Set<SerialPort>()
@@ -80,7 +80,7 @@ export async function cli(options: KernelDeviceCLIOptions) {
   }
 }
 
-export async function createDriver(name: string): Promise<DeviceDriver<KernelDeviceData>> {
+async function createDriver(name: string): Promise<DeviceDriver<KernelDeviceData>> {
   return {
     name,
     init: () => {
@@ -89,18 +89,18 @@ export async function createDriver(name: string): Promise<DeviceDriver<KernelDev
         minor: 64
       }
     },
-    read: (_: DeviceFile, buffer: ArrayBufferView, offset: number, length: number, position: number) => {
+    read: (_: Device<KernelDeviceData>, buffer: ArrayBufferView, offset: number, end: number) => {
       navigator.serial.getPorts().then((ports) => {
         const port = ports[offset]
         if (!port) return
         port.readable?.getReader().read().then(({ value, done }) => {
           if (done || !value) return
           const view = new Uint8Array(buffer.buffer)
-          const bytesToCopy = Math.min(length, value.length)
-          view.set(new Uint8Array(value.buffer, 0, bytesToCopy), position)
+          const bytesToCopy = Math.min(end, value.length)
+          view.set(new Uint8Array(value.buffer, 0, bytesToCopy), offset)
         })
       })
-      return length
+      return end
     },
     write: () => {
       return 0

@@ -772,8 +772,8 @@ export const cat = async ({ kernel, shell, terminal, process, args }: CommandArg
 
       try {
         if (!fullPath.startsWith('/dev')) {
-          const handle = await kernel.filesystem.fs.open(fullPath)
-          const stat = await kernel.filesystem.fs.stat(fullPath)
+          const handle = await shell.context.fs.promises.open(fullPath, 'r')
+          const stat = await shell.context.fs.promises.stat(fullPath)
 
           let bytesRead = 0
           const chunkSize = 1024
@@ -782,12 +782,12 @@ export const cat = async ({ kernel, shell, terminal, process, args }: CommandArg
             if (interrupted) break
             const data = new Uint8Array(chunkSize)
             const readSize = Math.min(chunkSize, stat.size - bytesRead)
-            await kernel.filesystem.fsSync.read(handle.fd, data, 0, readSize, bytesRead)
+            await handle.read(data, 0, readSize, bytesRead)
             await writer.write(data.subarray(0, readSize))
             bytesRead += readSize
           }
         } else {
-          const device = await kernel.filesystem.fs.open(fullPath)
+          const device = await shell.context.fs.promises.open(fullPath)
           const maxBytes = bytes ? parseInt(bytes) : undefined
           let totalBytesRead = 0
           const chunkSize = 1024
@@ -819,16 +819,18 @@ export const cat = async ({ kernel, shell, terminal, process, args }: CommandArg
   }
 }
 
-export const cd = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const cd = async ({ shell, terminal, args }: CommandArgs) => {
   const destination = (args as string[])[0]
   const fullPath = destination ? path.resolve(shell.cwd, destination) : shell.cwd
-  if (await kernel.filesystem.fs.exists(fullPath)) {
+  await shell.context.fs.promises.access(fullPath)
+
+  if (await shell.context.fs.promises.exists(fullPath)) {
     shell.cwd = fullPath
     localStorage.setItem(`cwd:${shell.credentials.uid}`, fullPath)
   } else terminal.writeln(chalk.red(`${fullPath} not found`))
 }
 
-export const chmod = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const chmod = async ({ shell, terminal, args }: CommandArgs) => {
   if (!args || (args as string[]).length === 0) {
     terminal.writeln(chalk.red('chmod: missing operand'))
     terminal.writeln('Try \'chmod --help\' for more information.')
@@ -838,28 +840,28 @@ export const chmod = async ({ kernel, shell, terminal, args }: CommandArgs) => {
   const [mode, target] = (args as string[])
   if (!mode || !target) return 1
   const fullPath = path.resolve(shell.cwd, target)
-  await kernel.filesystem.fs.chmod(fullPath, mode)
+  await shell.context.fs.promises.chmod(fullPath, mode)
   return 0
 }
 
-export const chown = async ({ kernel, shell, args }: CommandArgs) => {
+export const chown = async ({ shell, args }: CommandArgs) => {
   const [user, target, group] = (args as string[])
   if (!user || !target) return 1
   const fullPath = path.resolve(shell.cwd, target)
-  kernel.filesystem.fsSync.chownSync(fullPath, parseInt(user), parseInt(group ?? user))
+  await shell.context.fs.promises.chown(fullPath, parseInt(user), parseInt(group ?? user))
 }
 
 export const clear = async ({ terminal }: CommandArgs) => {
   terminal.write('\x1b[2J\x1b[H')
 }
 
-export const cp = async ({ kernel, shell, args }: CommandArgs) => {
+export const cp = async ({ shell, args }: CommandArgs) => {
   const [source, destination] = (args as string[]).map(arg => path.resolve(shell.cwd, arg))
   if (!source || !destination) return 1
-  const destinationStats = await kernel.filesystem.fs.stat(destination).catch(() => null)
+  const destinationStats = await shell.context.fs.promises.stat(destination).catch(() => null)
   // 🪵⛟
   const finalDestination = destinationStats?.isDirectory() ? path.join(destination, path.basename(source)) : destination
-  await kernel.filesystem.fs.copyFile(source, finalDestination)
+  await shell.context.fs.promises.copyFile(source, finalDestination)
 }
 
 export const df = async ({ kernel, terminal }: CommandArgs) => {
@@ -885,12 +887,12 @@ const usage = await kernel.storage.usage()
   return 0
 }
 
-export const download = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const download = async ({ shell, terminal, args }: CommandArgs) => {
   const destination = (args as string[])[0]
   const fullPath = destination ? path.resolve(shell.cwd, destination) : shell.cwd
-  if (await kernel.filesystem.fs.exists(fullPath)) {
-    const data = await kernel.filesystem.fs.readFile(fullPath)
-    const blob = new Blob([data], { type: 'application/octet-stream' })
+  if (await shell.context.fs.promises.exists(fullPath)) {
+    const data = await shell.context.fs.promises.readFile(fullPath)
+    const blob = new Blob([new Uint8Array(data)], { type: 'application/octet-stream' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
 
@@ -927,11 +929,11 @@ export const echo = async ({ process, terminal, args }: CommandArgs) => {
 
 // TODO: This was going to be smaller - move it to a package
 // FIXME: Pasting does not work correctly
-export const edit = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const edit = async ({ shell, terminal, args }: CommandArgs) => {
   const target = (args as string[])[0]
   if (!target) return 1
   const fullPath = path.resolve(shell.cwd, target)
-  const content = await kernel.filesystem.fs.readFile(fullPath, 'utf-8').catch(() => '')
+  const content = await shell.context.fs.promises.readFile(fullPath, 'utf-8').catch(() => '')
   const lines = content.split('\n')
 
   let cursorX = 0
@@ -1039,7 +1041,7 @@ export const edit = async ({ kernel, shell, terminal, args }: CommandArgs) => {
           switch (command) {
             case 'w':
               message = chalk.green(`Saved to ${fullPath}`)
-              await kernel.filesystem.fs.writeFile(fullPath, lines.join('\n'))
+              await shell.context.fs.promises.writeFile(fullPath, lines.join('\n'))
               break
             case 'q':
               return true
@@ -1218,7 +1220,7 @@ export const env = async ({ shell, terminal, args }: CommandArgs) => {
   }
 }
 
-export const fetch = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
+export const fetch = async ({ shell, terminal, process, args }: CommandArgs) => {
   const [url, filename, method, body] = (args as string[])
   if (!url) {
     await shell.execute('fetch --help')
@@ -1237,14 +1239,14 @@ export const fetch = async ({ kernel, shell, terminal, process, args }: CommandA
 
     let writer
     if (filename) {
-      const fullPath = path.resolve(kernel.shell.cwd, filename)
-      const fileHandle = await kernel.filesystem.fs.open(fullPath, 'w')
+      const fullPath = path.resolve(shell.cwd, filename)
+      const fileHandle = await shell.context.fs.promises.open(fullPath, 'w')
       writer = {
-        write: (chunk: Uint8Array) => {
-          kernel.filesystem.fsSync.write(fileHandle.fd, chunk)
+        write: async (chunk: Uint8Array) => {
+          await fileHandle.write(chunk)
         },
         releaseLock: async () => {
-          await kernel.filesystem.fsSync.close(fileHandle.fd)
+          await fileHandle.close()
         }
       }
     } else writer = process?.stdout?.getWriter()
@@ -1268,7 +1270,7 @@ export const fetch = async ({ kernel, shell, terminal, process, args }: CommandA
   }
 }
 
-export const load = async ({ kernel, shell, args }: CommandArgs) => {
+export const load = async ({ shell, args }: CommandArgs) => {
   const [target] = (args as string[])
   if (!target) {
     await shell.execute('load --help')
@@ -1276,7 +1278,7 @@ export const load = async ({ kernel, shell, args }: CommandArgs) => {
   }
 
   const fullPath = path.resolve(shell.cwd, target)
-  const code = await kernel.filesystem.fs.readFile(fullPath, 'utf-8')
+  const code = await shell.context.fs.promises.readFile(fullPath, 'utf-8')
   const script = new Function(code)
   script()
 }
@@ -1284,8 +1286,8 @@ export const load = async ({ kernel, shell, args }: CommandArgs) => {
 export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
   const target = (args as string[])[0]
   const fullPath = target ? path.resolve(shell.cwd, target === '' ? '.' : target) : shell.cwd
-  const stats = await kernel.filesystem.fs.stat(fullPath)
-  const entries: string[] = stats.isDirectory() ? await kernel.filesystem.fs.readdir(fullPath) : [fullPath]
+  const stats = await shell.context.fs.promises.stat(fullPath)
+  const entries: string[] = stats.isDirectory() ? await shell.context.fs.promises.readdir(fullPath) : [fullPath]
   const descriptions = kernel.filesystem.descriptions(kernel.i18n.t)
 
   const getModeType = (stats: Stats) => {
@@ -1336,21 +1338,29 @@ export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
   const filesMap = await Promise.all(entries
     .map(async entry => {
       const target = path.resolve(fullPath, entry)
-      return { target, name: entry, stats: await kernel.filesystem.fs.stat(target) }
+      try {
+        return { target, name: entry, stats: await shell.context.fs.promises.stat(target) }
+      } catch {
+        return { target, name: entry, stats: null }
+      }
     }))
 
   const files = filesMap
-    .filter(entry => !entry.stats.isDirectory())
+    .filter(entry => entry && entry.stats && !entry.stats.isDirectory())
     .filter((entry): entry is NonNullable<typeof entry> => entry !== null && entry !== undefined)
 
   const directoryMap = await Promise.all(entries
     .map(async entry => {
       const target = path.resolve(fullPath, entry)
-      return { target, name: entry, stats: await kernel.filesystem.fs.stat(target) }
+      try {
+        return { target, name: entry, stats: await shell.context.fs.promises.stat(target) }
+      } catch {
+        return { target, name: entry, stats: null }
+      }
     }))
 
   const directories = directoryMap
-    .filter(entry => entry.stats.isDirectory())
+    .filter(entry => entry && entry.stats && entry.stats.isDirectory())
     // .concat(mounts.map(([target]) => ({
     //   target,
     //   name: path.basename(target),
@@ -1365,9 +1375,9 @@ export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
       return [
         directory.name,
         '',
-        getTimestampString(directory.stats.mtime),
-        getModeString(directory.stats),
-        getOwnerString(directory.stats),
+        directory.stats ? getTimestampString(directory.stats.mtime) : '',
+        directory.stats ? getModeString(directory.stats) : '',
+        directory.stats ? getOwnerString(directory.stats) : '',
         // (() => {
         //   const mount = mounts.find(([target]) => target.endsWith(`/${directory.name}`))
         //   // TODO: store does not exist on FileSystem (but we can access it here)
@@ -1380,14 +1390,15 @@ export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
     ...files.sort((a, b) => a.name.localeCompare(b.name)).map(file => {
       return [
         file.name,
-        humanFormat(file.stats.size),
-        getTimestampString(file.stats.mtime),
-        getModeString(file.stats),
-        getOwnerString(file.stats),
+        file.stats ? humanFormat(file.stats.size) : '',
+        file.stats ? getTimestampString(file.stats.mtime) : '',
+        file.stats ? getModeString(file.stats) : '',
+        file.stats ? getOwnerString(file.stats) : '',
         (() => {
           if (descriptions.has(path.resolve(fullPath, file.name))) return descriptions.get(path.resolve(fullPath, file.name))
           const ext = file.name.split('.').pop()
           if (ext && descriptions.has('.' + ext)) return descriptions.get('.' + ext)
+          if (!file.stats) return ''
           if (file.stats.isBlockDevice() || file.stats.isCharacterDevice()) {
             // TODO: zenfs `fs.mounts` is deprecated - use a better way of getting device info
             // const device = kernel.filesystem.devfs.devices.get(`/${file.name}`)
@@ -1467,20 +1478,20 @@ export const mount = async ({ kernel, shell, terminal, args }: CommandArgs) => {
     case 'memory':
       kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: InMemory })); break
     // case 'zip': // TODO: fix issue with @zenfs/archives (bundler renaming Function.name?)
-    //   kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: Zip, name: fullSourcePath, data: new Uint8Array(await kernel.filesystem.fs.readFile(fullSourcePath)).buffer })); break
+    //   kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: Zip, name: fullSourcePath, data: new Uint8Array(await shell.context.fs.promises.readFile(fullSourcePath)).buffer })); break
   }
 
   return 0
 }
 
 
-export const mkdir = async ({ kernel, shell, args }: CommandArgs) => {
+export const mkdir = async ({ shell, args }: CommandArgs) => {
   const target = (args as string[])[0]
   const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  await kernel.filesystem.fs.mkdir(fullPath)
+  await shell.context.fs.promises.mkdir(fullPath)
 }
 
-export const mv = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const mv = async ({ shell, terminal, args }: CommandArgs) => {
   const [sourceInput, destinationInput] = (args as string[])
   if (!sourceInput || !destinationInput) {
     terminal.writeln(chalk.red('Usage: mv <source> <destination>'))
@@ -1497,8 +1508,8 @@ export const mv = async ({ kernel, shell, terminal, args }: CommandArgs) => {
     return 2
   }
 
-  if (await kernel.filesystem.fs.exists(destination)) {
-    if ((await kernel.filesystem.fs.stat(destination)).isDirectory()) {
+  if (await shell.context.fs.promises.exists(destination)) {
+    if ((await shell.context.fs.promises.stat(destination)).isDirectory()) {
       destination = path.resolve(destination, path.basename(source))
     } else {
       terminal.writeln(chalk.red(`${destination} already exists`))
@@ -1506,7 +1517,7 @@ export const mv = async ({ kernel, shell, terminal, args }: CommandArgs) => {
     }
   }
 
-  await kernel.filesystem.fs.rename(source, destination)
+  await shell.context.fs.promises.rename(source, destination)
   return 0
 }
 
@@ -1595,7 +1606,7 @@ export const passwd = async ({ kernel, terminal, args }: CommandArgs) => {
   }
 }
 
-export const play = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const play = async ({ shell, terminal, args }: CommandArgs) => {
   const [file] = (args as string[])
   if (!file || file === '') {
     terminal.writeln(chalk.red('Usage: play <file>'))
@@ -1603,7 +1614,7 @@ export const play = async ({ kernel, shell, terminal, args }: CommandArgs) => {
   }
 
   const fullPath = path.resolve(shell.cwd, file)
-  const blob = new Blob([await kernel.filesystem.fs.readFile(fullPath)])
+  const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
   const url = URL.createObjectURL(blob)
   const audio = new Audio(url)
   audio.play()
@@ -1624,18 +1635,18 @@ export const reboot = async ({ kernel }: CommandArgs) => {
   kernel.reboot()
 }
 
-export const rm = async ({ kernel, shell, args }: CommandArgs) => {
+export const rm = async ({ shell, args }: CommandArgs) => {
   const target = (args as string[])[0]
   const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  if ((await kernel.filesystem.fs.stat(fullPath)).isDirectory()) await kernel.filesystem.fs.rmdir(fullPath, { recursive: true, force: true })
-  else await kernel.filesystem.fs.unlink(fullPath)
+  if ((await shell.context.fs.promises.stat(fullPath)).isDirectory()) await shell.context.fs.promises.rmdir(fullPath)
+  else await shell.context.fs.promises.unlink(fullPath)
   return 0
 }
 
-export const rmdir = async ({ kernel, shell, args }: CommandArgs) => {
+export const rmdir = async ({ shell, args }: CommandArgs) => {
   const target = (args as string[])[0]
   const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  await kernel.filesystem.fs.rm(fullPath, { recursive: true, force: true })
+  await shell.context.fs.promises.rm(fullPath, { recursive: true, force: true })
 }
 
 export const screensaver = async ({ kernel, terminal, args }: CommandArgs) => {
@@ -1847,15 +1858,15 @@ export const socket = async () => {
   return 0
 }
 
-export const stat = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const stat = async ({ shell, terminal, args }: CommandArgs) => {
   const argPath = (args as string[])[0]
   const fullPath = argPath ? path.resolve(shell.cwd, argPath) : shell.cwd
-  const stats = await kernel.filesystem.fs.stat(fullPath)
+  const stats = await shell.context.fs.promises.stat(fullPath)
   terminal.writeln(JSON.stringify(stats, null, 2))
 
   const extension = path.extname(fullPath)
   if (extension === '.zip') {
-    const blob = new Blob([await kernel.filesystem.fs.readFile(fullPath)])
+    const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
     const zipReader = new zipjs.ZipReader(new zipjs.BlobReader(blob))
     const entries = await zipReader.getEntries()
     terminal.writeln(chalk.bold('\nZIP Entries:'))
@@ -1882,10 +1893,10 @@ export const su = async ({ kernel, shell, terminal, args }: CommandArgs) => {
   terminal.promptTemplate = `{user}:{cwd}${user.uid === 0 ? '#' : '$'} `
 }
 
-export const touch = async ({ kernel, shell, args }: CommandArgs) => {
+export const touch = async ({ shell, args }: CommandArgs) => {
   const target = (args as string[])[0]
   const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  await kernel.filesystem.fs.appendFile(fullPath, '')
+  await shell.context.fs.promises.appendFile(fullPath, '')
 }
 
 export const umount = async ({ kernel, shell, args }: CommandArgs) => {
@@ -1895,21 +1906,21 @@ export const umount = async ({ kernel, shell, args }: CommandArgs) => {
   kernel.filesystem.fsSync.umount(fullPath)
 }
 
-export const unzip = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const unzip = async ({ shell, terminal, args }: CommandArgs) => {
   const target = (args as string[])[0]
   const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  const blob = new Blob([await kernel.filesystem.fs.readFile(fullPath)])
+  const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
   const zipReader = new zipjs.ZipReader(new zipjs.BlobReader(blob))
 
   for (const entry of await zipReader.getEntries()) {
     const entryPath = path.resolve(shell.cwd, entry.filename)
     if (entry.directory) {
-      await kernel.filesystem.fs.mkdir(entryPath)
+      await shell.context.fs.promises.mkdir(entryPath)
     } else {
       const writer = new zipjs.Uint8ArrayWriter()
       const data = await entry.getData?.(writer)
       if (!data) { terminal.writeln(chalk.red(`Failed to read ${entryPath}`)); return 1 }
-      await kernel.filesystem.fs.writeFile(entryPath, data)
+      await shell.context.fs.promises.writeFile(entryPath, data)
     }
   }
 
@@ -1932,7 +1943,7 @@ export const upload = async ({ kernel, shell, terminal, args }: CommandArgs) => 
       reader.onload = async (event) => {
         if (!event.target) return terminal.writeln(chalk.red('No file selected'))
         const data = new Uint8Array(event.target.result as ArrayBuffer)
-        await kernel.filesystem.fs.writeFile(path.resolve(destination, file.name), data)
+        await shell.context.fs.promises.writeFile(path.resolve(destination, file.name), data)
         kernel.events.dispatch(KernelEvents.UPLOAD, { file: file.name, path: path.resolve(destination, file.name) })
       }
 
@@ -2043,8 +2054,8 @@ export const user = async ({ kernel, shell, terminal, args }: CommandArgs) => {
 
       try {
         await kernel.users.remove(user.uid)
-        await kernel.filesystem.fs.writeFile('/etc/passwd', (await kernel.filesystem.fs.readFile('/etc/passwd', 'utf8')).split('\n').filter((line: string) => !line.startsWith(`${username}:`)).join('\n'))
-        await kernel.filesystem.fs.writeFile('/etc/shadow', (await kernel.filesystem.fs.readFile('/etc/shadow', 'utf8')).split('\n').filter((line: string) => !line.startsWith(`${username}:`)).join('\n'))
+        await shell.context.fs.promises.writeFile('/etc/passwd', (await shell.context.fs.promises.readFile('/etc/passwd', 'utf8')).split('\n').filter((line: string) => !line.startsWith(`${username}:`)).join('\n'))
+        await shell.context.fs.promises.writeFile('/etc/shadow', (await shell.context.fs.promises.readFile('/etc/shadow', 'utf8')).split('\n').filter((line: string) => !line.startsWith(`${username}:`)).join('\n'))
         terminal.writeln(chalk.green(`User ${username} deleted successfully`))
         return 0
       } catch (error) {
@@ -2094,7 +2105,7 @@ export const video = async ({ kernel, shell, args }: CommandArgs) => {
   const file = (args as string[])[0]
   const fullPath = file ? path.resolve(shell.cwd, file) : shell.cwd
 
-  const blob = new Blob([await kernel.filesystem.fs.readFile(fullPath)])
+  const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
   const url = URL.createObjectURL(blob)
 
   // Load video metadata to get dimensions
@@ -2115,7 +2126,7 @@ export const video = async ({ kernel, shell, args }: CommandArgs) => {
   })
 }
 
-export const zip = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const zip = async ({ shell, terminal, args }: CommandArgs) => {
   const [output, paths = []] = args as [string, string[]]
   if (!output || paths.length === 0) {
     terminal.writeln('Usage: zip <output> <paths...>')
@@ -2132,27 +2143,27 @@ export const zip = async ({ kernel, shell, terminal, args }: CommandArgs) => {
       const fullPath = path.resolve(shell.cwd, inputPath)
       
       try {
-        const stat = await kernel.filesystem.fs.stat(fullPath)
+        const stat = await shell.context.fs.promises.stat(fullPath)
 
         if (stat.isFile()) {
           // Add single file
           const relativePath = path.relative(shell.cwd, fullPath)
-          const fileData = await kernel.filesystem.fs.readFile(fullPath)
+          const fileData = await shell.context.fs.promises.readFile(fullPath)
           const reader = new zipjs.Uint8ArrayReader(fileData)
           await zipWriter.add(relativePath, reader)
           terminal.writeln(`Added file: ${relativePath}`)
         } else if (stat.isDirectory()) {
           // Add directory and contents recursively
           async function addDirectory(dirPath: string) {
-            const entries = await kernel.filesystem.fs.readdir(dirPath)
+            const entries = await shell.context.fs.promises.readdir(dirPath)
             
             for (const entry of entries) {
               const entryPath = path.join(dirPath, entry)
               const relativePath = path.relative(shell.cwd, entryPath)
-              const entryStat = await kernel.filesystem.fs.stat(entryPath)
+              const entryStat = await shell.context.fs.promises.stat(entryPath)
               
               if (entryStat.isFile()) {
-                const fileData = await kernel.filesystem.fs.readFile(entryPath)
+                const fileData = await shell.context.fs.promises.readFile(entryPath)
                 const reader = new zipjs.Uint8ArrayReader(fileData)
                 await zipWriter?.add(relativePath, reader)
                 terminal.writeln(`Added file: ${relativePath}`)
@@ -2175,7 +2186,7 @@ export const zip = async ({ kernel, shell, terminal, args }: CommandArgs) => {
     // Write the zip file
     const blob = await zipWriter.close()
     zipWriter = null // Clear reference after closing
-    await kernel.filesystem.fs.writeFile(outputPath, new Uint8Array(await blob.arrayBuffer()))
+    await shell.context.fs.promises.writeFile(outputPath, new Uint8Array(await blob.arrayBuffer()))
     terminal.writeln(`Created zip file: ${output}`)
 
     return 0

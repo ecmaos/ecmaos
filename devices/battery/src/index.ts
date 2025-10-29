@@ -16,7 +16,7 @@ declare global {
 }
 
 import ansi from 'ansi-escape-sequences'
-import type { DeviceDriver, DeviceFile } from '@zenfs/core'
+import type { DeviceDriver, Device } from '@zenfs/core'
 import type { Kernel, KernelDeviceCLIOptions, KernelDeviceData } from '@ecmaos/types'
 
 export const pkg = {
@@ -105,7 +105,7 @@ export async function getDrivers(kernel: Kernel): Promise<DeviceDriver<KernelDev
           level: battery.level
         }
       }),
-      read: (_: DeviceFile, buffer: ArrayBufferView) => {
+      read: (_: Device<KernelDeviceData>, buffer: ArrayBufferView) => {
         const view = new Uint8Array(buffer.buffer, 0, 4)
         view.set([Math.round(battery.level * 100), Number(battery.charging), battery.chargingTime, battery.dischargingTime])
         return 4
