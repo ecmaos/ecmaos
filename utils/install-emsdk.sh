@@ -4,6 +4,10 @@ set -e
 
 echo "Installing Emscripten SDK (emsdk)..."
 
+if [ -n "$SKIP_BUILD_BIOS" ]; then
+    exit 0
+fi
+
 if [ -d "$HOME/emsdk" ]; then
     echo "emsdk directory already exists, updating..."
     cd "$HOME/emsdk"
