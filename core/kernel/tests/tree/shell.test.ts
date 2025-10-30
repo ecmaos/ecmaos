@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { Kernel } from '#kernel.ts'
-import { DefaultFilesystemOptionsTest } from '#filesystem.ts'
+import { DefaultFilesystemOptions } from '#filesystem.ts'
 
 import { TestDomOptions, TestLogOptions } from './fixtures/kernel.fixtures'
 
 describe('Shell', () => {
   it('should initialize and execute commands', async () => {
-    const kernel = new Kernel({ dom: TestDomOptions, filesystem: DefaultFilesystemOptionsTest, log: TestLogOptions })
+    const kernel = new Kernel({ dom: TestDomOptions, filesystem: DefaultFilesystemOptions, log: TestLogOptions })
     await kernel.boot()
     expect(kernel.shell).toBeDefined()
 

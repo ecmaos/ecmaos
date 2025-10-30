@@ -1,16 +1,21 @@
 
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import { DefaultFilesystemOptions } from '#filesystem.ts'
 import { Kernel } from '#kernel.ts'
 
 describe('Filesystem', async () => {
-  const kernel = new Kernel({
-    devices: {},
-    dom: { topbar: false },
-    filesystem: DefaultFilesystemOptions
+  let kernel: Kernel
+
+  beforeAll(async () => {
+    kernel = new Kernel({
+      credentials: { username: 'root', password: 'root' },
+      devices: {},
+      dom: { topbar: false },
+      filesystem: DefaultFilesystemOptions
+    })
+    await kernel.boot()
   })
-  await kernel.boot({ silent: true })
 
   it('should be defined', () => {
     expect(kernel.filesystem).toBeDefined()
