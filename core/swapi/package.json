@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@ecmaos/config-typescript": "workspace:^",
-    "vite": "^6.0.1"
+    "vite": "^7.1.12"
   },
   "peerDependencies": {
     "typescript": "^5.4.0"
