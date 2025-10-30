@@ -1,17 +1,21 @@
 import { beforeAll, describe, it, expect } from 'vitest'
 
 import { Kernel } from '#kernel.ts'
-import { DefaultFilesystemOptionsTest } from '#filesystem.ts'
-import { Process, ProcessManager, ProcessEntryParams, ProcessEvents, ProcessExitEvent } from '#processes.ts'
+import { DefaultFilesystemOptions } from '#filesystem.ts'
+import { Process, ProcessManager } from '#processes.ts'
 import { TestDomOptions, TestLogOptions } from './fixtures/kernel.fixtures'
+
+import { ProcessEvents } from '@ecmaos/types'
+import type { ProcessEntryParams, ProcessExitEvent } from '@ecmaos/types'
 
 describe('Process Manager', () => {
   let kernel: Kernel
 
   beforeAll(() => {
     kernel = new Kernel({
+      devices: {},
       dom: TestDomOptions,
-      filesystem: DefaultFilesystemOptionsTest,
+      filesystem: DefaultFilesystemOptions,
       log: TestLogOptions
     })
   })

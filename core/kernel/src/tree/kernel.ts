@@ -74,6 +74,7 @@ import type {
 } from '@ecmaos/types'
 
 const DefaultKernelOptions: KernelOptions = {
+  devices: DefaultDevices,
   dom: DefaultDomOptions,
   log: DefaultLogOptions,
   filesystem: DefaultFilesystemOptions,
@@ -450,7 +451,7 @@ export class Kernel implements IKernel {
         this.toast.success(`${import.meta.env['NAME']} v${import.meta.env['VERSION']}`)
       }
 
-      await this.configure({ filesystem: Filesystem.options() })
+      await this.configure({ devices: this.options.devices || DefaultDevices, filesystem: Filesystem.options() })
 
       // We don't strictly conform to the FHS, but we try to follow it as closely as possible where relevant
       // User packages can use them as they see fit, and we'll find more uses for them as we go along
@@ -1108,7 +1109,7 @@ export class Kernel implements IKernel {
    * @returns {Promise<void>} A promise that resolves when the devices are registered.
    */
   async registerDevices() {
-    for (const device of Object.values(DefaultDevices)) {
+    for (const device of Object.values(this.options.devices || DefaultDevices)) {
       const drivers = await device.getDrivers(this)
       this.devices.set(device.pkg.name, { device, drivers })
       for (const driver of drivers) {

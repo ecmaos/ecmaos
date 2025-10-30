@@ -145,7 +145,7 @@ export class Shell implements IShell {
             for (const redirection of redirections) {
               if (redirection.type === '<') {
                 const sourcePath = path.resolve(this.cwd, redirection.target)
-                if (!await this._kernel.filesystem.fs.exists(sourcePath)) {
+                if (!await this.context.fs.promises.exists(sourcePath)) {
                   throw new Error(`File not found: ${sourcePath}`)
                 }
 
@@ -181,14 +181,14 @@ export class Shell implements IShell {
                   const targetPath = path.resolve(this.cwd, redirection.target)
                   outputStream = new WritableStream({
                     write: async (chunk) => {
-                      await this._kernel.filesystem.fs.writeFile(targetPath, chunk)
+                      await this.context.fs.promises.writeFile(targetPath, chunk)
                     }
                   })
                 } else if (redirection.type === '>>') {
                   const targetPath = path.resolve(this.cwd, redirection.target)
                   outputStream = new WritableStream({
                     write: async (chunk) => {
-                      await this._kernel.filesystem.fs.appendFile(targetPath, chunk)
+                      await this.context.fs.promises.appendFile(targetPath, chunk)
                     }
                   })
                 }
@@ -238,7 +238,7 @@ export class Shell implements IShell {
   private async resolveCommand(command: string): Promise<string | undefined> {
     if (command.startsWith('./')) {
       const cwdCommand = path.join(this.cwd, command.slice(2))
-      if (await this._kernel.filesystem.fs.exists(cwdCommand)) {
+      if (await this.context.fs.promises.exists(cwdCommand)) {
         return cwdCommand
       }
       return undefined
@@ -247,14 +247,14 @@ export class Shell implements IShell {
     const paths = this.env.get('PATH')?.split(':') || DefaultShellPath.split(':')
     const resolvedCommand = path.resolve(command)
 
-    if (await this._kernel.filesystem.fs.exists(resolvedCommand)) {
+    if (await this.context.fs.promises.exists(resolvedCommand)) {
       return resolvedCommand
     }
 
     for (const path of paths) {
       const expandedPath = path.replace(/\$([A-Z_]+)/g, (_, name) => this.env.get(name) || '')
       const fullPath = `${expandedPath}/${command}`
-      if (await this._kernel.filesystem.fs.exists(fullPath)) {
+      if (await this.context.fs.promises.exists(fullPath)) {
         return fullPath
       }
     }

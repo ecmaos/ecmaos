@@ -17,7 +17,8 @@
     "@types/ansi-escape-sequences": "^4.0.4",
     "@types/w3c-web-serial": "^1.0.7",
     "@zenfs/core": "^2.4.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vite-plugin-node-polyfills": "^0.22.0"
   },
   "dependencies": {
     "ansi-escape-sequences": "^6.2.3"

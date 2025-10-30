@@ -32,6 +32,7 @@
     "command-line-args": "^6.0.0",
     "tslog": "^4.9.3",
     "typescript": "^5.6.3",
+    "vite-plugin-node-polyfills": "^0.22.0",
     "winbox": "^0.2.82"
   },
   "publishConfig": {

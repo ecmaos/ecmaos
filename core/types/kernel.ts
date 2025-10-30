@@ -222,6 +222,7 @@ export interface KernelOptions {
     username: string
     password: string
   }
+  devices?: Record<string, KernelDevice>
   dom?: DomOptions
   filesystem?: FilesystemOptions<FilesystemConfigMounts>
   i18n?: InitOptions

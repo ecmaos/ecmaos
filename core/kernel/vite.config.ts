@@ -80,6 +80,13 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     include: ['tests/**/*.test.ts'],
+    deps: {
+      optimizer: {
+        web: {
+          include: ['vitest-canvas-mock']
+        }
+      }
+    },
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
@@ -93,6 +100,11 @@ export default defineConfig({
         launch: {
           devtools: true
         }
+      }
+    },
+    environmentOptions: {
+      jsdom: {
+        resources: 'usable'
       }
     },
     poolOptions: {

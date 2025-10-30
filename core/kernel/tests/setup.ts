@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
-import 'fake-indexeddb/auto'
 import { Buffer } from 'node:buffer'
+import 'fake-indexeddb/auto'
+import 'vitest-canvas-mock'
 
 globalThis.Buffer = Buffer
 
