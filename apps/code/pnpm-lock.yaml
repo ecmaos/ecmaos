@@ -7,6 +7,8 @@ settings:
 overrides:
   canvas: Automattic/node-canvas#master
 
+pnpmfileChecksum: sha256-Zzw6AUu2SJputeGoAFT8YK9JWXNZcYWS/QbYOLDEi5E=
+
 importers:
 
   .:
@@ -27,14 +29,14 @@ importers:
         specifier: ^5.6.3
         version: 5.6.3
       vite:
-        specifier: ^6.0.1
-        version: 6.4.1(@types/node@24.9.2)
+        specifier: ^7.1.12
+        version: 7.1.12(@types/node@24.9.2)
       vite-plugin-css-injected-by-js:
         specifier: ^3.5.2
-        version: 3.5.2(vite@6.4.1(@types/node@24.9.2))
+        version: 3.5.2(vite@7.1.12(@types/node@24.9.2))
       vite-plugin-node-polyfills:
         specifier: ^0.22.0
-        version: 0.22.0(rollup@4.52.5)(vite@6.4.1(@types/node@24.9.2))
+        version: 0.22.0(rollup@4.52.5)(vite@7.1.12(@types/node@24.9.2))
 
 packages:
 
@@ -853,19 +855,19 @@ packages:
     peerDependencies:
       vite: ^2.0.0 || ^3.0.0 || ^4.0.0 || ^5.0.0
 
-  vite@6.4.1:
-    resolution: {integrity: sha512-+Oxm7q9hDoLMyJOYfUYBuHQo+dkAloi33apOPP56pzj+vsdJDzr+j1NISE5pyaAuKL4A3UD34qd0lx5+kfKp2g==}
-    engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
+  vite@7.1.12:
+    resolution: {integrity: sha512-ZWyE8YXEXqJrrSLvYgrRP7p62OziLW7xI5HYGWFzOvupfAlrLvURSzv/FyGyy0eidogEM3ujU+kUG1zuHgb6Ug==}
+    engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
-      '@types/node': ^18.0.0 || ^20.0.0 || >=22.0.0
+      '@types/node': ^20.19.0 || >=22.12.0
       jiti: '>=1.21.0'
-      less: '*'
+      less: ^4.0.0
       lightningcss: ^1.21.0
-      sass: '*'
-      sass-embedded: '*'
-      stylus: '*'
-      sugarss: '*'
+      sass: ^1.70.0
+      sass-embedded: ^1.70.0
+      stylus: '>=0.54.8'
+      sugarss: ^5.0.0
       terser: ^5.16.0
       tsx: ^4.8.1
       yaml: ^2.4.2
@@ -1775,19 +1777,19 @@ snapshots:
     optionalDependencies:
       '@xterm/xterm': 5.5.0
 
-  vite-plugin-css-injected-by-js@3.5.2(vite@6.4.1(@types/node@24.9.2)):
+  vite-plugin-css-injected-by-js@3.5.2(vite@7.1.12(@types/node@24.9.2)):
     dependencies:
-      vite: 6.4.1(@types/node@24.9.2)
+      vite: 7.1.12(@types/node@24.9.2)
 
-  vite-plugin-node-polyfills@0.22.0(rollup@4.52.5)(vite@6.4.1(@types/node@24.9.2)):
+  vite-plugin-node-polyfills@0.22.0(rollup@4.52.5)(vite@7.1.12(@types/node@24.9.2)):
     dependencies:
       '@rollup/plugin-inject': 5.0.5(rollup@4.52.5)
       node-stdlib-browser: 1.3.0
-      vite: 6.4.1(@types/node@24.9.2)
+      vite: 7.1.12(@types/node@24.9.2)
     transitivePeerDependencies:
       - rollup
 
-  vite@6.4.1(@types/node@24.9.2):
+  vite@7.1.12(@types/node@24.9.2):
     dependencies:
       esbuild: 0.25.11
       fdir: 6.5.0(picomatch@4.0.3)
