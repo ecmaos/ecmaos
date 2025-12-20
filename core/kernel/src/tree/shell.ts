@@ -33,8 +33,6 @@ const DefaultShellOptions = {
   * 
  */
 export class Shell implements IShell {
-  // private _cred: Credentials = { uid: 0, gid: 0, suid: 0, sgid: 0, euid: 0, egid: 0, groups: [] }
-  // private _context: BoundContext
   private _cwd: string
   private _env: Map<string, string>
   private _id: string = crypto.randomUUID()
@@ -55,12 +53,6 @@ export class Shell implements IShell {
   get terminal() { return this._terminal }
   get username() { return this._kernel.users.get(this.credentials.uid)?.username || 'root' }
 
-  // get credentials() { return this.credentials }
-  // set credentials(cred: Credentials) { this.credentials = cred }
-
-  // get context() { return this._context }
-  // set context(context: BoundContext) { this._context = context }
-
   constructor(_options: ShellOptions) {
     const options = { ...DefaultShellOptions, ..._options }
     if (!options.kernel) throw new Error('Kernel is required')
@@ -73,6 +65,50 @@ export class Shell implements IShell {
     this._terminalWriter = this._terminal?.stdout.getWriter() || new WritableStream().getWriter()
 
     process.env = Object.fromEntries(this._env)
+  }
+
+  async loadEnvFile() {
+    const home = this._env.get('HOME')
+    if (!home) return
+
+    const envFilePath = path.join(home, '.env')
+    try {
+      if (!await this.context.fs.promises.exists(envFilePath)) return
+
+      const content = await this.context.fs.promises.readFile(envFilePath, 'utf-8')
+      const envVars = this.parseEnvFile(content)
+      for (const [key, value] of Object.entries(envVars)) {
+        this._env.set(key, value)
+      }
+
+      process.env = Object.fromEntries(this._env)
+    } catch {}
+  }
+
+  parseEnvFile(content: string): Record<string, string> {
+    const envVars: Record<string, string> = {}
+    const lines = content.split('\n')
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      
+      if (!trimmed || trimmed.startsWith('#')) continue
+
+      const match = trimmed.match(/^([^=#\s]+)=(.*)$/)
+      if (match) {
+        const [, key, value] = match
+        if (!key || !value) continue
+        let parsedValue = value.trim()
+
+        if ((parsedValue.startsWith('"') && parsedValue.endsWith('"')) ||
+            (parsedValue.startsWith("'") && parsedValue.endsWith("'")))
+          parsedValue = parsedValue.slice(1, -1)
+
+        envVars[key] = parsedValue
+      }
+    }
+
+    return envVars
   }
   
   attach(terminal: Terminal) {
@@ -254,9 +290,7 @@ export class Shell implements IShell {
     for (const path of paths) {
       const expandedPath = path.replace(/\$([A-Z_]+)/g, (_, name) => this.env.get(name) || '')
       const fullPath = `${expandedPath}/${command}`
-      if (await this.context.fs.promises.exists(fullPath)) {
-        return fullPath
-      }
+      if (await this.context.fs.promises.exists(fullPath)) return fullPath
     }
 
     return undefined

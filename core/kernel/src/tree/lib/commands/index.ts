@@ -138,20 +138,21 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
   const HelpOption = { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') }
 
   return {
-    ai: new TerminalCommand({
-      command: 'ai',
-      description: 'Access an AI',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'prompt', type: String, defaultOption: true, description: 'The prompt to send to the AI' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await ai({ kernel, shell, terminal, process, args: [argv.prompt] })
-      }
-    }),
+    // ai: new TerminalCommand({
+    //   command: 'ai',
+    //   description: 'Access an AI',
+    //   kernel,
+    //   shell,
+    //   terminal,
+    //   options: [
+    //     HelpOption,
+    //     { name: 'model', type: String, description: 'The model to use', defaultValue: 'openai/gpt-oss-20b:free' },
+    //     { name: 'prompt', type: String, defaultOption: true, description: 'The prompt to send to the AI' }
+    //   ],
+    //   run: async (argv: CommandLineOptions, process?: Process) => {
+    //     return await ai({ kernel, shell, terminal, process, args: [argv.prompt] })
+    //   }
+    // }),
     cat: new TerminalCommand({
       command: 'cat',
       description: 'Concatenate files and print on the standard output',
@@ -714,26 +715,26 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
   }
 }
 
-export const ai = async ({ process, args }: CommandArgs) => {
-  const [prompt] = (args as string[])
-  if (!prompt) return 1
+// export const ai = async ({ process, args }: CommandArgs) => {
+//   const [model, prompt] = (args as string[])
+//   if (!model || !prompt) return 1
 
-  const stream = await streamText({
-    model: openai.CompletionTextGenerator({ model: 'gpt-3.5-turbo-instruct', maxGenerationTokens: 1000 }),
-    prompt
-  })
+//   // const stream = await streamText({
+//   //   model: openai.CompletionTextGenerator({ model: model as string, maxGenerationTokens: 1000 }),
+//   //   prompt
+//   // })
 
-  for await (const chunk of stream) {
-    const writer = process?.stdout.getWriter()
-    if (writer) await writer.write(new TextEncoder().encode(chunk))
-    writer?.releaseLock()
-  }
+//   // for await (const chunk of stream) {
+//   //   const writer = process?.stdout.getWriter()
+//   //   if (writer) await writer.write(new TextEncoder().encode(chunk))
+//   //   writer?.releaseLock()
+//   // }
 
-  const writer = process?.stdout.getWriter()
-  if (writer) await writer.write(new TextEncoder().encode('\n'))
-  writer?.releaseLock()
-  return 0
-}
+//   // const writer = process?.stdout.getWriter()
+//   // if (writer) await writer.write(new TextEncoder().encode('\n'))
+//   // writer?.releaseLock()
+//   return 0
+// }
 
 export const cat = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   if (!process) return 1
@@ -819,15 +820,19 @@ export const cat = async ({ kernel, shell, terminal, process, args }: CommandArg
   }
 }
 
-export const cd = async ({ shell, terminal, args }: CommandArgs) => {
-  const destination = (args as string[])[0]
+export const cd = async ({ shell, args }: CommandArgs) => {
+  let destination = (args as string[])[0]
+  if (destination && destination.startsWith('~')) {
+    const home = shell.env.get('HOME')
+    if (home) {
+      destination = destination.replace(/^~(?=$|\/)/, home)
+    }
+  }
+  
   const fullPath = destination ? path.resolve(shell.cwd, destination) : shell.cwd
   await shell.context.fs.promises.access(fullPath)
-
-  if (await shell.context.fs.promises.exists(fullPath)) {
-    shell.cwd = fullPath
-    localStorage.setItem(`cwd:${shell.credentials.uid}`, fullPath)
-  } else terminal.writeln(chalk.red(`${fullPath} not found`))
+  shell.cwd = fullPath
+  localStorage.setItem(`cwd:${shell.credentials.uid}`, fullPath)
 }
 
 export const chmod = async ({ shell, terminal, args }: CommandArgs) => {

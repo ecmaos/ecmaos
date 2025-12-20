@@ -36,7 +36,8 @@
     "Use the 'install' command to install packages - e.g. 'install @ecmaos-apps/news'",
     "You can install any NPM package - e.g. 'install jquery'",
     "Use the 'news' command to see the latest news about ecmaOS",
-    "Type 'ls /bin' to see all built-in commands"
+    "Type 'ls /bin' to see all built-in commands",
+    "Type 'ls /usr/bin' to see all installed commands"
   ],
   "type": "module",
   "files": [

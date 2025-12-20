@@ -1,0 +1,36 @@
+{
+  "name": "@ecmaos-apps/ai",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "ai": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc && esbuild src/index.ts --bundle --sourcemap --platform=neutral --format=esm --outfile=dist/index.js",
+    "dev": "tsc --watch",
+    "publish:dev": "npm run build && npm publish --registry=http://localhost:4873",
+    "republish:dev": "npm run unpublish:dev && npm run publish:dev",
+    "unpublish:dev": "npm unpublish @ecmaos-apps/ai --registry=http://localhost:4873 --force"
+  },
+  "devDependencies": {
+    "@ecmaos/config-typescript": "workspace:^",
+    "@ecmaos/types": "workspace:^",
+    "esbuild": "^0.25.11",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "openai": "^6.7.0"
+  }
+}

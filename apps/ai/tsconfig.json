@@ -1,0 +1,7 @@
+{
+  "extends": "@ecmaos/config-typescript/tsconfig.base.json",
+  "include": ["src/**/*"],
+  "compilerOptions": {
+    "outDir": "./dist"
+  }
+}

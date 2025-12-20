@@ -563,6 +563,7 @@ export class Kernel implements IKernel {
         const { cred } = await this.users.login(this.options.credentials.username, this.options.credentials.password)
         this.shell.credentials = cred
         this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
+        await this.shell.loadEnvFile()
       } else {
         if (import.meta.env['VITE_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold('Default Login: root / root\n'))
 
@@ -590,6 +591,7 @@ export class Kernel implements IKernel {
             const { cred } = await this.users.login(username, password)
             this.shell.credentials = cred
             this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
+            await this.shell.loadEnvFile()
             break
           } catch (err) {
             console.error(err)
@@ -841,7 +843,10 @@ export class Kernel implements IKernel {
           terminal: options.terminal || this.terminal,
           uid: options.shell.credentials.uid,
           gid: options.shell.credentials.gid,
-          entry: async (params) => await main(params)
+          entry: async (params) => await main(params),
+          stdin: options.stdin,
+          stdout: options.stdout,
+          stderr: options.stderr
         })
 
         await process.start()
