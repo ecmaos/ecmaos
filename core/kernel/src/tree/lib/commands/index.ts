@@ -17,16 +17,11 @@ import chalk from 'chalk'
 import humanFormat from 'human-format'
 import parseArgs, { CommandLineOptions, OptionDefinition } from 'command-line-args'
 import parseUsage from 'command-line-usage'
-// import { openai, streamText } from 'modelfusion' // modelfusion is a little heavy - all ai features will be moved to an app; here for demo
 import path from 'path'
-// import * as textCanvas from '@thi.ng/text-canvas'
-// import * as textFormat from '@thi.ng/text-format'
-// import * as jose from 'jose'
 import * as zipjs from '@zip.js/zip.js'
 
 import { bindContext, createCredentials, Fetch, InMemory, resolveMountConfig, Stats } from '@zenfs/core'
 import { IndexedDB } from '@zenfs/dom'
-// import { Zip } from '@zenfs/archives'
 
 import {
   KernelEvents,
@@ -184,21 +179,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
   const HelpOption = { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') }
 
   return {
-    // ai: new TerminalCommand({
-    //   command: 'ai',
-    //   description: 'Access an AI',
-    //   kernel,
-    //   shell,
-    //   terminal,
-    //   options: [
-    //     HelpOption,
-    //     { name: 'model', type: String, description: 'The model to use', defaultValue: 'openai/gpt-oss-20b:free' },
-    //     { name: 'prompt', type: String, defaultOption: true, description: 'The prompt to send to the AI' }
-    //   ],
-    //   run: async (argv: CommandLineOptions, process?: Process) => {
-    //     return await ai({ kernel, shell, terminal, process, args: [argv.prompt] })
-    //   }
-    // }),
     cat: new TerminalCommand({
       command: 'cat',
       description: 'Concatenate files and print on the standard output',
@@ -760,27 +740,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
     }),
   }
 }
-
-// export const ai = async ({ process, args }: CommandArgs) => {
-//   const [model, prompt] = (args as string[])
-//   if (!model || !prompt) return 1
-
-//   // const stream = await streamText({
-//   //   model: openai.CompletionTextGenerator({ model: model as string, maxGenerationTokens: 1000 }),
-//   //   prompt
-//   // })
-
-//   // for await (const chunk of stream) {
-//   //   const writer = process?.stdout.getWriter()
-//   //   if (writer) await writer.write(new TextEncoder().encode(chunk))
-//   //   writer?.releaseLock()
-//   // }
-
-//   // const writer = process?.stdout.getWriter()
-//   // if (writer) await writer.write(new TextEncoder().encode('\n'))
-//   // writer?.releaseLock()
-//   return 0
-// }
 
 export const cat = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   if (!process) return 1

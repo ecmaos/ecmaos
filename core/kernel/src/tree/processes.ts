@@ -151,7 +151,7 @@ export class Process implements IProcess {
     // Close/cancel standard streams (but not terminal's shared streams)
     if (this._stdin && this._stdin !== this.terminal.stdin) {
       try {
-        await this._stdin.cancel('Process cleanup')
+        await this._stdin.cancel()
       } catch {
         // Stream may already be closed/cancelled
       }

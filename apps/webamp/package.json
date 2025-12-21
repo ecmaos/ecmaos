@@ -32,8 +32,5 @@
     "esbuild": "^0.25.0",
     "typescript": "^5.6.3",
     "webamp": "0.0.0-next-b06490d"
-  },
-  "dependencies": {
-    "@zenfs/core": "^2.4.2"
   }
 }

@@ -19,9 +19,6 @@ importers:
       '@ecmaos/types':
         specifier: workspace:^
         version: link:../../core/types
-      '@zenfs/core':
-        specifier: ^2.4.2
-        version: 2.4.2
       monaco-editor:
         specifier: ^0.52.2
         version: 0.52.2
@@ -37,6 +34,62 @@ importers:
       vite-plugin-node-polyfills:
         specifier: ^0.22.0
         version: 0.22.0(rollup@4.52.5)(vite@7.1.12(@types/node@24.9.2))
+
+  ../..: {}
+
+  ../../core/bios: {}
+
+  ../../core/jaffa: {}
+
+  ../../core/kernel: {}
+
+  ../../core/metal: {}
+
+  ../../core/swapi: {}
+
+  ../../core/types: {}
+
+  ../../devices/audio: {}
+
+  ../../devices/battery: {}
+
+  ../../devices/bluetooth: {}
+
+  ../../devices/echo: {}
+
+  ../../devices/gamepad: {}
+
+  ../../devices/geo: {}
+
+  ../../devices/gpu: {}
+
+  ../../devices/hid: {}
+
+  ../../devices/midi: {}
+
+  ../../devices/presentation: {}
+
+  ../../devices/sensors: {}
+
+  ../../devices/serial: {}
+
+  ../../devices/usb: {}
+
+  ../../devices/webgl: {}
+
+  ../../modules/boilerplate: {}
+
+  ../../utils/config-typescript: {}
+
+  ../ai: {}
+
+  ../boilerplate: {}
+
+  ../news: {}
+
+  ../python: {}
+
+  ../webamp: {}
 
 packages:
 
@@ -333,18 +386,6 @@ packages:
   '@types/node@24.9.2':
     resolution: {integrity: sha512-uWN8YqxXxqFMX2RqGOrumsKeti4LlmIMIyV0lgut4jx7KQBcBiW6vkDtIBvHnHIquwNfJhk8v2OtmO8zXWHfPA==}
 
-  '@xterm/xterm@5.5.0':
-    resolution: {integrity: sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A==}
-
-  '@zenfs/core@2.4.2':
-    resolution: {integrity: sha512-vqSX3Og0vz92uUkC2/FTZTp8zoP+5A0ZRyUKpdxBmpBASJsaM/2xEeYtT+OTfv5RVxgAGFnaK4g2EzBST6KOYA==}
-    engines: {node: '>= 18'}
-    hasBin: true
-
-  abort-controller@3.0.0:
-    resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
-    engines: {node: '>=6.5'}
-
   asn1.js@4.10.1:
     resolution: {integrity: sha512-p32cOF5q0Zqs9uBiONKYLm6BClCoBCM5O9JfeUSlnQLBTxYdTK+pW+nXflm8UkKd2UYlEbYz5qEi0JuZR9ckSw==}
 
@@ -395,9 +436,6 @@ packages:
 
   buffer@5.7.1:
     resolution: {integrity: sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ==}
-
-  buffer@6.0.3:
-    resolution: {integrity: sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==}
 
   builtin-status-codes@3.0.0:
     resolution: {integrity: sha512-HpGFw18DgFWlncDfjTa2rcQ4W88O1mC8e8yZ2AvQY5KDaktSTwo+KRf6nHK6FRI5FyRyb/5T6+TSxfP7QyGsmQ==}
@@ -487,13 +525,6 @@ packages:
 
   estree-walker@2.0.2:
     resolution: {integrity: sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w==}
-
-  event-target-shim@5.0.1:
-    resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
-    engines: {node: '>=6'}
-
-  eventemitter3@5.0.1:
-    resolution: {integrity: sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==}
 
   events@3.3.0:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
@@ -599,9 +630,6 @@ packages:
     resolution: {integrity: sha512-u4sej9B1LPSxTGKB/HiuzvEQnXH0ECYkSVQU39koSwmFAxhlEAFl9RdTvLv4TOTQUgBS5O3O5fwUxk6byBZ+IQ==}
     engines: {node: '>=10'}
 
-  kerium@1.3.4:
-    resolution: {integrity: sha512-kRfgAw4qAVNm2h1w7vlSRSgVGn0ICke/seBaQ9J0Iaxs6ZkMNiXwWnMO4EUrOs37FUhvR4KCbrKE2CM2JCB/Ew==}
-
   locate-path@6.0.0:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
     engines: {node: '>=10'}
@@ -615,9 +643,6 @@ packages:
 
   md5.js@1.3.5:
     resolution: {integrity: sha512-xitP+WxNPcTTOgnTJcrhM0xvdPepipPSf3I8EIpGKeFLjt3PlJLIDG3u8EX53ZIubkb+5U2+3rELYpEhHhzdkg==}
-
-  memium@0.3.10:
-    resolution: {integrity: sha512-7LdicWe1tGBLrstNXdcH1Wh2iiAC4u8eU/iGuBvoVAkG20qU2d8bQk3/y40FIrM6mk5N+hpiqFI7PmOlR1hNOg==}
 
   miller-rabin@4.0.1:
     resolution: {integrity: sha512-115fLhvZVqWwHPbClyntxEVfVDfl9DLLTuJvq3g2O/Oxi8AiNouAHvDSzHS0viUJc+V5vm3eq91Xwqn9dp4jRA==}
@@ -742,10 +767,6 @@ packages:
     resolution: {integrity: sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==}
     engines: {node: '>= 6'}
 
-  readable-stream@4.5.2:
-    resolution: {integrity: sha512-yjavECdqeZ3GLXNgRXgeQEdz9fvDDkNKyHnbHRFtOr7/LcfgBcmct7t/ET+HaCTqfh06OzoAxrkN/IfjJBVe+g==}
-    engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
-
   resolve@1.22.8:
     resolution: {integrity: sha512-oKWePCxqpd6FlLvGV1VU0x7bkPmmCNolxzjMf4NczoDnQcIWrAF+cPtZn5i6n+RfD2d9i0tzpKnG6Yk168yIyw==}
     hasBin: true
@@ -839,11 +860,6 @@ packages:
 
   util@0.12.5:
     resolution: {integrity: sha512-kZf/K6hEIrWHI6XqOFUiiMa+79wE/D8Q+NCNAWclkyg3b4d2k7s0QGepNjiABc+aR3N1PAyHL7p6UcLY6LmrnA==}
-
-  utilium@2.5.7:
-    resolution: {integrity: sha512-8F/HW+6g4v6k3yYR1bhSG+OVnoxjbuZeelLa4IyyNdwFaqGj8HpxKdOQf07xmB2jWIuUs1sq2wXcsqiERRWvEA==}
-    engines: {node: '>=22.0.0'}
-    hasBin: true
 
   vite-plugin-css-injected-by-js@3.5.2:
     resolution: {integrity: sha512-2MpU/Y+SCZyWUB6ua3HbJCrgnF0KACAsmzOQt1UvRVJCGF6S8xdA3ZUhWcWdM9ivG4I5az8PnQmwwrkC2CAQrQ==}
@@ -1079,23 +1095,7 @@ snapshots:
   '@types/node@24.9.2':
     dependencies:
       undici-types: 7.16.0
-
-  '@xterm/xterm@5.5.0':
     optional: true
-
-  '@zenfs/core@2.4.2':
-    dependencies:
-      '@types/node': 24.9.2
-      buffer: 6.0.3
-      eventemitter3: 5.0.1
-      kerium: 1.3.4
-      memium: 0.3.10
-      readable-stream: 4.5.2
-      utilium: 2.5.7
-
-  abort-controller@3.0.0:
-    dependencies:
-      event-target-shim: 5.0.1
 
   asn1.js@4.10.1:
     dependencies:
@@ -1175,11 +1175,6 @@ snapshots:
   buffer-xor@1.0.3: {}
 
   buffer@5.7.1:
-    dependencies:
-      base64-js: 1.5.1
-      ieee754: 1.2.1
-
-  buffer@6.0.3:
     dependencies:
       base64-js: 1.5.1
       ieee754: 1.2.1
@@ -1333,10 +1328,6 @@ snapshots:
 
   estree-walker@2.0.2: {}
 
-  event-target-shim@5.0.1: {}
-
-  eventemitter3@5.0.1: {}
-
   events@3.3.0: {}
 
   evp_bytestokey@1.0.3:
@@ -1441,10 +1432,6 @@ snapshots:
 
   isomorphic-timers-promises@1.0.1: {}
 
-  kerium@1.3.4:
-    dependencies:
-      utilium: 2.5.7
-
   locate-path@6.0.0:
     dependencies:
       p-locate: 5.0.0
@@ -1460,11 +1447,6 @@ snapshots:
       hash-base: 3.0.5
       inherits: 2.0.4
       safe-buffer: 5.2.1
-
-  memium@0.3.10:
-    dependencies:
-      kerium: 1.3.4
-      utilium: 2.5.7
 
   miller-rabin@4.0.1:
     dependencies:
@@ -1622,14 +1604,6 @@ snapshots:
       string_decoder: 1.3.0
       util-deprecate: 1.0.2
 
-  readable-stream@4.5.2:
-    dependencies:
-      abort-controller: 3.0.0
-      buffer: 6.0.3
-      events: 3.3.0
-      process: 0.11.10
-      string_decoder: 1.3.0
-
   resolve@1.22.8:
     dependencies:
       is-core-module: 2.15.1
@@ -1754,7 +1728,8 @@ snapshots:
 
   typescript@5.6.3: {}
 
-  undici-types@7.16.0: {}
+  undici-types@7.16.0:
+    optional: true
 
   url@0.11.4:
     dependencies:
@@ -1770,12 +1745,6 @@ snapshots:
       is-generator-function: 1.0.10
       is-typed-array: 1.1.13
       which-typed-array: 1.1.16
-
-  utilium@2.5.7:
-    dependencies:
-      eventemitter3: 5.0.1
-    optionalDependencies:
-      '@xterm/xterm': 5.5.0
 
   vite-plugin-css-injected-by-js@3.5.2(vite@7.1.12(@types/node@24.9.2)):
     dependencies:
