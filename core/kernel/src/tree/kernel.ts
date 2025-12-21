@@ -642,11 +642,8 @@ export class Kernel implements IKernel {
         for (const event of events) globalThis.addEventListener(event, resetIdleTime)
       }
 
-      // Init doesn't exit; tradition - init should become a more full-featured init system in the future
-      class InitProcess extends Process { override async exit() {} }
       if (!await this.filesystem.fs.exists('/boot/init')) await this.filesystem.fs.writeFile('/boot/init', '#!ecmaos:bin:script:init\n\n')
-
-      const initProcess = new InitProcess({
+      const initProcess = new Process({
         args: [],
         command: 'init',
         uid: user.uid,
@@ -657,8 +654,11 @@ export class Kernel implements IKernel {
         entry: async () => await this.sudo(async () => await this.execute({ command: '/boot/init', shell: this.shell }))
       })
 
+      initProcess.keepAlive()
       initProcess.start()
+
       this._state = KernelState.RUNNING
+      this.setupDebugGlobals()
 
       // Install recommended apps if desired by user on first boot
       if (!this.storage.local.getItem('ecmaos:first-boot')) {
@@ -849,8 +849,7 @@ export class Kernel implements IKernel {
           stderr: options.stderr
         })
 
-        await process.start()
-        exitCode = 0
+        exitCode = await process.start()
       } finally {
         URL.revokeObjectURL(url)
       }
@@ -886,8 +885,8 @@ export class Kernel implements IKernel {
       stderr: options.stderr
     })
 
-    await process.start()
-    return 0
+    const exitCode = await process.start()
+    return exitCode
   }
 
   /**
@@ -1315,5 +1314,79 @@ export class Kernel implements IKernel {
     }
 
     return result
+  }
+
+  /**
+   * Sets up global debug utilities for browser console access.
+   * Access via: ecmaos.kernel, ecmaos.processes(), ecmaos.fd(pid?), etc.
+   */
+  private setupDebugGlobals() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ecmaos = (globalThis as any).ecmaos || {}
+    
+    Object.assign(ecmaos, {
+      // Core references
+      kernel: this,
+      
+      // Process utilities
+      processes: () => {
+        const procs = Array.from(this.processes.all.values()) as Process[]
+        console.table(procs.map((p: Process) => ({
+          pid: p.pid,
+          command: p.command,
+          status: p.status,
+          uid: p.uid,
+          gid: p.gid,
+          cwd: p.cwd
+        })))
+        return procs
+      },
+      
+      // File descriptor table for a specific process
+      fd: (pid?: number) => {
+        if (pid === undefined) {
+          // Show all processes and their fd info
+          const procs = Array.from(this.processes.all.values()) as Process[]
+          for (const proc of procs) {
+            console.group(`PID ${proc.pid}: ${proc.command}`)
+            console.log('stdin:', proc.fd.stdin ? '✓' : '✗')
+            console.log('stdout:', proc.fd.stdout ? '✓' : '✗')
+            console.log('stderr:', proc.fd.stderr ? '✓' : '✗')
+            console.log('tracked file handles:', proc.fd.fileHandles.length)
+            console.groupEnd()
+          }
+          return procs.map(p => ({ pid: p.pid, fd: p.fd }))
+        }
+        
+        const proc = this.processes.get(pid) as Process | undefined
+        if (!proc) {
+          console.error(`Process ${pid} not found`)
+          return null
+        }
+        
+        console.group(`FDTable for PID ${pid}: ${proc.command}`)
+        console.log('stdin:', proc.fd.stdin)
+        console.log('stdout:', proc.fd.stdout)
+        console.log('stderr:', proc.fd.stderr)
+        console.log('tracked file handles:', proc.fd.fileHandles)
+        console.groupEnd()
+        
+        return proc.fd
+      },
+      
+      // Terminal reference
+      terminal: this.terminal,
+      
+      // Shell reference
+      shell: this.shell,
+      
+      // Filesystem reference
+      fs: this.filesystem.fs
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(globalThis as any).ecmaos = ecmaos
+    
+    this.log.debug('Debug globals available: ecmaos.kernel, ecmaos.processes(), ecmaos.fd(pid?), ecmaos.terminal, ecmaos.shell, ecmaos.fs')
   }
 }

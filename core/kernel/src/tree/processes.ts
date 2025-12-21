@@ -1,6 +1,7 @@
 import { Events } from '#events.ts'
+import { FDTable } from '#fdtable.ts'
 
-import { ProcessEvents, ProcessStatus } from '@ecmaos/types'
+import { ProcessEvents, ProcessStatus, FileHandle } from '@ecmaos/types'
 
 import type {
   Kernel,
@@ -17,8 +18,11 @@ import type {
   ProcessStopEvent
 } from '@ecmaos/types'
 
+export { FDTable }
+
 export class ProcessManager {
   private _processes: ProcessesMap = new Map()
+  private _nextPid: number = 0
 
   get all() { return this._processes }
 
@@ -36,7 +40,8 @@ export class ProcessManager {
   }
 
   pid() {
-    return this._processes.size
+    const newPid = this._nextPid++
+    return newPid
   }
 
   remove(pid: number) {
@@ -56,6 +61,7 @@ export class Process implements IProcess {
   private _cwd: string
   private _entry: (params: ProcessEntryParams) => Promise<number | undefined | void>
   private _events: Events
+  private _fdtable: FDTable
   private _gid: number
   private _kernel: Kernel
   private _pid: number
@@ -67,6 +73,7 @@ export class Process implements IProcess {
   private _stdout: WritableStream<Uint8Array>
   private _terminal: Terminal
   private _uid: number
+  private _keepAlive: boolean = false
 
   get args() { return this._args }
   get code() { return this._code }
@@ -74,6 +81,7 @@ export class Process implements IProcess {
   get cwd() { return this._cwd }
   get entry() { return this._entry }
   get events() { return this._events }
+  get fd() { return this._fdtable }
   get gid() { return this._gid }
   get kernel() { return this._kernel }
   get pid() { return this._pid }
@@ -103,17 +111,67 @@ export class Process implements IProcess {
     this._terminal = options.terminal || this.kernel.terminal
     this._uid = options.uid
 
-
     this._stdin = options.stdin || this.terminal.getInputStream()
     this._stdout = options.stdout || this.terminal.stdout || new WritableStream()
     this._stderr = options.stderr || this.terminal.stderr || new WritableStream()
+    this._fdtable = new FDTable(this._stdin, this._stdout, this._stderr)
 
     this.kernel.processes.add(this as IProcess)
+  }
+
+  /**
+   * Opens a file and automatically tracks it in the FDTable.
+   * The file handle will be automatically closed on process cleanup.
+   * @param path - Path to the file
+   * @param flags - Open flags (default: 'r')
+   * @returns The file handle
+   */
+  async open(path: string, flags: string = 'r'): Promise<FileHandle> {
+    const handle = await this.kernel.filesystem.fs.open(path, flags)
+    this._fdtable.trackFileHandle(handle as FileHandle)
+    return handle as FileHandle
+  }
+
+  /**
+   * Closes a file handle and untracks it from the FDTable.
+   * @param handle - The file handle to close
+   */
+  async close(handle: FileHandle): Promise<void> {
+    this._fdtable.untrackFileHandle(handle)
+    await handle.close()
   }
 
   async cleanup() {
     this.events.clear()
     this.kernel.processes.remove(this.pid)
+
+    // Close tracked ZenFS file handles (automatically closes any open files)
+    await this._fdtable.cleanup()
+
+    // Close/cancel standard streams (but not terminal's shared streams)
+    if (this._stdin && this._stdin !== this.terminal.stdin) {
+      try {
+        await this._stdin.cancel('Process cleanup')
+      } catch {
+        // Stream may already be closed/cancelled
+      }
+    }
+
+    if (this._stdout && this._stdout !== this.terminal.stdout) {
+      try {
+        await this._stdout.close()
+      } catch {
+        // Stream may already be closed
+      }
+    }
+
+    if (this._stderr && this._stderr !== this.terminal.stderr) {
+      try {
+        await this._stderr.close()
+      } catch {
+        // Stream may already be closed
+      }
+    }
   }
 
   async exit(exitCode: number = 0) {
@@ -131,6 +189,10 @@ export class Process implements IProcess {
   resume() {
     this._status = 'running'
     this.events.emit<ProcessResumeEvent>(ProcessEvents.RESUME, { pid: this.pid })
+  }
+
+  keepAlive() {
+    this._keepAlive = true
   }
 
   async start() {
@@ -153,7 +215,7 @@ export class Process implements IProcess {
       uid: this.uid
     })
 
-    await this.stop(exitCode ?? 0)
+    if (!this._keepAlive) await this.stop(exitCode ?? 0)
     return exitCode ?? 0
   }
 

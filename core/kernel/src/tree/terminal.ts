@@ -133,9 +133,7 @@ export class Terminal extends XTerm implements ITerminal {
   private _stdin: ReadableStream<Uint8Array>
   private _stdout: WritableStream<Uint8Array>
   private _stderr: WritableStream<Uint8Array>
-  private _stdinController?: TransformStreamDefaultController<Uint8Array>
-  private _stdinStream: TransformStream<Uint8Array, Uint8Array>
-  private _stdinBroadcast: ReadableStream<Uint8Array>[]
+  private _stdinSubscribers: Set<(data: Uint8Array) => void> = new Set()
   private _multiLineMode: boolean = false
   private _multiLineBuffer: string = ''
   private _tabCompletionIndex: number = 0
@@ -164,17 +162,8 @@ export class Terminal extends XTerm implements ITerminal {
     super({ ...DefaultTerminalOptions, ...options })
     globalThis.terminals?.set(this.id, this)
 
-    // Create the stdin stream that can receive keyboard input
-    this._stdinStream = new TransformStream({
-      start: (controller) => {
-        this._stdinController = controller
-      }
-    })
-    
-    // Initialize broadcast streams
-    const [stream1, stream2] = this._stdinStream.readable.tee()
-    this._stdinBroadcast = [stream1, stream2]
-    this._stdin = this._stdinBroadcast[0] || new ReadableStream()
+    // Create the primary stdin stream (terminal's own stdin)
+    this._stdin = this.createSubscribedInputStream()
 
     // Create stdout stream that writes to the terminal
     this._stdout = new WritableStream({
@@ -192,10 +181,17 @@ export class Terminal extends XTerm implements ITerminal {
       }
     })
 
-    // Connect keyboard input to stdin stream
+    // Connect keyboard input to all subscribers
     this.onKey(({ key }) => {
       if (key && key.length > 0) {
-        if (this._stdinController) this._stdinController.enqueue(new TextEncoder().encode(key))
+        const data = new TextEncoder().encode(key)
+        for (const callback of this._stdinSubscribers) {
+          try {
+            callback(data)
+          } catch {
+            // Subscriber may be closed, will be cleaned up
+          }
+        }
       }
     })
 
@@ -669,12 +665,44 @@ export class Terminal extends XTerm implements ITerminal {
     this.events.dispatch<TerminalWritelnEvent>(TerminalEvents.WRITELN, { text: data instanceof Uint8Array ? new TextDecoder().decode(data) : data })
   }
 
+  /**
+   * Creates a new ReadableStream subscribed to keyboard input.
+   * Each call returns an independent stream that receives all keyboard input.
+   * The stream is automatically unsubscribed when cancelled or closed.
+   */
+  private createSubscribedInputStream(): ReadableStream<Uint8Array> {
+    let callback: ((data: Uint8Array) => void) | null = null
+    
+    return new ReadableStream<Uint8Array>({
+      start: (controller) => {
+        callback = (data: Uint8Array) => {
+          try {
+            controller.enqueue(data)
+          } catch {
+            // Stream closed, unsubscribe
+            if (callback) {
+              this._stdinSubscribers.delete(callback)
+              callback = null
+            }
+          }
+        }
+        this._stdinSubscribers.add(callback)
+      },
+      cancel: () => {
+        if (callback) {
+          this._stdinSubscribers.delete(callback)
+          callback = null
+        }
+      }
+    })
+  }
+
+  /**
+   * Get a new input stream subscribed to keyboard input.
+   * Each call returns an independent stream.
+   */
   getInputStream(): ReadableStream<Uint8Array> {
-    const { readable, writable } = new TransformStream()
-    const [newStream, extraStream] = this._stdinBroadcast[1]?.tee() ?? []
-    if (extraStream) this._stdinBroadcast[1] = extraStream
-    newStream?.pipeTo(writable).catch(() => {})
-    return readable
+    return this.createSubscribedInputStream()
   }
 
   clearCommand() {

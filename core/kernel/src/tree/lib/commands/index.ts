@@ -17,7 +17,7 @@ import chalk from 'chalk'
 import humanFormat from 'human-format'
 import parseArgs, { CommandLineOptions, OptionDefinition } from 'command-line-args'
 import parseUsage from 'command-line-usage'
-import { openai, streamText } from 'modelfusion' // modelfusion is a little heavy - all ai features will be moved to an app; here for demo
+// import { openai, streamText } from 'modelfusion' // modelfusion is a little heavy - all ai features will be moved to an app; here for demo
 import path from 'path'
 // import * as textCanvas from '@thi.ng/text-canvas'
 // import * as textFormat from '@thi.ng/text-format'
@@ -54,6 +54,52 @@ export interface CommandArgs {
   shell: Shell
   terminal: Terminal
   args: string[] | CommandLineOptions
+}
+
+/**
+ * Helper to write to process stdout or fallback to terminal
+ */
+async function writeStdout(process: Process | undefined, terminal: Terminal, text: string): Promise<void> {
+  if (process && process.stdout) {
+    const writer = process.stdout.getWriter()
+    try {
+      await writer.write(new TextEncoder().encode(text))
+    } finally {
+      writer.releaseLock()
+    }
+  } else {
+    terminal.write(text)
+  }
+}
+
+/**
+ * Helper to write line to process stdout or fallback to terminal
+ */
+async function writelnStdout(process: Process | undefined, terminal: Terminal, text: string): Promise<void> {
+  await writeStdout(process, terminal, text + '\n')
+}
+
+/**
+ * Helper to write to process stderr or fallback to terminal
+ */
+async function writeStderr(process: Process | undefined, terminal: Terminal, text: string): Promise<void> {
+  if (process) {
+    const writer = process.stderr.getWriter()
+    try {
+      await writer.write(new TextEncoder().encode(text))
+    } finally {
+      writer.releaseLock()
+    }
+  } else {
+    terminal.write(text)
+  }
+}
+
+/**
+ * Helper to write line to process stderr or fallback to terminal
+ */
+async function writelnStderr(process: Process | undefined, terminal: Terminal, text: string): Promise<void> {
+  await writeStderr(process, terminal, text + '\n')
 }
 
 /**
@@ -95,17 +141,17 @@ export class TerminalCommand implements ITerminalCommand {
 
     this.run =  async (pid: number, argv: string[]) => {
       if (argv === null) return 1
+      const process = this.kernel.processes.get(pid) as Process | undefined
       try {
         const parsed = parseArgs(this.options, { argv })
         if (parsed.help) {
-          this.terminal.writeln(this.usage)
+          await writelnStdout(process, this.terminal, this.usage)
           return 0
         }
 
-        const process = this.kernel.processes.get(pid)
         return await run(parsed, process)
       } catch (error) {
-        this.terminal.writeln(chalk.red(error))
+        await writelnStderr(process, this.terminal, chalk.red(String(error)))
         return 1
       }
     }
@@ -192,8 +238,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'args', type: String, multiple: true, defaultOption: true, description: 'The mode and path to the file or directory' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await chmod({ kernel, shell, terminal, args: argv.args })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await chmod({ kernel, shell, terminal, process, args: argv.args })
       }
     }),
     chown: new TerminalCommand({
@@ -243,8 +289,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       shell,
       terminal,
       options: [],
-      run: async () => {
-        return await df({ kernel, shell, terminal, args: [] })
+      run: async (_argv: CommandLineOptions, process?: Process) => {
+        return await df({ kernel, shell, terminal, process, args: [] })
       }
     }),
     download: new TerminalCommand({
@@ -257,8 +303,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to download' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await download({ kernel, shell, terminal, args: argv.path })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await download({ kernel, shell, terminal, process, args: argv.path })
       }
     }),
     echo: new TerminalCommand({
@@ -300,8 +346,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         { name: 'variables', type: String, multiple: true, defaultOption: true, typeLabel: '{underline variables}', description: 'The environment variable(s) to print' },
         { name: 'set', type: String, description: 'Set the environment variable' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await env({ kernel, shell, terminal, args: [argv.variables, argv.set] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await env({ kernel, shell, terminal, process, args: [argv.variables, argv.set] })
       }
     }),
     fetch: new TerminalCommand({
@@ -362,8 +408,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the directory to list' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await ls({ kernel, shell, terminal, args: [argv.path || shell.cwd] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await ls({ kernel, shell, terminal, process, args: [argv.path || shell.cwd] })
       }
     }),
     mkdir: new TerminalCommand({
@@ -392,8 +438,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         { name: 'type', type: String, description: 'The filesystem type', alias: 't' },
         { name: 'options', type: String, description: 'The options to pass to the filesystem type', alias: 'o' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await mount({ kernel, shell, terminal, args: [argv.args, argv.type, argv.options] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await mount({ kernel, shell, terminal, process, args: [argv.args, argv.type, argv.options] })
       }
     }),
     mv: new TerminalCommand({
@@ -406,8 +452,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'args', type: String, multiple: true, defaultOption: true, description: 'The source and destination paths' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await mv({ kernel, shell, terminal, args: argv.args })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await mv({ kernel, shell, terminal, process, args: argv.args })
       }
     }),
     observe: new TerminalCommand({
@@ -431,8 +477,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file or URL to open' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await open({ kernel, shell, terminal, args: [argv.path] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await open({ kernel, shell, terminal, process, args: [argv.path] })
       }
     }),
     passwd: new TerminalCommand({
@@ -445,8 +491,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'password', type: String, multiple: true, defaultOption: true, description: 'Old and new passwords (optional - will prompt if not provided)' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await passwd({ kernel, shell, terminal, args: argv.password })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await passwd({ kernel, shell, terminal, process, args: argv.password })
       }
     }),
     play: new TerminalCommand({
@@ -459,8 +505,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'file', type: String, typeLabel: '{underline file}', defaultOption: true, description: 'The path to the media file to play' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await play({ kernel, shell, terminal, args: [argv.file] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await play({ kernel, shell, terminal, process, args: [argv.file] })
       }
     }),
     ps: new TerminalCommand({
@@ -470,8 +516,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       shell,
       terminal,
       options: [],
-      run: async () => {
-        return await ps({ kernel, shell, terminal, args: [] })
+      run: async (_argv: CommandLineOptions, process?: Process) => {
+        return await ps({ kernel, shell, terminal, process, args: [] })
       }
     }),
     pwd: new TerminalCommand({
@@ -481,8 +527,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       shell,
       terminal,
       options: [],
-      run: async () => {
-        return await pwd({ kernel, shell, terminal, args: [] })
+      run: async (_argv: CommandLineOptions, process?: Process) => {
+        return await pwd({ kernel, shell, terminal, process, args: [] })
       }
     }),
     reboot: new TerminalCommand({
@@ -535,8 +581,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         { name: 'screensaver', type: String, typeLabel: '{underline screensaver}', defaultOption: true, description: 'The screensaver to start' },
         { name: 'set', type: Boolean, description: 'Set the default screensaver' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await screensaver({ kernel, shell, terminal, args: [argv.screensaver, argv.set] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await screensaver({ kernel, shell, terminal, process, args: [argv.screensaver, argv.set] })
       }
     }),
     snake: new TerminalCommand({
@@ -576,8 +622,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file or directory to display' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await stat({ kernel, shell, terminal, args: [argv.path] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await stat({ kernel, shell, terminal, process, args: [argv.path] })
       }
     }),
     su: new TerminalCommand({
@@ -590,8 +636,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'user', type: String, defaultOption: true, description: 'The user to switch to' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await su({ kernel, shell, terminal, args: [argv.user] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await su({ kernel, shell, terminal, process, args: [argv.user] })
       }
     }),
     touch: new TerminalCommand({
@@ -618,8 +664,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the directory to unmount' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await umount({ kernel, shell, terminal, args: [argv.path] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await umount({ kernel, shell, terminal, process, args: [argv.path] })
       }
     }),
     unzip: new TerminalCommand({
@@ -632,8 +678,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file to unzip' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await unzip({ kernel, shell, terminal, args: [argv.path] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await unzip({ kernel, shell, terminal, process, args: [argv.path] })
       }
     }),
     upload: new TerminalCommand({
@@ -646,8 +692,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         HelpOption,
         { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to store the file' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await upload({ kernel, shell, terminal, args: [argv.path] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await upload({ kernel, shell, terminal, process, args: [argv.path] })
       }
     }),
     user: new TerminalCommand({
@@ -679,8 +725,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
           typeLabel: '{underline password}'
         }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await user({ kernel, shell, terminal, args: [argv.command, argv.username, argv.password] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await user({ kernel, shell, terminal, process, args: [argv.command, argv.username, argv.password] })
       }
     }),
     video: new TerminalCommand({
@@ -708,8 +754,8 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         { name: 'output', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the zip file to create' },
         { name: 'path', type: String, typeLabel: '{underline path}', multiple: true, description: 'The paths to the files or directories to zip' }
       ],
-      run: async (argv: CommandLineOptions) => {
-        return await zip({ kernel, shell, terminal, args: [argv.output, argv.path] })
+      run: async (argv: CommandLineOptions, process?: Process) => {
+        return await zip({ kernel, shell, terminal, process, args: [argv.output, argv.path] })
       }
     }),
   }
@@ -739,13 +785,11 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
 export const cat = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   if (!process) return 1
 
-  // FIXME: input redirection doesn't work
-
   // Get a single writer for the entire operation
   const writer = process.stdout.getWriter()
 
   try {
-    // If no files specified, try reading from stdin
+    // If no files specified, read from stdin
     if (!args || !(args as string[])[0]) {
       const reader = process.stdin.getReader()
 
@@ -816,7 +860,7 @@ export const cat = async ({ kernel, shell, terminal, process, args }: CommandArg
     return 0
   } finally {
     writer.releaseLock()
-    terminal.write('\n')
+    await writeStdout(process, terminal, '\n')
   }
 }
 
@@ -835,10 +879,10 @@ export const cd = async ({ shell, args }: CommandArgs) => {
   localStorage.setItem(`cwd:${shell.credentials.uid}`, fullPath)
 }
 
-export const chmod = async ({ shell, terminal, args }: CommandArgs) => {
+export const chmod = async ({ shell, terminal, process, args }: CommandArgs) => {
   if (!args || (args as string[]).length === 0) {
-    terminal.writeln(chalk.red('chmod: missing operand'))
-    terminal.writeln('Try \'chmod --help\' for more information.')
+    await writelnStderr(process, terminal, chalk.red('chmod: missing operand'))
+    await writelnStderr(process, terminal, 'Try \'chmod --help\' for more information.')
     return 1
   }
 
@@ -869,8 +913,8 @@ export const cp = async ({ shell, args }: CommandArgs) => {
   await shell.context.fs.promises.copyFile(source, finalDestination)
 }
 
-export const df = async ({ kernel, terminal }: CommandArgs) => {
-const usage = await kernel.storage.usage()
+export const df = async ({ kernel, terminal, process }: CommandArgs) => {
+  const usage = await kernel.storage.usage()
   if (!usage) return 1
 
   const getData = (usage: StorageEstimate) => {
@@ -888,11 +932,11 @@ const usage = await kernel.storage.usage()
   }
 
   const data = getData(usage)
-  terminal.writeln(JSON.stringify(data, null, 2))
+  await writelnStdout(process, terminal, JSON.stringify(data, null, 2))
   return 0
 }
 
-export const download = async ({ shell, terminal, args }: CommandArgs) => {
+export const download = async ({ shell, terminal, process, args }: CommandArgs) => {
   const destination = (args as string[])[0]
   const fullPath = destination ? path.resolve(shell.cwd, destination) : shell.cwd
   if (await shell.context.fs.promises.exists(fullPath)) {
@@ -906,7 +950,7 @@ export const download = async ({ shell, terminal, args }: CommandArgs) => {
     a.click()
     window.URL.revokeObjectURL(url)
   } else {
-    terminal.writeln(chalk.red(`${fullPath} not found`))
+    await writelnStderr(process, terminal, chalk.red(`${fullPath} not found`))
   }
 }
 
@@ -914,17 +958,13 @@ export const echo = async ({ process, terminal, args }: CommandArgs) => {
   const text = (args as string[]).join(' ')
   const data = new TextEncoder().encode(text + '\n')
 
-  // Create a readable stream that will be consumed
-  const readable = new ReadableStream({
-    start(controller) {
-      controller.enqueue(data)
-      controller.close()
-    }
-  })
-  
-  // If we have a process, pipe to its stdout, otherwise write to terminal
   if (process) {
-    readable.pipeTo(process.stdout).catch(() => {})
+    const writer = process.stdout.getWriter()
+    try {
+      await writer.write(data)
+    } finally {
+      writer.releaseLock()
+    }
   } else {
     terminal.write(text + '\n')
   }
@@ -1210,14 +1250,17 @@ export const edit = async ({ shell, terminal, args }: CommandArgs) => {
   terminal.listen()
 }
 
-export const env = async ({ shell, terminal, args }: CommandArgs) => {
+export const env = async ({ shell, terminal, process, args }: CommandArgs) => {
   const [variables, value] = (args as string[])
   if (!variables) {
-    for (const [key, value] of shell.env.entries()) terminal.writeln(`${chalk.bold(key)}=${chalk.green(value)}`)
+    for (const [key, value] of shell.env.entries()) {
+      await writelnStdout(process, terminal, `${chalk.bold(key)}=${chalk.green(value)}`)
+    }
   } else {
     for (const variable of variables) {
-      if (!value) terminal.writeln(`${chalk.bold(variable)}=${chalk.green(shell.env.get(variable) || '')}`)
-      else {
+      if (!value) {
+        await writelnStdout(process, terminal, `${chalk.bold(variable)}=${chalk.green(shell.env.get(variable) || '')}`)
+      } else {
         shell.env.set(variable, value)
         globalThis.process.env[variable] = value
       }
@@ -1265,12 +1308,12 @@ export const fetch = async ({ shell, terminal, process, args }: CommandArgs) => 
     } finally {
       reader.releaseLock()
       writer?.releaseLock()
-      terminal.write('\n')
+      await writeStdout(process, terminal, '\n')
     }
 
     return 0
   } catch (error) {
-    terminal.writeln(chalk.red(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`))
+    await writelnStderr(process, terminal, chalk.red(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`))
     return 1
   }
 }
@@ -1288,7 +1331,7 @@ export const load = async ({ shell, args }: CommandArgs) => {
   script()
 }
 
-export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const ls = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   const target = (args as string[])[0]
   const fullPath = target ? path.resolve(shell.cwd, target === '' ? '.' : target) : shell.cwd
   const stats = await shell.context.fs.promises.stat(fullPath)
@@ -1439,16 +1482,16 @@ export const ls = async ({ kernel, shell, terminal, args }: CommandArgs) => {
       })
       .join('  ')
 
-    if (data.length > 1) terminal.writeln(line)
+    if (data.length > 1) await writelnStdout(process, terminal, line)
   }
 
   return 0
 }
 
-export const mount = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const mount = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   const [points, type, config] = (args as string[])
   if (!points || !type || points.length !== 2) {
-    terminal.writeln(chalk.red('Usage: mount -t <type> <source> <target>'))
+    await writelnStderr(process, terminal, chalk.red('Usage: mount -t <type> <source> <target>'))
 
     // TODO: store does not exist on FileSystem (but we can access it here)
     // @ts-ignore
@@ -1457,7 +1500,7 @@ export const mount = async ({ kernel, shell, terminal, args }: CommandArgs) => {
     for (const mount of currentMounts) {
       const [target, name] = mount.split(' ')
       if (!target || !name) continue
-      terminal.writeln(chalk.gray(`${target.padEnd(maxTargetLength + 2)}${name}`))
+      await writelnStdout(process, terminal, chalk.gray(`${target.padEnd(maxTargetLength + 2)}${name}`))
     }
 
     return 1
@@ -1468,7 +1511,7 @@ export const mount = async ({ kernel, shell, terminal, args }: CommandArgs) => {
 
   const [source, target] = points
   if (!source || !target) {
-    terminal.writeln(chalk.red('Usage: mount -t <type> <source> <target>'))
+    await writelnStderr(process, terminal, chalk.red('Usage: mount -t <type> <source> <target>'))
     return 1
   }
 
@@ -1496,10 +1539,10 @@ export const mkdir = async ({ shell, args }: CommandArgs) => {
   await shell.context.fs.promises.mkdir(fullPath)
 }
 
-export const mv = async ({ shell, terminal, args }: CommandArgs) => {
+export const mv = async ({ shell, terminal, process, args }: CommandArgs) => {
   const [sourceInput, destinationInput] = (args as string[])
   if (!sourceInput || !destinationInput) {
-    terminal.writeln(chalk.red('Usage: mv <source> <destination>'))
+    await writelnStderr(process, terminal, chalk.red('Usage: mv <source> <destination>'))
     return 1
   }
 
@@ -1509,7 +1552,7 @@ export const mv = async ({ shell, terminal, args }: CommandArgs) => {
   if (source === destination) return 0
   const disallowedPaths = ['/dev', '/proc', '/sys', '/run']
   if (disallowedPaths.some(path => source.startsWith(path) || destination.startsWith(path))) {
-    terminal.writeln(chalk.red('Cannot move disallowed paths'))
+    await writelnStderr(process, terminal, chalk.red('Cannot move disallowed paths'))
     return 2
   }
 
@@ -1517,7 +1560,7 @@ export const mv = async ({ shell, terminal, args }: CommandArgs) => {
     if ((await shell.context.fs.promises.stat(destination)).isDirectory()) {
       destination = path.resolve(destination, path.basename(source))
     } else {
-      terminal.writeln(chalk.red(`${destination} already exists`))
+      await writelnStderr(process, terminal, chalk.red(`${destination} already exists`))
       return 1
     }
   }
@@ -1528,10 +1571,10 @@ export const mv = async ({ shell, terminal, args }: CommandArgs) => {
 
 export const observe = async ({ process, terminal }: CommandArgs) => {
   if (!process) throw new Error('Missing process')
-  const { stdin, stdout } = process
+  const { stdin, stdout, stderr } = process
 
   if (!stdin) {
-    terminal.writeln(chalk.red('No stdin available'))
+    await writelnStderr(process, terminal, chalk.red('No stdin available'))
     return 1
   }
 
@@ -1543,9 +1586,16 @@ export const observe = async ({ process, terminal }: CommandArgs) => {
       const { done, value } = await reader.read()
       if (done) break
 
-      // Log the incoming data
+      // Log the incoming data to stderr (observation log)
       const text = decoder.decode(value)
-      terminal.writeln(chalk.green(`[stdin] ${text.trim()}`))
+      if (stderr) {
+        const errWriter = stderr.getWriter()
+        try {
+          await errWriter.write(new TextEncoder().encode(chalk.green(`[stdin] ${text.trim()}\n`)))
+        } finally {
+          errWriter.releaseLock()
+        }
+      }
 
       // Pass through to stdout if available
       if (stdout) {
@@ -1564,36 +1614,36 @@ export const observe = async ({ process, terminal }: CommandArgs) => {
   return 0
 }
 
-export const open = async ({ terminal, args }: CommandArgs) => {
-  const [path] = (args as string[])
-  if (!path) return 1
-  const isURL = !path.startsWith('/') || !path.startsWith('.')
-  if (isURL) window.open(path, '_blank')
+export const open = async ({ terminal, process, args }: CommandArgs) => {
+  const [filePath] = (args as string[])
+  if (!filePath) return 1
+  const isURL = !filePath.startsWith('/') || !filePath.startsWith('.')
+  if (isURL) window.open(filePath, '_blank')
   else {
     // TODO: handle files
-    terminal.writeln(chalk.red('Unsupported path'))
+    await writelnStderr(process, terminal, chalk.red('Unsupported path'))
   }
 }
 
-export const passwd = async ({ kernel, terminal, args }: CommandArgs) => {
+export const passwd = async ({ kernel, terminal, process, args }: CommandArgs) => {
   let oldPass, newPass
 
   if (!args || !Array.isArray(args) || args.length < 2) {
     oldPass = await terminal.readline(chalk.cyan('Enter current password: '), true)
     if (!oldPass) {
-      terminal.writeln(chalk.red('Current password required'))
+      await writelnStderr(process, terminal, chalk.red('Current password required'))
       return 1
     }
 
     newPass = await terminal.readline(chalk.cyan('Enter new password: '), true)
     if (!newPass) {
-      terminal.writeln(chalk.red('New password required')) 
+      await writelnStderr(process, terminal, chalk.red('New password required'))
       return 1
     }
 
     const confirmPass = await terminal.readline(chalk.cyan('Confirm new password: '), true)
     if (newPass !== confirmPass) {
-      terminal.writeln(chalk.red('Passwords do not match'))
+      await writelnStderr(process, terminal, chalk.red('Passwords do not match'))
       return 1
     }
   } else {
@@ -1603,18 +1653,18 @@ export const passwd = async ({ kernel, terminal, args }: CommandArgs) => {
   try {
     if (!oldPass || !newPass) throw new Error('Missing password')
     await kernel.users.password(oldPass, newPass)
-    terminal.writeln(chalk.green('Password updated successfully'))
+    await writelnStdout(process, terminal, chalk.green('Password updated successfully'))
     return 0
   } catch (error) {
-    terminal.writeln(chalk.red(`Failed to update password: ${error instanceof Error ? error.message : 'Unknown error'}`))
+    await writelnStderr(process, terminal, chalk.red(`Failed to update password: ${error instanceof Error ? error.message : 'Unknown error'}`))
     return 1
   }
 }
 
-export const play = async ({ shell, terminal, args }: CommandArgs) => {
+export const play = async ({ shell, terminal, process, args }: CommandArgs) => {
   const [file] = (args as string[])
   if (!file || file === '') {
-    terminal.writeln(chalk.red('Usage: play <file>'))
+    await writelnStderr(process, terminal, chalk.red('Usage: play <file>'))
     return 1
   }
 
@@ -1625,15 +1675,15 @@ export const play = async ({ shell, terminal, args }: CommandArgs) => {
   audio.play()
 }
 
-export const ps = async ({ kernel, terminal }: CommandArgs) => {
-  terminal.writeln('PID\tCOMMAND\t\t\tSTATUS')
-  for (const [pid, process] of kernel.processes.all.entries()) {
-    terminal.writeln(`${chalk.yellow(pid)}\t${chalk.green(process.command)}\t\t\t${chalk.blue(process.status)}`)
+export const ps = async ({ kernel, terminal, process }: CommandArgs) => {
+  await writelnStdout(process, terminal, 'PID\tCOMMAND\t\t\tSTATUS')
+  for (const [pid, proc] of kernel.processes.all.entries()) {
+    await writelnStdout(process, terminal, `${chalk.yellow(pid)}\t${chalk.green(proc.command)}\t\t\t${chalk.blue(proc.status)}`)
   }
 }
 
-export const pwd = async ({ shell, terminal }: CommandArgs) => {
-  terminal.writeln(shell.cwd)
+export const pwd = async ({ shell, terminal, process }: CommandArgs) => {
+  await writelnStdout(process, terminal, shell.cwd)
 }
 
 export const reboot = async ({ kernel }: CommandArgs) => {
@@ -1654,20 +1704,20 @@ export const rmdir = async ({ shell, args }: CommandArgs) => {
   await shell.context.fs.promises.rm(fullPath, { recursive: true, force: true })
 }
 
-export const screensaver = async ({ kernel, terminal, args }: CommandArgs) => {
-  const [screensaver, set] = (args as string[])
+export const screensaver = async ({ kernel, terminal, process, args }: CommandArgs) => {
+  const [screensaverName, set] = (args as string[])
 
-  if (screensaver === 'off') {
+  if (screensaverName === 'off') {
     kernel.storage.local.removeItem('screensaver')
     return 0
   }
 
-  let saverName = screensaver
+  let saverName = screensaverName
   if (!saverName) saverName = kernel.storage.local.getItem('screensaver') || 'matrix'
 
   const saver = kernel.screensavers.get(saverName)
   if (!saver) {
-    terminal.writeln(chalk.red('Invalid screensaver'))
+    await writelnStderr(process, terminal, chalk.red('Invalid screensaver'))
     return 1
   }
 
@@ -1863,33 +1913,35 @@ export const socket = async () => {
   return 0
 }
 
-export const stat = async ({ shell, terminal, args }: CommandArgs) => {
+export const stat = async ({ shell, terminal, process, args }: CommandArgs) => {
   const argPath = (args as string[])[0]
   const fullPath = argPath ? path.resolve(shell.cwd, argPath) : shell.cwd
   const stats = await shell.context.fs.promises.stat(fullPath)
-  terminal.writeln(JSON.stringify(stats, null, 2))
+  await writelnStdout(process, terminal, JSON.stringify(stats, null, 2))
 
   const extension = path.extname(fullPath)
   if (extension === '.zip') {
     const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
     const zipReader = new zipjs.ZipReader(new zipjs.BlobReader(blob))
     const entries = await zipReader.getEntries()
-    terminal.writeln(chalk.bold('\nZIP Entries:'))
-    for (const entry of entries) terminal.writeln(`${chalk.blue(entry.filename)} (${entry.uncompressedSize} bytes)`)
+    await writelnStdout(process, terminal, chalk.bold('\nZIP Entries:'))
+    for (const entry of entries) {
+      await writelnStdout(process, terminal, `${chalk.blue(entry.filename)} (${entry.uncompressedSize} bytes)`)
+    }
   }
 }
 
-export const su = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const su = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   const username = (args as string[])[0]
   const currentUser = kernel.users.get(shell.credentials.suid) as User
   if (!currentUser || shell.credentials.suid !== 0) {
-    terminal.writeln(chalk.red(kernel.i18n.t('Unauthorized')))
+    await writelnStderr(process, terminal, chalk.red(kernel.i18n.t('Unauthorized')))
     return 1
   }
 
   const user = Array.from(kernel.users.all.values()).find(user => user.username === username)
   if (!user) {
-    terminal.writeln(chalk.red(kernel.i18n.t('User not found', { username })))
+    await writelnStderr(process, terminal, chalk.red(kernel.i18n.t('User not found', { username })))
     return 1
   }
 
@@ -1904,14 +1956,14 @@ export const touch = async ({ shell, args }: CommandArgs) => {
   await shell.context.fs.promises.appendFile(fullPath, '')
 }
 
-export const umount = async ({ kernel, shell, args }: CommandArgs) => {
+export const umount = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   const target = (args as string[])[0]
   const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  console.log('umount', fullPath)
+  await writelnStdout(process, terminal, `umount ${fullPath}`)
   kernel.filesystem.fsSync.umount(fullPath)
 }
 
-export const unzip = async ({ shell, terminal, args }: CommandArgs) => {
+export const unzip = async ({ shell, terminal, process, args }: CommandArgs) => {
   const target = (args as string[])[0]
   const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
   const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
@@ -1924,7 +1976,10 @@ export const unzip = async ({ shell, terminal, args }: CommandArgs) => {
     } else {
       const writer = new zipjs.Uint8ArrayWriter()
       const data = await entry.getData?.(writer)
-      if (!data) { terminal.writeln(chalk.red(`Failed to read ${entryPath}`)); return 1 }
+      if (!data) {
+        await writelnStderr(process, terminal, chalk.red(`Failed to read ${entryPath}`))
+        return 1
+      }
       await shell.context.fs.promises.writeFile(entryPath, data)
     }
   }
@@ -1932,27 +1987,39 @@ export const unzip = async ({ shell, terminal, args }: CommandArgs) => {
   return 0
 }
 
-export const upload = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const upload = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   const destination = path.resolve((args as string[])[0] || shell.cwd)
-  if (!destination) { terminal.writeln(chalk.red('File path is required')); return 1 }
+  if (!destination) {
+    await writelnStderr(process, terminal, chalk.red('File path is required'))
+    return 1
+  }
 
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '*'
   input.onchange = async (event) => {
-    if (!event.target) return terminal.writeln(chalk.red('No file selected'))
+    if (!event.target) {
+      await writelnStderr(process, terminal, chalk.red('No file selected'))
+      return
+    }
     const files = (event.target as HTMLInputElement).files
-    if (!files) return terminal.writeln(chalk.red('No file selected'))
+    if (!files) {
+      await writelnStderr(process, terminal, chalk.red('No file selected'))
+      return
+    }
     for (const file of files) {
-      const reader = new FileReader()
-      reader.onload = async (event) => {
-        if (!event.target) return terminal.writeln(chalk.red('No file selected'))
+      const fileReader = new FileReader()
+      fileReader.onload = async (event) => {
+        if (!event.target) {
+          await writelnStderr(process, terminal, chalk.red('No file selected'))
+          return
+        }
         const data = new Uint8Array(event.target.result as ArrayBuffer)
         await shell.context.fs.promises.writeFile(path.resolve(destination, file.name), data)
         kernel.events.dispatch(KernelEvents.UPLOAD, { file: file.name, path: path.resolve(destination, file.name) })
       }
 
-      reader.readAsArrayBuffer(file)
+      fileReader.readAsArrayBuffer(file)
     }
   }
 
@@ -1960,9 +2027,9 @@ export const upload = async ({ kernel, shell, terminal, args }: CommandArgs) => 
   return 0
 }
 
-export const user = async ({ kernel, shell, terminal, args }: CommandArgs) => {
+export const user = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   if (shell.credentials.suid !== 0) {
-    terminal.writeln(chalk.red('Unauthorized'))
+    await writelnStderr(process, terminal, chalk.red('Unauthorized'))
     return 1
   }
 
@@ -1970,13 +2037,13 @@ export const user = async ({ kernel, shell, terminal, args }: CommandArgs) => {
   const [username, password] = (args as string[]).slice(1)
 
   if (!command || command.trim() === '') {
-    terminal.writeln(chalk.red('Usage: user <command> [options]'))
-    terminal.writeln('Commands:')
-    terminal.writeln('  list                    List all users')
-    terminal.writeln('  add --username <user>   Add a new user')
-    terminal.writeln('  del --username <user>   Delete a user')
-    terminal.writeln('  mod --username <user>   Modify a user')
-    terminal.writeln('\nYou may specify --password or you will be prompted for it.')
+    await writelnStderr(process, terminal, chalk.red('Usage: user <command> [options]'))
+    await writelnStdout(process, terminal, 'Commands:')
+    await writelnStdout(process, terminal, '  list                    List all users')
+    await writelnStdout(process, terminal, '  add --username <user>   Add a new user')
+    await writelnStdout(process, terminal, '  del --username <user>   Delete a user')
+    await writelnStdout(process, terminal, '  mod --username <user>   Modify a user')
+    await writelnStdout(process, terminal, '\nYou may specify --password or you will be prompted for it.')
     return 1
   }
 
@@ -1989,19 +2056,19 @@ export const user = async ({ kernel, shell, terminal, args }: CommandArgs) => {
       const usernameWidth = Math.max(8, ...users.map(u => u.username.length))
       const gidWidth = Math.max(3, ...users.map(u => u.gid.toString().length))
 
-      terminal.writeln(chalk.bold(
+      await writelnStdout(process, terminal, chalk.bold(
         'UID'.padEnd(uidWidth) + '\t' +
         'Username'.padEnd(usernameWidth) + '\t' +
         'GID'.padEnd(gidWidth) + '\t' +
         'Groups'
       ))
 
-      for (const user of users) {
-        terminal.writeln(
-          chalk.yellow(user.uid.toString().padEnd(uidWidth)) + '\t' +
-          chalk.green(user.username.padEnd(usernameWidth)) + '\t' +
-          chalk.cyan(user.gid.toString().padEnd(gidWidth)) + '\t' +
-          chalk.blue(user.groups.join(', '))
+      for (const usr of users) {
+        await writelnStdout(process, terminal,
+          chalk.yellow(usr.uid.toString().padEnd(uidWidth)) + '\t' +
+          chalk.green(usr.username.padEnd(usernameWidth)) + '\t' +
+          chalk.cyan(usr.gid.toString().padEnd(gidWidth)) + '\t' +
+          chalk.blue(usr.groups.join(', '))
         )
       }
 
@@ -2010,12 +2077,12 @@ export const user = async ({ kernel, shell, terminal, args }: CommandArgs) => {
 
     case 'add': {
       if (!username) {
-        terminal.writeln(chalk.red('Username required'))
+        await writelnStderr(process, terminal, chalk.red('Username required'))
         return 1
       }
 
       if (Array.from(kernel.users.all.values()).some(u => u.username === username)) {
-        terminal.writeln(chalk.red(`User ${username} already exists`))
+        await writelnStderr(process, terminal, chalk.red(`User ${username} already exists`))
         return 1
       }
 
@@ -2024,60 +2091,60 @@ export const user = async ({ kernel, shell, terminal, args }: CommandArgs) => {
         userPassword = await terminal.readline(chalk.cyan(`Enter password for ${username}: `), true)
         const confirm = await terminal.readline(chalk.cyan('Confirm password: '), true)
         if (userPassword !== confirm) {
-          terminal.writeln(chalk.red('Passwords do not match'))
+          await writelnStderr(process, terminal, chalk.red('Passwords do not match'))
           return 1
         }
       }
 
       try {
         await kernel.users.add({ username, password: userPassword })
-        terminal.writeln(chalk.green(`User ${username} created successfully`))
+        await writelnStdout(process, terminal, chalk.green(`User ${username} created successfully`))
         return 0
       } catch (error) {
-        terminal.writeln(chalk.red(`Failed to create user: ${error instanceof Error ? error.message : 'Unknown error'}`))
+        await writelnStderr(process, terminal, chalk.red(`Failed to create user: ${error instanceof Error ? error.message : 'Unknown error'}`))
         return 1
       }
     }
 
     case 'del': {
       if (!username) {
-        terminal.writeln(chalk.red('Username required'))
+        await writelnStderr(process, terminal, chalk.red('Username required'))
         return 1
       }
 
-      const user = Array.from(kernel.users.all.values()).find(u => u.username === username)
-      if (!user) {
-        terminal.writeln(chalk.red(`User ${username} not found`))
+      const usr = Array.from(kernel.users.all.values()).find(u => u.username === username)
+      if (!usr) {
+        await writelnStderr(process, terminal, chalk.red(`User ${username} not found`))
         return 1
       }
 
       // Don't allow deleting root
-      if (user.uid === 0) {
-        terminal.writeln(chalk.red('Cannot delete root user'))
+      if (usr.uid === 0) {
+        await writelnStderr(process, terminal, chalk.red('Cannot delete root user'))
         return 1
       }
 
       try {
-        await kernel.users.remove(user.uid)
+        await kernel.users.remove(usr.uid)
         await shell.context.fs.promises.writeFile('/etc/passwd', (await shell.context.fs.promises.readFile('/etc/passwd', 'utf8')).split('\n').filter((line: string) => !line.startsWith(`${username}:`)).join('\n'))
         await shell.context.fs.promises.writeFile('/etc/shadow', (await shell.context.fs.promises.readFile('/etc/shadow', 'utf8')).split('\n').filter((line: string) => !line.startsWith(`${username}:`)).join('\n'))
-        terminal.writeln(chalk.green(`User ${username} deleted successfully`))
+        await writelnStdout(process, terminal, chalk.green(`User ${username} deleted successfully`))
         return 0
       } catch (error) {
-        terminal.writeln(chalk.red(`Failed to delete user: ${error instanceof Error ? error.message : 'Unknown error'}`))
+        await writelnStderr(process, terminal, chalk.red(`Failed to delete user: ${error instanceof Error ? error.message : 'Unknown error'}`))
         return 1
       }
     }
 
     case 'mod': {
       if (!username) {
-        terminal.writeln(chalk.red('Username required'))
+        await writelnStderr(process, terminal, chalk.red('Username required'))
         return 1
       }
 
-      const user = Array.from(kernel.users.all.values()).find(u => u.username === username)
-      if (!user) {
-        terminal.writeln(chalk.red(`User ${username} not found`))
+      const usr = Array.from(kernel.users.all.values()).find(u => u.username === username)
+      if (!usr) {
+        await writelnStderr(process, terminal, chalk.red(`User ${username} not found`))
         return 1
       }
 
@@ -2086,22 +2153,22 @@ export const user = async ({ kernel, shell, terminal, args }: CommandArgs) => {
       const confirm = await terminal.readline(chalk.cyan('Confirm new password: '), true)
       
       if (newPassword !== confirm) {
-        terminal.writeln(chalk.red('Passwords do not match'))
+        await writelnStderr(process, terminal, chalk.red('Passwords do not match'))
         return 1
       }
 
       try {
-        await kernel.users.update(user.uid, { password: newPassword })
-        terminal.writeln(chalk.green(`Password updated for ${username}`))
+        await kernel.users.update(usr.uid, { password: newPassword })
+        await writelnStdout(process, terminal, chalk.green(`Password updated for ${username}`))
         return 0
       } catch (error) {
-        terminal.writeln(chalk.red(`Failed to update user: ${error instanceof Error ? error.message : 'Unknown error'}`))
+        await writelnStderr(process, terminal, chalk.red(`Failed to update user: ${error instanceof Error ? error.message : 'Unknown error'}`))
         return 1
       }
     }
 
     default:
-      terminal.writeln(chalk.red(`Unknown command: ${command}`))
+      await writelnStderr(process, terminal, chalk.red(`Unknown command: ${command}`))
       return 1
   }
 }
@@ -2131,10 +2198,10 @@ export const video = async ({ kernel, shell, args }: CommandArgs) => {
   })
 }
 
-export const zip = async ({ shell, terminal, args }: CommandArgs) => {
+export const zip = async ({ shell, terminal, process, args }: CommandArgs) => {
   const [output, paths = []] = args as [string, string[]]
   if (!output || paths.length === 0) {
-    terminal.writeln('Usage: zip <output> <paths...>')
+    await writelnStdout(process, terminal, 'Usage: zip <output> <paths...>')
     return 1
   }
 
@@ -2148,16 +2215,16 @@ export const zip = async ({ shell, terminal, args }: CommandArgs) => {
       const fullPath = path.resolve(shell.cwd, inputPath)
       
       try {
-        const stat = await shell.context.fs.promises.stat(fullPath)
+        const fileStat = await shell.context.fs.promises.stat(fullPath)
 
-        if (stat.isFile()) {
+        if (fileStat.isFile()) {
           // Add single file
           const relativePath = path.relative(shell.cwd, fullPath)
           const fileData = await shell.context.fs.promises.readFile(fullPath)
           const reader = new zipjs.Uint8ArrayReader(fileData)
           await zipWriter.add(relativePath, reader)
-          terminal.writeln(`Added file: ${relativePath}`)
-        } else if (stat.isDirectory()) {
+          await writelnStdout(process, terminal, `Added file: ${relativePath}`)
+        } else if (fileStat.isDirectory()) {
           // Add directory and contents recursively
           async function addDirectory(dirPath: string) {
             const entries = await shell.context.fs.promises.readdir(dirPath)
@@ -2171,7 +2238,7 @@ export const zip = async ({ shell, terminal, args }: CommandArgs) => {
                 const fileData = await shell.context.fs.promises.readFile(entryPath)
                 const reader = new zipjs.Uint8ArrayReader(fileData)
                 await zipWriter?.add(relativePath, reader)
-                terminal.writeln(`Added file: ${relativePath}`)
+                await writelnStdout(process, terminal, `Added file: ${relativePath}`)
               } else if (entryStat.isDirectory()) {
                 await addDirectory(entryPath)
               }
@@ -2179,12 +2246,12 @@ export const zip = async ({ shell, terminal, args }: CommandArgs) => {
           }
 
           await addDirectory(fullPath)
-          terminal.writeln(`Added directory: ${path.relative(shell.cwd, fullPath)}`)
+          await writelnStdout(process, terminal, `Added directory: ${path.relative(shell.cwd, fullPath)}`)
         } else {
-          terminal.writeln(`Skipping ${inputPath}: Not a file or directory`)
+          await writelnStdout(process, terminal, `Skipping ${inputPath}: Not a file or directory`)
         }
       } catch (err: unknown) {
-        terminal.writeln(`Error processing ${inputPath}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        await writelnStderr(process, terminal, `Error processing ${inputPath}: ${err instanceof Error ? err.message : 'Unknown error'}`)
       }
     }
 
@@ -2192,11 +2259,11 @@ export const zip = async ({ shell, terminal, args }: CommandArgs) => {
     const blob = await zipWriter.close()
     zipWriter = null // Clear reference after closing
     await shell.context.fs.promises.writeFile(outputPath, new Uint8Array(await blob.arrayBuffer()))
-    terminal.writeln(`Created zip file: ${output}`)
+    await writelnStdout(process, terminal, `Created zip file: ${output}`)
 
     return 0
   } catch (err: unknown) {
-    terminal.writeln(`Failed to create zip file: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    await writelnStderr(process, terminal, `Failed to create zip file: ${err instanceof Error ? err.message : 'Unknown error'}`)
     return 1
   } finally {
     if (zipWriter) {

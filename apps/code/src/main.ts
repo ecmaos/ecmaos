@@ -31,7 +31,7 @@ const createMenuBar = (
   win: WinBox,
   editor: monaco.editor.IStandaloneCodeEditor,
   params: ProcessEntryParams,
-  file: string
+  fileHandle: Awaited<ReturnType<typeof params.instance.open>>
 ) => {
   const { kernel } = params
   const menuBar = document.createElement('div')
@@ -136,7 +136,7 @@ const createMenuBar = (
     {
       label: 'Save',
       action: async () => {
-        await kernel.filesystem.fs.writeFile(file, editor.getValue())
+        await fileHandle.writeFile(editor.getValue())
         kernel.toast.success('File saved')
       }
     },
@@ -180,15 +180,36 @@ const createMenuBar = (
 }
 
 const main = async (params: ProcessEntryParams) => {
-  const { args, kernel, shell, terminal } = params
+  const { args, kernel, shell, terminal, instance } = params
+  
   const file = args?.[0] ? path.resolve(shell.cwd, args[0]) : path.resolve(shell.cwd, 'Untitled.txt')
   if (!file) { terminal.writeln('Usage: code <file>'); return 1 }
 
   try { await kernel.filesystem.fs.mkdir(path.dirname(file), { recursive: true }) } catch {}
-  await shell.execute(`touch ${file}`)
+  // Create file if it doesn't exist (using filesystem API instead of shell.execute to avoid spawning a process)
+  try {
+    await kernel.filesystem.fs.access(file)
+  } catch {
+    // File doesn't exist, create it
+    await kernel.filesystem.fs.writeFile(file, '')
+  }
 
-  const value = await kernel.filesystem.fs.readFile(file, 'utf-8')
+  const fileHandle = await instance.open(file, 'r+')
+  const value = await fileHandle.readFile('utf-8') as string
   let language = 'plaintext'
+
+  const onclose = () => {
+    fileHandle.close()
+      .then(() => {
+        instance.exit(0)
+      })
+      .catch((error) => {
+        kernel.log.error(error)
+      })
+    return false
+  }
+
+  instance.keepAlive()
 
   const extension = file.split('.').pop() || ''
   const languages = monaco.languages.getLanguages()
@@ -207,12 +228,14 @@ const main = async (params: ProcessEntryParams) => {
   editorContainer.style.flex = '1'
 
   const icon = await import('./icon.png?inline')
+
   const win = await kernel.windows.create({
     title: `Code Editor - ${file}`,
     width: Math.floor(window.innerWidth * 0.75),
     height: Math.floor(window.innerHeight * 0.75),
     icon: icon.default,
-    class: styles.window
+    class: styles.window,
+    onclose
   })
 
   const editor = monaco.editor.create(editorContainer, {
@@ -222,7 +245,7 @@ const main = async (params: ProcessEntryParams) => {
     automaticLayout: true
   })
 
-  const menuBar = createMenuBar(win, editor, params, file)
+  const menuBar = createMenuBar(win, editor, params, fileHandle)
   container.appendChild(menuBar)
   container.appendChild(editorContainer)
 
@@ -234,7 +257,7 @@ const main = async (params: ProcessEntryParams) => {
   container.addEventListener('keydown', async (e) => {
     if (e.ctrlKey && e.key === 's') {
       e.preventDefault()
-      await kernel.filesystem.fs.writeFile(file, editor.getValue())
+      await fileHandle.writeFile(editor.getValue())
       kernel.toast.success('File saved')
     }
   })

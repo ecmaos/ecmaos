@@ -1,18 +1,21 @@
 #!ecmaos:bin:app:ai
 
 import OpenAI from 'openai'
-import type { ProcessEntryParams, Shell, Terminal } from '@ecmaos/types'
+import type { ProcessEntryParams, Shell } from '@ecmaos/types'
 
 const help = `
-Usage: ai [options] <prompt>
+Usage: ai [options] [prompt]
+
+If no prompt is provided, reads from stdin.
 
 Options:
-  --help     Show help
-  --key      The API key to use (default: environment variable OPENAI_API_KEY)
-  --max      The maximum number of messages to keep in the session (default: 50)
-  --model    The model to use (default: gpt-4o)
-  --session  The session to use (default: a new session)
-  --url      The base URL to use (default: https://api.openai.com/v1)
+  --help       Show help
+  --key        The API key to use (default: environment variable OPENAI_API_KEY)
+  --max        The maximum number of messages to keep in the session (default: 50)
+  --model      The model to use (default: gpt-4o)
+  --no-stream  Disable streaming output (streaming is enabled by default)
+  --session    The session to use (default: a new session)
+  --url        The base URL to use (default: https://api.openai.com/v1)
 
 Environment Variables:
   OPENAI_BASE_URL  The base URL to use (default: https://api.openai.com/v1)
@@ -21,6 +24,9 @@ Environment Variables:
 
 Examples:
   ai "Tell me a joke"
+  cat prompt.txt | ai
+  echo "Explain quantum computing" | ai --model gpt-4o
+  ai --no-stream "Tell me a joke"
   ai --url https://openrouter.ai/api/v1 --key sk-or-v1-xxx --model openai/gpt-4o --session my-session "Tell me a joke"
 `
 
@@ -124,8 +130,50 @@ async function pruneMessages(session: { messages: Array<{ role: string, content:
   }
 }
 
+async function readStdin(stdin: ReadableStream<Uint8Array> | undefined, timeoutMs: number = 100): Promise<string> {
+  if (!stdin) return ''
+  
+  const reader = stdin.getReader()
+  const decoder = new TextDecoder()
+  const chunks: string[] = []
+  
+  try {
+    // First read with timeout to detect if stdin has data (pipe) or is interactive (terminal)
+    const firstRead = reader.read()
+    const timeout = new Promise<{ done: true, value: undefined }>((resolve) => 
+      setTimeout(() => resolve({ done: true, value: undefined }), timeoutMs)
+    )
+    
+    const first = await Promise.race([firstRead, timeout])
+    if (first.done && !first.value) {
+      // Timeout or empty stream - no piped input
+      return ''
+    }
+    if (first.value) {
+      chunks.push(decoder.decode(first.value, { stream: true }))
+    }
+    if (first.done) {
+      chunks.push(decoder.decode())
+      return chunks.join('').trim()
+    }
+    
+    // Continue reading the rest of the stream
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      chunks.push(decoder.decode(value, { stream: true }))
+    }
+    // Flush any remaining bytes
+    chunks.push(decoder.decode())
+  } finally {
+    reader.releaseLock()
+  }
+  
+  return chunks.join('').trim()
+}
+
 async function main(processEntryParams: ProcessEntryParams) {
-  const { args, shell, stdout, stderr, terminal } = processEntryParams
+  const { args, shell, stdin, stdout, stderr } = processEntryParams
   const { options, params } = parser(args)
 
   const stdoutWriter = stdout?.getWriter()
@@ -144,13 +192,14 @@ async function main(processEntryParams: ProcessEntryParams) {
   const OPENAI_BASE_URL = options.url as string || shell.envObject.OPENAI_BASE_URL || 'https://api.openai.com/v1'
   const OPENAI_API_KEY = options.key || shell.envObject.OPENAI_API_KEY
   if (!OPENAI_API_KEY) {
-    terminal?.writeln('Error: OPENAI_API_KEY is not set')
-    terminal?.writeln('Please set the OPENAI_API_KEY environment variable or use the --key option')
+    await print('Error: OPENAI_API_KEY is not set\n', 'stderr')
+    await print('Please set the OPENAI_API_KEY environment variable or use the --key option\n', 'stderr')
     return 1
   }
 
   const model = options.model as string || shell.envObject.OPENAI_MODEL || 'gpt-4o'
   const maxMessages = options.max ? parseInt(options.max as string, 10) : 10
+  const useStreaming = !options['no-stream']
   const openai = new OpenAI({
     apiKey: OPENAI_API_KEY as string,
     baseURL: OPENAI_BASE_URL,
@@ -158,26 +207,57 @@ async function main(processEntryParams: ProcessEntryParams) {
   })
 
   try {
+    // Get prompt from args or stdin
+    let prompt = params[0]
+    if (!prompt) prompt = await readStdin(stdin)
+    
+    if (!prompt) {
+      await print(help)
+      return 1
+    }
+
     const sessionID = options.session ? options.session as string : Math.random().toString(36).slice(2)
     const session = await loadSession(sessionID, { shell })
 
     await pruneMessages(session, maxMessages, openai, model, 1)
-    session.messages.push({ role: 'user', content: params[0] })
+    session.messages.push({ role: 'user', content: prompt })
     
-    const response = await openai.chat.completions.create({
-      model,
-      messages: session.messages,
-    })
+    let responseContent = ''
 
-    session.messages.push({ role: 'assistant', content: response.choices[0]?.message.content || '' })
+    if (useStreaming) {
+      // Streaming mode
+      const stream = await openai.chat.completions.create({
+        model,
+        messages: session.messages,
+        stream: true,
+      })
+
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || ''
+        if (content) {
+          responseContent += content
+          await print(content)
+        }
+      }
+      await print('\n')
+    } else {
+      // Non-streaming mode
+      const response = await openai.chat.completions.create({
+        model,
+        messages: session.messages,
+      })
+      responseContent = response.choices[0]?.message.content || ''
+      await print(responseContent + '\n')
+    }
+
+    session.messages.push({ role: 'assistant', content: responseContent })
     
     await pruneMessages(session, maxMessages, openai, model, 0)
     
     await saveSession(sessionID, session, { shell })
-    terminal?.writeln(response.choices[0]?.message.content || '')
     return 0
   } catch (error) {
-    terminal?.writeln(`Error loading session: ${error instanceof Error ? error.message : String(error)}`)
+    await print(`Error: ${error instanceof Error ? error.message : String(error)}\n`, 'stderr')
     return 1
   }
 }

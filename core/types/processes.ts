@@ -9,6 +9,59 @@ import type { Terminal } from './terminal.ts'
 /** Process status type */
 export type ProcessStatus = 'running' | 'paused' | 'stopped' | 'exited'
 
+/**
+ * ZenFS FileHandle interface
+ * @see https://zenfs.dev/core/classes/index.fs.promises.FileHandle.html
+ */
+export interface FileHandle {
+  /** The numeric file descriptor */
+  readonly fd: number
+  /** Close the file handle */
+  close(): Promise<void>
+  /** Read file contents */
+  readFile(encoding?: BufferEncoding): Promise<string | Buffer>
+  /** Write data to file */
+  writeFile(data: string | Uint8Array): Promise<void>
+  /** Truncate file to specified length */
+  truncate(len?: number): Promise<void>
+  /** Get a readable web stream */
+  readableWebStream?(options?: { type?: 'bytes' }): ReadableStream<Uint8Array>
+  /** Get a writable web stream */
+  writableWebStream?(): WritableStream<Uint8Array>
+}
+
+/**
+ * File Descriptor Table interface
+ * Manages stdin/stdout/stderr and tracks open file handles
+ */
+export interface FDTable {
+  /** Standard input stream */
+  readonly stdin: ReadableStream<Uint8Array> | undefined
+  /** Standard output stream */
+  readonly stdout: WritableStream<Uint8Array> | undefined
+  /** Standard error stream */
+  readonly stderr: WritableStream<Uint8Array> | undefined
+  /** Get all tracked file handles */
+  readonly fileHandles: FileHandle[]
+  
+  /** Set stdin stream */
+  setStdin(stream: ReadableStream<Uint8Array>): void
+  /** Set stdout stream */
+  setStdout(stream: WritableStream<Uint8Array>): void
+  /** Set stderr stream */
+  setStderr(stream: WritableStream<Uint8Array>): void
+  /** Redirect stderr to stdout (2>&1) */
+  redirectStderrToStdout(): void
+  /** Track a file handle */
+  trackFileHandle(handle: FileHandle): void
+  /** Untrack a file handle */
+  untrackFileHandle(handle: FileHandle): void
+  /** Close all tracked file handles */
+  closeFileHandles(): Promise<void>
+  /** Cleanup all resources */
+  cleanup(): Promise<void>
+}
+
 /** Map of process IDs to processes */
 export type ProcessesMap = Map<number, Process>
 
@@ -131,6 +184,8 @@ export interface Process {
   readonly entry: (params: ProcessEntryParams) => Promise<number | undefined | void>
   /** Get event emitter */
   readonly events: any
+  /** Get file descriptor table */
+  readonly fd: FDTable
   /** Get group ID */
   readonly gid: number
   /** Get kernel instance */
@@ -157,8 +212,25 @@ export interface Process {
 
   /** Clean up process resources */
   cleanup(): Promise<void>
+  /**
+   * Close a file handle and untrack from FDTable
+   * @param handle - The file handle to close
+   */
+  close(handle: FileHandle): Promise<void>
   /** Exit process */
   exit(exitCode?: number): Promise<void>
+  /**
+   * Marks the process to stay alive after the entry function returns.
+   * Useful for background/daemon processes that need to keep running.
+   */
+  keepAlive(): void
+  /**
+   * Open a file and automatically track in FDTable
+   * @param path - Path to the file
+   * @param flags - Open flags (default: 'r')
+   * @returns The file handle
+   */
+  open(path: string, flags?: string): Promise<FileHandle>
   /** Pause process */
   pause(): void
   /** Resume process */
