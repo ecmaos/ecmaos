@@ -1,5 +1,11 @@
 # @ecmaos/kernel
 
+## 0.5.1
+
+### Patch Changes
+
+- 47f6a2e: fix app dependencies; cleanup
+
 ## 0.5.0
 
 ### Minor Changes

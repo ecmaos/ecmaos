@@ -1,5 +1,11 @@
 # @ecmaos-apps/code
 
+## 0.3.1
+
+### Patch Changes
+
+- 47f6a2e: fix app dependencies; cleanup
+
 ## 0.3.0
 
 ### Minor Changes
