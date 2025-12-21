@@ -28,9 +28,7 @@
     "@ecmaos/config-typescript": "workspace:^",
     "@ecmaos/types": "workspace:^",
     "esbuild": "^0.25.11",
+    "openai": "^6.7.0",
     "typescript": "^5.6.3"
-  },
-  "dependencies": {
-    "openai": "^6.7.0"
   }
 }
