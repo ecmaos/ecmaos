@@ -1,5 +1,13 @@
 # @ecmaos/jaffa
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [d104ad6]
+  - @ecmaos/kernel@0.5.0
+  - @ecmaos/types@0.4.0
+
 ## 0.2.0
 
 ### Minor Changes
