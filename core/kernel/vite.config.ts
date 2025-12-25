@@ -16,9 +16,9 @@ export default defineConfig({
   plugins: [
     nodePolyfills({
       protocolImports: true,
-      globals: { global: true, process: true },
+      globals: { Buffer: true, global: true, process: true },
       include: [
-        'assert', 'child_process', 'cluster', 'console', 'constants', 'crypto',
+        'assert', 'buffer', 'child_process', 'cluster', 'console', 'constants', 'crypto',
         'events', 'fs', 'http', 'http2', 'https', 'os', 'path', 'punycode', 'querystring',
         'stream', 'string_decoder', 'timers', 'timers/promises', 'tty', 'url', 'util', 'vm', 'zlib'
       ]
@@ -40,8 +40,16 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@zenfs/core-dev': path.resolve(process.env['HOME'] || process.env['USERPROFILE'] || __dirname, 'code/zenfs-core/dist')
-    }
+      '@zenfs/core-dev': path.resolve(process.env['HOME'] || process.env['USERPROFILE'] || __dirname, 'code/zenfs-core/dist'),
+      // Ensure buffer shim resolves correctly (both singular and plural for compatibility)
+      'vite-plugin-node-polyfills/shim/buffer': 'vite-plugin-node-polyfills/shims/buffer',
+      'vite-plugin-node-polyfills/shim/global': 'vite-plugin-node-polyfills/shims/global',
+      'vite-plugin-node-polyfills/shim/process': 'vite-plugin-node-polyfills/shims/process'
+    },
+    dedupe: ['vite-plugin-node-polyfills']
+  },
+  optimizeDeps: {
+    include: ['vite-plugin-node-polyfills/shims/buffer', 'vite-plugin-node-polyfills/shims/global', 'vite-plugin-node-polyfills/shims/process']
   },
   server: {
     port: Number(process.env['VITE_PORT']) || 30443,
@@ -83,7 +91,7 @@ export default defineConfig({
     deps: {
       optimizer: {
         web: {
-          include: ['vitest-canvas-mock']
+          include: ['vitest-canvas-mock', '@ecmaos/coreutils']
         }
       }
     },

@@ -1,3 +1,11 @@
+/**
+ * @experimental
+ * @author Jay Mathis <code@mathis.network> (https://github.com/mathiscode)
+ *
+ * The Users class handles the management of users on the system.
+ * It provides functionality to add, get, load, login, password, remove, and update users.
+ */
+
 import type {
   AddUserOptions,
   User,

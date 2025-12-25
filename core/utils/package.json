@@ -19,22 +19,18 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc",
-    "lint": "eslint src",
-    "test": "vitest run",
-    "test:watch": "vitest watch",
-    "test:coverage": "vitest --coverage"
+    "build": "tsc"
   },
   "publishConfig": {
     "access": "public"
   },
   "dependencies": {
     "@ecmaos/types": "workspace:^",
+    "@zenfs/core": "^2.4.2",
+    "@zip.js/zip.js": "^2.7.52",
     "chalk": "^5.3.0",
     "command-line-args": "^6.0.0",
     "command-line-usage": "^7.0.3",
-    "human-format": "^1.2.1",
-    "@zip.js/zip.js": "^2.7.52",
-    "@zenfs/core": "^2.4.2"
+    "human-format": "^1.2.1"
   }
 }
