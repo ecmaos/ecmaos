@@ -1,5 +1,29 @@
 # @ecmaos/kernel
 
+## 0.6.0
+
+### Minor Changes
+
+- f2fa236: Update README for clarity on local package installation and enhance kernel command descriptions. Refactor command handling to integrate coreutils commands, streamline terminal command definitions, and improve prompt formatting. Add command substitution support in shell. Update user environment variables during login. Adjust package dependencies in various apps.
+
+### Patch Changes
+
+- Updated dependencies [f2fa236]
+  - @ecmaos/coreutils@0.1.1
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.5.1
 
 ### Patch Changes
