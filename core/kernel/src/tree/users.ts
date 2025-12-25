@@ -145,6 +145,8 @@ export class Users {
     const cred = createCredentials({
       uid: user.uid,
       gid: user.gid,
+      euid: user.uid,
+      egid: user.gid,
       groups: user.groups
     })
 

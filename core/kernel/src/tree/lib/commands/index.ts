@@ -2,31 +2,23 @@
  * This file represents the commands provided by the terminal itself.
  *
  * @remarks
- * TODO: Eventually this will be refactored to have a more consistent (and familiar) CLI interface.
- * Most of these were slapped together to bootstrap development and test features, and will be refactored.
- * This file is getting large and many larger commands are being moved to their own files or packages.
- * This will probably eventually lead to a coreutils-type package.
- * Although it looks unweildy, if your editor supports code folding, a simple Fold All makes it much easier to navigate.
- * Looking for a command definition in two places might be annoying, but just use this trick:
- * Ctrl-F "command:" (colon) for the TerminalCommand definition and Ctrl-F "command =" (equals) for the command implementation.
+ * Essential file/shell operation commands (cat, cd, chmod, cp, echo, ls, mkdir, mv, pwd, rm, rmdir, stat, touch)
+ * have been moved to @ecmaos/coreutils package. This file now contains only kernel-specific commands.
  *
  */
 
 import ansi from 'ansi-escape-sequences'
 import chalk from 'chalk'
 import humanFormat from 'human-format'
-import parseArgs, { CommandLineOptions, OptionDefinition } from 'command-line-args'
-import parseUsage from 'command-line-usage'
+import type { CommandLineOptions } from 'command-line-args'
 import path from 'path'
 import * as zipjs from '@zip.js/zip.js'
 
-import { bindContext, createCredentials, Fetch, InMemory, resolveMountConfig, Stats } from '@zenfs/core'
+import { bindContext, createCredentials, Fetch, InMemory, resolveMountConfig } from '@zenfs/core'
 import { IndexedDB } from '@zenfs/dom'
 
 import {
-  KernelEvents,
-  TerminalCommand as ITerminalCommand,
-  TerminalEvents
+  KernelEvents
 } from '@ecmaos/types'
 
 import type {
@@ -37,191 +29,21 @@ import type {
   User
 } from '@ecmaos/types'
 
-/**
- * The arguments passed to a command.
- */
-export interface CommandArgs {
-  process?: Process
-  stdin?: ReadableStream<Uint8Array>
-  stdout?: WritableStream<Uint8Array>
-  stderr?: WritableStream<Uint8Array>
-  kernel: Kernel
-  shell: Shell
-  terminal: Terminal
-  args: string[] | CommandLineOptions
-}
-
-/**
- * Helper to write to process stdout or fallback to terminal
- */
-async function writeStdout(process: Process | undefined, terminal: Terminal, text: string): Promise<void> {
-  if (process && process.stdout) {
-    const writer = process.stdout.getWriter()
-    try {
-      await writer.write(new TextEncoder().encode(text))
-    } finally {
-      writer.releaseLock()
-    }
-  } else {
-    terminal.write(text)
-  }
-}
-
-/**
- * Helper to write line to process stdout or fallback to terminal
- */
-async function writelnStdout(process: Process | undefined, terminal: Terminal, text: string): Promise<void> {
-  await writeStdout(process, terminal, text + '\n')
-}
-
-/**
- * Helper to write to process stderr or fallback to terminal
- */
-async function writeStderr(process: Process | undefined, terminal: Terminal, text: string): Promise<void> {
-  if (process) {
-    const writer = process.stderr.getWriter()
-    try {
-      await writer.write(new TextEncoder().encode(text))
-    } finally {
-      writer.releaseLock()
-    }
-  } else {
-    terminal.write(text)
-  }
-}
-
-/**
- * Helper to write line to process stderr or fallback to terminal
- */
-async function writelnStderr(process: Process | undefined, terminal: Terminal, text: string): Promise<void> {
-  await writeStderr(process, terminal, text + '\n')
-}
-
-/**
- * The TerminalCommand class sets up a common interface for builtin terminal commands
- */
-export class TerminalCommand implements ITerminalCommand {
-  command: string = ''
-  description: string = ''
-  kernel: Kernel
-  options: OptionDefinition[] = []
-  run: (pid: number, argv: string[]) => Promise<number | void>
-  shell: Shell
-  terminal: Terminal
-  stdin?: ReadableStream<Uint8Array>
-  stdout?: WritableStream<Uint8Array>
-  stderr?: WritableStream<Uint8Array>
-
-  constructor({ command, description, kernel, options, run, shell, terminal, stdin, stdout, stderr }: {
-    command: string
-    description: string
-    kernel: Kernel
-    options: parseUsage.OptionDefinition[]
-    run: (argv: CommandLineOptions, process?: Process) => Promise<number | void>
-    shell: Shell
-    terminal: Terminal
-    stdin?: ReadableStream<Uint8Array>
-    stdout?: WritableStream<Uint8Array>
-    stderr?: WritableStream<Uint8Array>
-  }) {
-    this.command = command
-    this.description = description
-    this.kernel = kernel
-    this.options = options
-    this.shell = shell
-    this.terminal = terminal
-    this.stdin = stdin
-    this.stdout = stdout
-    this.stderr = stderr
-
-    this.run =  async (pid: number, argv: string[]) => {
-      if (argv === null) return 1
-      const process = this.kernel.processes.get(pid) as Process | undefined
-      try {
-        const parsed = parseArgs(this.options, { argv })
-        if (parsed.help) {
-          await writelnStdout(process, this.terminal, this.usage)
-          return 0
-        }
-
-        return await run(parsed, process)
-      } catch (error) {
-        await writelnStderr(process, this.terminal, chalk.red(String(error)))
-        return 1
-      }
-    }
-  }
-
-  get usage() {
-    return parseUsage([
-      { header: this.command, content: this.description },
-      { header: 'Usage', content: this.usageContent },
-      { header: 'Options', optionList: this.options }
-    ])
-  }
-
-  get usageContent() {
-    return `${this.command} ${this.options.map(option => {
-      let optionStr = option.name
-      if (option.type === Boolean) optionStr = `[--${option.name}]`
-      else if (option.type === String) optionStr = option.defaultOption ? `<${option.name}>` : `[--${option.name} <value>]`
-
-      if (option.multiple) optionStr += '...'
-      return optionStr
-    }).join(' ')}`
-  }
-}
+// Import coreutils commands
+import { createAllCommands as createCoreutilsCommands, TerminalCommand, CommandArgs, writeStdout, writelnStdout, writelnStderr } from '@ecmaos/coreutils'
 
 /**
  * The TerminalCommands function creates the set of builtin terminal commands.
+ * It merges coreutils commands with kernel-specific commands.
  */
 export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Terminal): { [key: string]: TerminalCommand } => {
   const HelpOption = { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') }
 
-  return {
-    cat: new TerminalCommand({
-      command: 'cat',
-      description: 'Concatenate files and print on the standard output',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to concatenate' },
-        { name: 'bytes', type: Number, description: 'The number of bytes to read from the file' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await cat({ kernel, shell, terminal, process, args: [argv.path, argv.bytes] })
-      }
-    }),
-    cd: new TerminalCommand({
-      command: 'cd',
-      description: 'Change the shell working directory',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the directory to change to' }
-      ],
-      run: async (argv: CommandLineOptions) => {
-        return await cd({ kernel, shell, terminal, args: [argv.path || shell.cwd] })
-      }
-    }),
-    chmod: new TerminalCommand({
-      command: 'chmod',
-      description: 'Change file mode bits',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'args', type: String, multiple: true, defaultOption: true, description: 'The mode and path to the file or directory' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await chmod({ kernel, shell, terminal, process, args: argv.args })
-      }
-    }),
+  // Get coreutils commands
+  const coreutilsCommands = createCoreutilsCommands(kernel, shell, terminal)
+
+  // Kernel-specific commands
+  const kernelCommands: { [key: string]: TerminalCommand } = {
     chown: new TerminalCommand({
       command: 'chown',
       description: 'Change file ownership',
@@ -248,20 +70,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         return await clear({ kernel, shell, terminal, args: [] })
       }
     }),
-    cp: new TerminalCommand({
-      command: 'cp',
-      description: 'Copy files',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'args', type: String, multiple: true, defaultOption: true, description: 'The source and destination paths' }
-      ],
-      run: async (argv: CommandLineOptions) => {
-        return await cp({ kernel, shell, terminal, args: argv.args })
-      }
-    }),
     df: new TerminalCommand({
       command: 'df',
       description: 'Display disk space usage',
@@ -285,20 +93,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       ],
       run: async (argv: CommandLineOptions, process?: Process) => {
         return await download({ kernel, shell, terminal, process, args: argv.path })
-      }
-    }),
-    echo: new TerminalCommand({
-      command: 'echo',
-      description: 'Print arguments to the standard output',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'text', type: String, typeLabel: '{underline text}', defaultOption: true, multiple: true, description: 'The text to print' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await echo({ kernel, shell, terminal, process, args: argv.text })
       }
     }),
     edit: new TerminalCommand({
@@ -378,34 +172,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         return await load({ kernel, shell, terminal, args: [argv.path] })
       }
     }),
-    ls: new TerminalCommand({
-      command: 'ls',
-      description: 'List directory contents',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the directory to list' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await ls({ kernel, shell, terminal, process, args: [argv.path || shell.cwd] })
-      }
-    }),
-    mkdir: new TerminalCommand({
-      command: 'mkdir',
-      description: 'Create a directory',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the directory to create' }
-      ],
-      run: async (argv: CommandLineOptions) => {
-        return await mkdir({ kernel, shell, terminal, args: [argv.path] })
-      }
-    }),
     mount: new TerminalCommand({
       command: 'mount',
       description: 'Mount a filesystem',
@@ -420,20 +186,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       ],
       run: async (argv: CommandLineOptions, process?: Process) => {
         return await mount({ kernel, shell, terminal, process, args: [argv.args, argv.type, argv.options] })
-      }
-    }),
-    mv: new TerminalCommand({
-      command: 'mv',
-      description: 'Move or rename files',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'args', type: String, multiple: true, defaultOption: true, description: 'The source and destination paths' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await mv({ kernel, shell, terminal, process, args: argv.args })
       }
     }),
     observe: new TerminalCommand({
@@ -500,17 +252,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         return await ps({ kernel, shell, terminal, process, args: [] })
       }
     }),
-    pwd: new TerminalCommand({
-      command: 'pwd',
-      description: 'Print the shell working directory',
-      kernel,
-      shell,
-      terminal,
-      options: [],
-      run: async (_argv: CommandLineOptions, process?: Process) => {
-        return await pwd({ kernel, shell, terminal, process, args: [] })
-      }
-    }),
     reboot: new TerminalCommand({
       command: 'reboot',
       description: 'Reboot the system',
@@ -520,34 +261,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       options: [],
       run: async () => {
         return await reboot({ kernel, shell, terminal, args: [] })
-      }
-    }),
-    rm: new TerminalCommand({
-      command: 'rm',
-      description: 'Remove files or directories',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file or directory to remove' }
-      ],
-      run: async (argv: CommandLineOptions) => {
-        return await rm({ kernel, shell, terminal, args: [argv.path] })
-      }
-    }),
-    rmdir: new TerminalCommand({
-      command: 'rmdir',
-      description: 'Remove a directory',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the directory to remove' }
-      ],
-      run: async (argv: CommandLineOptions) => {
-        return await rmdir({ kernel, shell, terminal, args: [argv.path] })
       }
     }),
     screensaver: new TerminalCommand({
@@ -592,20 +305,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         // return await socket({ kernel, shell, terminal, args: [argv.command, argv.args] })
       }
     }),
-    stat: new TerminalCommand({
-      command: 'stat',
-      description: 'Display information about a file or directory',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file or directory to display' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await stat({ kernel, shell, terminal, process, args: [argv.path] })
-      }
-    }),
     su: new TerminalCommand({
       command: 'su',
       description: 'Switch user',
@@ -618,20 +317,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       ],
       run: async (argv: CommandLineOptions, process?: Process) => {
         return await su({ kernel, shell, terminal, process, args: [argv.user] })
-      }
-    }),
-    touch: new TerminalCommand({
-      command: 'touch',
-      description: 'Create an empty file',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file to create' }
-      ],
-      run: async (argv: CommandLineOptions) => {
-        return await touch({ kernel, shell, terminal, args: [argv.path] })
       }
     }),
     umount: new TerminalCommand({
@@ -739,119 +424,18 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       }
     }),
   }
-}
 
-export const cat = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
-  if (!process) return 1
-
-  // Get a single writer for the entire operation
-  const writer = process.stdout.getWriter()
-
-  try {
-    // If no files specified, read from stdin
-    if (!args || !(args as string[])[0]) {
-      const reader = process.stdin.getReader()
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          await writer.write(value)
-        }
-      } finally {
-        reader.releaseLock()
-      }
-
-      return 0
-    }
-
-    // Otherwise process files
-    const [files = [], bytes] = args as [string[], string]
-    for (const file of files) {
-      const fullPath = path.resolve(shell.cwd, file)
-
-      let interrupted = false
-      const interruptHandler = () => { interrupted = true }
-      kernel.terminal.events.on(TerminalEvents.INTERRUPT, interruptHandler)
-
-      try {
-        if (!fullPath.startsWith('/dev')) {
-          const handle = await shell.context.fs.promises.open(fullPath, 'r')
-          const stat = await shell.context.fs.promises.stat(fullPath)
-
-          let bytesRead = 0
-          const chunkSize = 1024
-
-          while (bytesRead < stat.size) {
-            if (interrupted) break
-            const data = new Uint8Array(chunkSize)
-            const readSize = Math.min(chunkSize, stat.size - bytesRead)
-            await handle.read(data, 0, readSize, bytesRead)
-            await writer.write(data.subarray(0, readSize))
-            bytesRead += readSize
-          }
-        } else {
-          const device = await shell.context.fs.promises.open(fullPath)
-          const maxBytes = bytes ? parseInt(bytes) : undefined
-          let totalBytesRead = 0
-          const chunkSize = 1024
-          const data = new Uint8Array(chunkSize)
-          let bytesRead = 0
-
-          do {
-            if (interrupted) break
-            const result = await device.read(data)
-            bytesRead = result.bytesRead
-            if (bytesRead > 0) {
-              const bytesToWrite = maxBytes ? Math.min(bytesRead, maxBytes - totalBytesRead) : bytesRead
-              if (bytesToWrite > 0) {
-                await writer.write(data.subarray(0, bytesToWrite))
-                totalBytesRead += bytesToWrite
-              }
-            }
-          } while (bytesRead > 0 && (!maxBytes || totalBytesRead < maxBytes))
-        }
-      } finally {
-        kernel.terminal.events.off(TerminalEvents.INTERRUPT, interruptHandler)
-      }
-    }
-
-    return 0
-  } finally {
-    writer.releaseLock()
-    await writeStdout(process, terminal, '\n')
+  // Merge coreutils and kernel commands
+  return {
+    ...coreutilsCommands,
+    ...kernelCommands
   }
 }
 
-export const cd = async ({ shell, args }: CommandArgs) => {
-  let destination = (args as string[])[0]
-  if (destination && destination.startsWith('~')) {
-    const home = shell.env.get('HOME')
-    if (home) {
-      destination = destination.replace(/^~(?=$|\/)/, home)
-    }
-  }
-  
-  const fullPath = destination ? path.resolve(shell.cwd, destination) : shell.cwd
-  await shell.context.fs.promises.access(fullPath)
-  shell.cwd = fullPath
-  localStorage.setItem(`cwd:${shell.credentials.uid}`, fullPath)
-}
+// Re-export TerminalCommand and CommandArgs for backward compatibility
+export { TerminalCommand, type CommandArgs } from '@ecmaos/coreutils'
 
-export const chmod = async ({ shell, terminal, process, args }: CommandArgs) => {
-  if (!args || (args as string[]).length === 0) {
-    await writelnStderr(process, terminal, chalk.red('chmod: missing operand'))
-    await writelnStderr(process, terminal, 'Try \'chmod --help\' for more information.')
-    return 1
-  }
-
-  const [mode, target] = (args as string[])
-  if (!mode || !target) return 1
-  const fullPath = path.resolve(shell.cwd, target)
-  await shell.context.fs.promises.chmod(fullPath, mode)
-  return 0
-}
-
+// Kernel-specific command implementations (non-essential commands remain here)
 export const chown = async ({ shell, args }: CommandArgs) => {
   const [user, target, group] = (args as string[])
   if (!user || !target) return 1
@@ -861,15 +445,6 @@ export const chown = async ({ shell, args }: CommandArgs) => {
 
 export const clear = async ({ terminal }: CommandArgs) => {
   terminal.write('\x1b[2J\x1b[H')
-}
-
-export const cp = async ({ shell, args }: CommandArgs) => {
-  const [source, destination] = (args as string[]).map(arg => path.resolve(shell.cwd, arg))
-  if (!source || !destination) return 1
-  const destinationStats = await shell.context.fs.promises.stat(destination).catch(() => null)
-  // 🪵⛟
-  const finalDestination = destinationStats?.isDirectory() ? path.join(destination, path.basename(source)) : destination
-  await shell.context.fs.promises.copyFile(source, finalDestination)
 }
 
 export const df = async ({ kernel, terminal, process }: CommandArgs) => {
@@ -911,24 +486,6 @@ export const download = async ({ shell, terminal, process, args }: CommandArgs) 
   } else {
     await writelnStderr(process, terminal, chalk.red(`${fullPath} not found`))
   }
-}
-
-export const echo = async ({ process, terminal, args }: CommandArgs) => {
-  const text = (args as string[]).join(' ')
-  const data = new TextEncoder().encode(text + '\n')
-
-  if (process) {
-    const writer = process.stdout.getWriter()
-    try {
-      await writer.write(data)
-    } finally {
-      writer.releaseLock()
-    }
-  } else {
-    terminal.write(text + '\n')
-  }
-
-  return 0
 }
 
 // TODO: This was going to be smaller - move it to a package
@@ -1290,163 +847,6 @@ export const load = async ({ shell, args }: CommandArgs) => {
   script()
 }
 
-export const ls = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
-  const target = (args as string[])[0]
-  const fullPath = target ? path.resolve(shell.cwd, target === '' ? '.' : target) : shell.cwd
-  const stats = await shell.context.fs.promises.stat(fullPath)
-  const entries: string[] = stats.isDirectory() ? await shell.context.fs.promises.readdir(fullPath) : [fullPath]
-  const descriptions = kernel.filesystem.descriptions(kernel.i18n.t)
-
-  const getModeType = (stats: Stats) => {
-    let type = '-'
-    if (stats.isDirectory()) type = 'd'
-    else if (stats.isSymbolicLink()) type = 'l'
-    else if (stats.isBlockDevice()) type = 'b'
-    else if (stats.isCharacterDevice()) type = 'c'
-    else if (stats.isFIFO()) type = 'p'
-    else if (stats.isSocket()) type = 's'
-    return type
-  }
-
-  const getModeString = (stats: Stats) => {
-    return getModeType(stats) + (stats.mode & parseInt('777', 8)).toString(8).padStart(3, '0')
-      .replace(/0/g, '---')
-      .replace(/1/g, '--' + chalk.red('x'))
-      .replace(/2/g, '-' + chalk.yellow('w') + '-')
-      .replace(/3/g, '-' + chalk.yellow('w') + chalk.red('x'))
-      .replace(/4/g, chalk.green('r') + '--')
-      .replace(/5/g, chalk.green('r') + '-' + chalk.red('x'))
-      .replace(/6/g, chalk.green('r') + chalk.yellow('w') + '-')
-      .replace(/7/g, chalk.green('r') + chalk.yellow('w') + chalk.red('x'))
-  }
-
-  const getTimestampString = (timestamp: Date) => {
-    const diff = (new Date().getTime() - timestamp.getTime()) / 1000
-
-    if (diff < 24 * 60 * 60) return chalk.green(timestamp.toISOString().slice(0, 19).replace('T', ' '))
-    else if (diff < 7 * 24 * 60 * 60) return chalk.yellow(timestamp.toISOString().slice(0, 19).replace('T', ' '))
-    else if (diff < 30 * 24 * 60 * 60) return chalk.blue(timestamp.toISOString().slice(0, 19).replace('T', ' '))
-    else if (diff < 365 * 24 * 60 * 60) return chalk.magenta(timestamp.toISOString().slice(0, 19).replace('T', ' '))
-    else return chalk.gray(timestamp.toISOString().slice(0, 19).replace('T', ' '))
-  }
-
-  const getOwnerString = (stats: Stats) => {
-    const owner = kernel.users.all.get(stats.uid) || kernel.users.all.get(0)
-
-    if (owner?.username === shell.username) return chalk.green(`${owner?.username || stats.uid}:${owner?.username || stats.gid}`)
-    else if (stats.uid === 0) return chalk.red(`${owner?.username || stats.uid}:${owner?.username || stats.gid}`)
-    else return chalk.gray(`${owner?.username || stats.uid}:${owner?.username || stats.gid}`)
-  }
-
-  // TODO: .mounts is deprecated - find a proper way
-  // const mounts = Array.from(kernel.filesystem.fsSync.mounts.entries() as [string, FileSystem][])
-  //   .filter(([target]) => path.dirname(target) === fullPath && target !== '/')
-
-  const filesMap = await Promise.all(entries
-    .map(async entry => {
-      const target = path.resolve(fullPath, entry)
-      try {
-        return { target, name: entry, stats: await shell.context.fs.promises.stat(target) }
-      } catch {
-        return { target, name: entry, stats: null }
-      }
-    }))
-
-  const files = filesMap
-    .filter(entry => entry && entry.stats && !entry.stats.isDirectory())
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== null && entry !== undefined)
-
-  const directoryMap = await Promise.all(entries
-    .map(async entry => {
-      const target = path.resolve(fullPath, entry)
-      try {
-        return { target, name: entry, stats: await shell.context.fs.promises.stat(target) }
-      } catch {
-        return { target, name: entry, stats: null }
-      }
-    }))
-
-  const directories = directoryMap
-    .filter(entry => entry && entry.stats && entry.stats.isDirectory())
-    // .concat(mounts.map(([target]) => ({
-    //   target,
-    //   name: path.basename(target),
-    //   stats: { isDirectory: () => true, mtime: new Date(), mode: 0o755 } as Stats
-    // })))
-    .filter((entry, index, self) => self.findIndex(e => e?.name === entry?.name) === index)
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== null && entry !== undefined)
-
-  const data = [
-    ['Name', 'Size', 'Modified', 'Mode', 'Owner', 'Info'],
-    ...directories.sort((a, b) => a.name.localeCompare(b.name)).map(directory => {
-      return [
-        directory.name,
-        '',
-        directory.stats ? getTimestampString(directory.stats.mtime) : '',
-        directory.stats ? getModeString(directory.stats) : '',
-        directory.stats ? getOwnerString(directory.stats) : '',
-        // (() => {
-        //   const mount = mounts.find(([target]) => target.endsWith(`/${directory.name}`))
-        //   // TODO: store does not exist on FileSystem (but we can access it here)
-        //   // @ts-ignore
-        //   if (mount) return chalk.white(`(${mount[1].store?.constructor.name || mount[1].constructor.name}/${mount[1].metadata().name})`)
-        //   return descriptions.get(path.resolve(fullPath, directory.name)) || ''
-        // })()
-      ]
-    }),
-    ...files.sort((a, b) => a.name.localeCompare(b.name)).map(file => {
-      return [
-        file.name,
-        file.stats ? humanFormat(file.stats.size) : '',
-        file.stats ? getTimestampString(file.stats.mtime) : '',
-        file.stats ? getModeString(file.stats) : '',
-        file.stats ? getOwnerString(file.stats) : '',
-        (() => {
-          if (descriptions.has(path.resolve(fullPath, file.name))) return descriptions.get(path.resolve(fullPath, file.name))
-          const ext = file.name.split('.').pop()
-          if (ext && descriptions.has('.' + ext)) return descriptions.get('.' + ext)
-          if (!file.stats) return ''
-          if (file.stats.isBlockDevice() || file.stats.isCharacterDevice()) {
-            // TODO: zenfs `fs.mounts` is deprecated - use a better way of getting device info
-            // const device = kernel.filesystem.devfs.devices.get(`/${file.name}`)
-            // const kdevice = kernel.devices.get(file.name)
-            // const description = kdevice?.device.pkg?.description || ''
-            // const version = kdevice?.device.pkg?.version || ''
-            // if (device) return `${description ? `${description}:` : ''}${version ? `v${version}:` : ''}M${device.major ?? '?'},m${device.minor ?? '?'}`
-          }
-
-          return ''
-        })()
-      ]
-    })
-  ] as string[][]
-
-  // Special output for certain directories
-  if (fullPath.startsWith('/dev')) data.forEach(row => row.splice(1, 2)) // remove size and modified columns
-
-  const columnWidths = data[0]?.map((_, colIndex) => Math.max(...data.map(row => {
-    // Remove ANSI escape sequences before calculating length
-    const cleanedCell = row[colIndex]?.replace(/\u001b\[.*?m/g, '')
-    // count all emojis as two characters
-    return cleanedCell?.length || 0
-  })))
-
-  for (const [rowIndex, row] of data.entries()) {
-    const line = row
-      .map((cell, index) => {
-        const paddedCell = cell.padEnd(columnWidths?.[index] ?? 0)
-        if (index === 0 && rowIndex > 0) {
-          return row[3]?.startsWith('d') ? chalk.blue(paddedCell) : chalk.green(paddedCell)
-        } else return rowIndex === 0 ? chalk.bold(paddedCell) : chalk.gray(paddedCell)
-      })
-      .join('  ')
-
-    if (data.length > 1) await writelnStdout(process, terminal, line)
-  }
-
-  return 0
-}
-
 export const mount = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   const [points, type, config] = (args as string[])
   if (!points || !type || points.length !== 2) {
@@ -1488,43 +888,6 @@ export const mount = async ({ kernel, shell, terminal, process, args }: CommandA
     //   kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: Zip, name: fullSourcePath, data: new Uint8Array(await shell.context.fs.promises.readFile(fullSourcePath)).buffer })); break
   }
 
-  return 0
-}
-
-
-export const mkdir = async ({ shell, args }: CommandArgs) => {
-  const target = (args as string[])[0]
-  const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  await shell.context.fs.promises.mkdir(fullPath)
-}
-
-export const mv = async ({ shell, terminal, process, args }: CommandArgs) => {
-  const [sourceInput, destinationInput] = (args as string[])
-  if (!sourceInput || !destinationInput) {
-    await writelnStderr(process, terminal, chalk.red('Usage: mv <source> <destination>'))
-    return 1
-  }
-
-  const source = path.resolve(shell.cwd, sourceInput)
-  let destination = path.resolve(shell.cwd, destinationInput)
-
-  if (source === destination) return 0
-  const disallowedPaths = ['/dev', '/proc', '/sys', '/run']
-  if (disallowedPaths.some(path => source.startsWith(path) || destination.startsWith(path))) {
-    await writelnStderr(process, terminal, chalk.red('Cannot move disallowed paths'))
-    return 2
-  }
-
-  if (await shell.context.fs.promises.exists(destination)) {
-    if ((await shell.context.fs.promises.stat(destination)).isDirectory()) {
-      destination = path.resolve(destination, path.basename(source))
-    } else {
-      await writelnStderr(process, terminal, chalk.red(`${destination} already exists`))
-      return 1
-    }
-  }
-
-  await shell.context.fs.promises.rename(source, destination)
   return 0
 }
 
@@ -1641,26 +1004,8 @@ export const ps = async ({ kernel, terminal, process }: CommandArgs) => {
   }
 }
 
-export const pwd = async ({ shell, terminal, process }: CommandArgs) => {
-  await writelnStdout(process, terminal, shell.cwd)
-}
-
 export const reboot = async ({ kernel }: CommandArgs) => {
   kernel.reboot()
-}
-
-export const rm = async ({ shell, args }: CommandArgs) => {
-  const target = (args as string[])[0]
-  const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  if ((await shell.context.fs.promises.stat(fullPath)).isDirectory()) await shell.context.fs.promises.rmdir(fullPath)
-  else await shell.context.fs.promises.unlink(fullPath)
-  return 0
-}
-
-export const rmdir = async ({ shell, args }: CommandArgs) => {
-  const target = (args as string[])[0]
-  const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  await shell.context.fs.promises.rm(fullPath, { recursive: true, force: true })
 }
 
 export const screensaver = async ({ kernel, terminal, process, args }: CommandArgs) => {
@@ -1730,7 +1075,7 @@ export const snake = ({ kernel, terminal }: CommandArgs) => {
   terminal.unlisten()
   renderGame()
 
-  const keyListener = terminal.onKey(({ domEvent }) => {
+  const keyListener = terminal.onKey(({ domEvent }: { domEvent: KeyboardEvent }) => {
     const newDirection = (() => {
       switch (domEvent.key) {
         case 'ArrowUp': return { x: 0, y: -1 }
@@ -1872,24 +1217,6 @@ export const socket = async () => {
   return 0
 }
 
-export const stat = async ({ shell, terminal, process, args }: CommandArgs) => {
-  const argPath = (args as string[])[0]
-  const fullPath = argPath ? path.resolve(shell.cwd, argPath) : shell.cwd
-  const stats = await shell.context.fs.promises.stat(fullPath)
-  await writelnStdout(process, terminal, JSON.stringify(stats, null, 2))
-
-  const extension = path.extname(fullPath)
-  if (extension === '.zip') {
-    const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
-    const zipReader = new zipjs.ZipReader(new zipjs.BlobReader(blob))
-    const entries = await zipReader.getEntries()
-    await writelnStdout(process, terminal, chalk.bold('\nZIP Entries:'))
-    for (const entry of entries) {
-      await writelnStdout(process, terminal, `${chalk.blue(entry.filename)} (${entry.uncompressedSize} bytes)`)
-    }
-  }
-}
-
 export const su = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   const username = (args as string[])[0]
   const currentUser = kernel.users.get(shell.credentials.suid) as User
@@ -1898,7 +1225,7 @@ export const su = async ({ kernel, shell, terminal, process, args }: CommandArgs
     return 1
   }
 
-  const user = Array.from(kernel.users.all.values()).find(user => user.username === username)
+  const user = Array.from(kernel.users.all.values()).find((u): u is User => (u as User).username === username)
   if (!user) {
     await writelnStderr(process, terminal, chalk.red(kernel.i18n.t('User not found', { username })))
     return 1
@@ -1907,12 +1234,6 @@ export const su = async ({ kernel, shell, terminal, process, args }: CommandArgs
   shell.context = bindContext({ root: '/', pwd: '/', credentials: user })
   shell.credentials = createCredentials({ uid: user.uid, gid: user.gid, suid: currentUser.uid, sgid: currentUser.gid, euid: user.uid, egid: user.gid, groups: user.groups })
   terminal.promptTemplate = `{user}:{cwd}${user.uid === 0 ? '#' : '$'} `
-}
-
-export const touch = async ({ shell, args }: CommandArgs) => {
-  const target = (args as string[])[0]
-  const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  await shell.context.fs.promises.appendFile(fullPath, '')
 }
 
 export const umount = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
@@ -2008,7 +1329,7 @@ export const user = async ({ kernel, shell, terminal, process, args }: CommandAr
 
   switch (command) {
     case 'list': {
-      const users = Array.from(kernel.users.all.values())
+      const users = Array.from(kernel.users.all.values()) as User[]
       
       // Calculate column widths
       const uidWidth = Math.max(3, ...users.map(u => u.uid.toString().length))
@@ -2040,7 +1361,8 @@ export const user = async ({ kernel, shell, terminal, process, args }: CommandAr
         return 1
       }
 
-      if (Array.from(kernel.users.all.values()).some(u => u.username === username)) {
+      const allUsers = Array.from(kernel.users.all.values()) as User[]
+      if (allUsers.some((u: User) => u.username === username)) {
         await writelnStderr(process, terminal, chalk.red(`User ${username} already exists`))
         return 1
       }
@@ -2071,7 +1393,8 @@ export const user = async ({ kernel, shell, terminal, process, args }: CommandAr
         return 1
       }
 
-      const usr = Array.from(kernel.users.all.values()).find(u => u.username === username)
+      const allUsers = Array.from(kernel.users.all.values()) as User[]
+      const usr = allUsers.find((u: User) => u.username === username)
       if (!usr) {
         await writelnStderr(process, terminal, chalk.red(`User ${username} not found`))
         return 1
@@ -2101,7 +1424,8 @@ export const user = async ({ kernel, shell, terminal, process, args }: CommandAr
         return 1
       }
 
-      const usr = Array.from(kernel.users.all.values()).find(u => u.username === username)
+      const allUsers = Array.from(kernel.users.all.values()) as User[]
+      const usr = allUsers.find((u: User) => u.username === username)
       if (!usr) {
         await writelnStderr(process, terminal, chalk.red(`User ${username} not found`))
         return 1

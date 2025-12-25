@@ -55,6 +55,9 @@ importers:
       '@ecmaos/bios':
         specifier: workspace:^
         version: link:../bios
+      '@ecmaos/coreutils':
+        specifier: workspace:^
+        version: link:../utils
       '@gera2ld/tarjs':
         specifier: ^0.3.1
         version: 0.3.1

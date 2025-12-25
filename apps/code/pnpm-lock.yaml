@@ -35,62 +35,6 @@ importers:
         specifier: ^0.22.0
         version: 0.22.0(rollup@4.52.5)(vite@7.1.12(@types/node@24.9.2))
 
-  ../..: {}
-
-  ../../core/bios: {}
-
-  ../../core/jaffa: {}
-
-  ../../core/kernel: {}
-
-  ../../core/metal: {}
-
-  ../../core/swapi: {}
-
-  ../../core/types: {}
-
-  ../../devices/audio: {}
-
-  ../../devices/battery: {}
-
-  ../../devices/bluetooth: {}
-
-  ../../devices/echo: {}
-
-  ../../devices/gamepad: {}
-
-  ../../devices/geo: {}
-
-  ../../devices/gpu: {}
-
-  ../../devices/hid: {}
-
-  ../../devices/midi: {}
-
-  ../../devices/presentation: {}
-
-  ../../devices/sensors: {}
-
-  ../../devices/serial: {}
-
-  ../../devices/usb: {}
-
-  ../../devices/webgl: {}
-
-  ../../modules/boilerplate: {}
-
-  ../../utils/config-typescript: {}
-
-  ../ai: {}
-
-  ../boilerplate: {}
-
-  ../news: {}
-
-  ../python: {}
-
-  ../webamp: {}
-
 packages:
 
   '@esbuild/aix-ppc64@0.25.11':

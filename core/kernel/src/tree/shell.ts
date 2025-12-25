@@ -122,6 +122,177 @@ export class Shell implements IShell {
     }
   }
 
+  /**
+   * Parses and executes command substitutions in the format $(command)
+   * Supports nested substitutions
+   */
+  private async parseCommandSubstitution(commandLine: string): Promise<string> {
+    let result = commandLine
+    let hasSubstitution = true
+    
+    // Process substitutions iteratively to handle nested cases
+    while (hasSubstitution) {
+      hasSubstitution = false
+      const matches: Array<{ match: string; command: string; start: number; end: number }> = []
+      
+      // Find all $(...) patterns by tracking parentheses depth
+      // Need to track quote state to skip substitutions inside single quotes
+      let inSingleQuote = false
+      let inDoubleQuote = false
+      let escaped = false
+      
+      for (let i = 0; i < result.length - 1; i++) {
+        const char = result[i]
+        
+        // Track quote state
+        if (escaped) {
+          escaped = false
+          continue
+        }
+        
+        if (char === '\\') {
+          escaped = true
+          continue
+        }
+        
+        if (char === "'" && !inDoubleQuote) {
+          inSingleQuote = !inSingleQuote
+        } else if (char === '"' && !inSingleQuote) {
+          inDoubleQuote = !inDoubleQuote
+        }
+        
+        // Only process substitutions outside single quotes
+        if (!inSingleQuote && char === '$' && result[i + 1] === '(') {
+          // Found start of substitution, find matching closing paren
+          let depth = 1
+          let j = i + 2
+          let subInString = false
+          let subStringChar = ''
+          let subEscaped = false
+          
+          while (j < result.length && depth > 0) {
+            const subChar = result[j]
+            
+            if (subEscaped) {
+              subEscaped = false
+              j++
+              continue
+            }
+            
+            if (subChar === '\\') {
+              subEscaped = true
+              j++
+              continue
+            }
+            
+            if (!subInString && (subChar === '"' || subChar === "'")) {
+              subInString = true
+              subStringChar = subChar
+            } else if (subInString && subChar === subStringChar) {
+              subInString = false
+              subStringChar = ''
+            } else if (!subInString) {
+              if (subChar === '(') {
+                depth++
+              } else if (subChar === ')') {
+                depth--
+              }
+            }
+            
+            j++
+          }
+          
+          if (depth === 0) {
+            // Found complete substitution
+            hasSubstitution = true
+            const command = result.slice(i + 2, j - 1)
+            matches.push({
+              match: result.slice(i, j),
+              command,
+              start: i,
+              end: j
+            })
+            i = j - 1 // Skip past this substitution
+          }
+        }
+      }
+      
+      // Process matches from right to left to preserve indices
+      matches.reverse()
+      
+      for (const { command, start, end } of matches) {
+        // Execute the command substitution
+        const output = await this.executeCommandSubstitution(command)
+        
+        // Replace the substitution with the output
+        result = result.slice(0, start) + output + result.slice(end)
+      }
+    }
+    
+    return result
+  }
+
+  /**
+   * Executes a command substitution and returns its output
+   */
+  private async executeCommandSubstitution(command: string): Promise<string> {
+    // Create a temporary stream to capture output
+    const chunks: Uint8Array[] = []
+    const outputStream = new WritableStream<Uint8Array>({
+      write(chunk) {
+        chunks.push(chunk)
+      }
+    })
+    
+    // Create a dummy error stream (we'll ignore stderr for substitutions)
+    const errorStream = new WritableStream<Uint8Array>({
+      write() {
+        // Ignore stderr in command substitutions
+      }
+    })
+    
+    // Execute the command
+    try {
+      // Parse the command to get command name and args
+      const [commandName, ...args] = shellQuote.parse(command, this.envObject) as string[]
+      if (!commandName) {
+        return ''
+      }
+      
+      const finalCommand = await this.resolveCommand(commandName)
+      if (!finalCommand) {
+        return ''
+      }
+      
+      // Execute the command
+      await this._kernel.execute({
+        command: finalCommand,
+        args,
+        kernel: this._kernel,
+        shell: this,
+        terminal: this._terminal,
+        stdin: new ReadableStream<Uint8Array>(),
+        stdout: outputStream,
+        stderr: errorStream
+      })
+      
+      // Combine all chunks and convert to string
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+      const combined = new Uint8Array(totalLength)
+      let offset = 0
+      for (const chunk of chunks) {
+        combined.set(chunk, offset)
+        offset += chunk.length
+      }
+      
+      // Decode and trim trailing newlines (standard shell behavior)
+      const output = new TextDecoder().decode(combined)
+      return output.replace(/\n+$/, '')
+    } catch {
+      return ''
+    }
+  }
+
   private parseRedirection(commandLine: string): { 
     command: string, 
     redirections: { type: '>' | '>>' | '<' | '2>' | '2>>' | '2>&1' | '&>' | '&>>', target: string }[] 
@@ -191,8 +362,10 @@ export class Shell implements IShell {
           const { env, kernel } = this
 
           for (let i = 0; i < commands.length; i++) {
-            const commandLine = commands[i]
+            let commandLine = commands[i]
             if (!commandLine) continue
+
+            commandLine = await this.parseCommandSubstitution(commandLine)
 
             const { command, redirections } = this.parseRedirection(commandLine)
             const [commandName, ...args] = shellQuote.parse(command, this.envObject) as string[]

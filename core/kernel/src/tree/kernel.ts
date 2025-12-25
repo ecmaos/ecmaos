@@ -412,6 +412,7 @@ export class Kernel implements IKernel {
           { name: '@zen-fs/core', link: this.terminal.createSpecialLink('https://github.com/zen-fs/core', '@zenfs/core') + `@${import.meta.env['ZENFS_VERSION']}` },
         ]
 
+        this.terminal.writeln(chalk.red.bold(`🐉  ${t('kernel.experimental', 'EXPERIMENTAL')} 🐉`))
         this.terminal.writeln(
           `${this.terminal.createSpecialLink(import.meta.env['HOMEPAGE'], import.meta.env['NAME'] || 'ecmaOS')}@${import.meta.env['VERSION']}`
           + chalk.cyan(` [${dependencyLinks.map(link => link.link).join(', ')}]`))
@@ -422,14 +423,13 @@ export class Kernel implements IKernel {
         )}`)
 
         this.terminal.writeln(import.meta.env['REPOSITORY'] + '\n')
-        this.terminal.writeln(chalk.red.bold(`🐉  ${t('kernel.experimental', 'EXPERIMENTAL')} 🐉`))
 
-        if (import.meta.env['KNOWN_ISSUES']) {
+        if (import.meta.env['KNOWN_ISSUES'] && import.meta.env['VITE_BOOT_DISABLE_ISSUES'] !== 'true') {
           this.terminal.writeln(chalk.yellow.bold(t('kernel.knownIssues', 'Known Issues')))
           this.terminal.writeln(chalk.yellow(import.meta.env['KNOWN_ISSUES'].map((issue: string) => `- ${issue}`).join('\n')) + '\n')
         }
 
-        if (import.meta.env['TIPS']) {
+        if (import.meta.env['TIPS'] && import.meta.env['VITE_BOOT_DISABLE_TIPS'] !== 'true') {
           this.terminal.writeln(chalk.green.bold(t('kernel.tips', 'Tips')))
           this.terminal.writeln(chalk.green(import.meta.env['TIPS'].map((tip: string) => `- ${tip}`).join('\n')) + '\n')
         }
@@ -437,9 +437,11 @@ export class Kernel implements IKernel {
         spinner = this.terminal.spinner('arrow3', chalk.yellow(this.i18n.t('Booting')))
         spinner.start()
 
-        if (logoFiglet) console.log(`%c${logoFiglet}`, 'color: green')
-        console.log(`%c${import.meta.env['REPOSITORY'] || 'https://github.com/ecmaos/ecmaos'}`, 'color: blue; text-decoration: underline; font-size: 16px')
-        this.log.info(`${import.meta.env['NAME'] || 'ecmaOS'} v${import.meta.env['VERSION']}`)
+        if (logoFiglet && import.meta.env['VITE_BOOT_DISABLE_LOGO_CONSOLE'] !== 'true') {
+          console.log(`%c${logoFiglet}`, 'color: green')
+          console.log(`%c${import.meta.env['REPOSITORY'] || 'https://github.com/ecmaos/ecmaos'}`, 'color: blue; text-decoration: underline; font-size: 16px')
+          this.log.info(`${import.meta.env['NAME'] || 'ecmaOS'} v${import.meta.env['VERSION']}`)
+        }
 
         if (Notification?.permission === 'default') Notification.requestPermission()
         if (Notification?.permission === 'denied') this.log.warn(t('kernel.permissionNotificationDenied', 'Notification permission denied'))
@@ -560,9 +562,19 @@ export class Kernel implements IKernel {
 
       // Show login prompt or auto-login
       if (this.options.credentials) {
-        const { cred } = await this.users.login(this.options.credentials.username, this.options.credentials.password)
+        const { user, cred } = await this.users.login(this.options.credentials.username, this.options.credentials.password)
         this.shell.credentials = cred
         this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
+        this.shell.env.set('UID', user.uid.toString())
+        this.shell.env.set('GID', user.gid.toString())
+        this.shell.env.set('SUID', cred.suid.toString())
+        this.shell.env.set('SGID', cred.sgid.toString())
+        this.shell.env.set('EUID', cred.euid.toString())
+        this.shell.env.set('EGID', cred.egid.toString())
+        this.shell.env.set('SHELL', user.shell || 'ecmaos')
+        this.shell.env.set('HOME', user.home || '/root')
+        this.shell.env.set('USER', user.username)
+        process.env = Object.fromEntries(this.shell.env)
         await this.shell.loadEnvFile()
       } else {
         if (import.meta.env['VITE_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold('Default Login: root / root\n'))
@@ -586,12 +598,27 @@ export class Kernel implements IKernel {
         // Main login loop
         while (true) {
           try {
+            const loc = globalThis.location
+            const hostname = loc?.hostname || 'localhost'
+            const port = loc && loc.port && loc.port !== '80' && loc.port !== '443' ? `:${loc.port}` : ''
+            this.terminal.writeln(`⚓  ${hostname}${port}`)
+            
             const username = await this.terminal.readline(`👤  ${this.i18n.t('Username')}: `)
             const password = await this.terminal.readline(`🔒  ${this.i18n.t('Password')}: `, true)
-            const { cred } = await this.users.login(username, password)
+            const { user, cred } = await this.users.login(username, password)
             this.shell.credentials = cred
             this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
             await this.shell.loadEnvFile()
+            this.shell.env.set('UID', user.uid.toString())
+            this.shell.env.set('GID', user.gid.toString())
+            this.shell.env.set('SUID', cred.suid.toString())
+            this.shell.env.set('SGID', cred.sgid.toString())
+            this.shell.env.set('EUID', cred.euid.toString())
+            this.shell.env.set('EGID', cred.egid.toString())
+            this.shell.env.set('SHELL', user.shell || 'ecmaos')
+            this.shell.env.set('HOME', user.home || '/root')
+            this.shell.env.set('USER', user.username)
+            process.env = Object.fromEntries(this.shell.env)
             break
           } catch (err) {
             console.error(err)
@@ -610,12 +637,21 @@ export class Kernel implements IKernel {
       const user = this.users.get(this.shell.credentials.uid ?? 0)
       if (!user) throw new Error(t('kernel.userNotFound', 'User not found'))
 
+      this.shell.credentials = {
+        uid: user.uid,
+        gid: user.gid,
+        suid: user.uid,
+        sgid: user.gid,
+        euid: user.uid,
+        egid: user.gid,
+        groups: user.groups
+      }
+
+      // TODO: Fix initial prompt showing root as {user} substitution when not 0
+
       this.shell.cwd = localStorage.getItem(`cwd:${this.shell.credentials.uid}`) ?? (
         user.uid === 0 ? '/' : (user.home || '/')
       )
-
-      // TODO: Customizable prompt templates loaded from fs
-      if (user.uid !== 0) this.terminal.promptTemplate = `{user}:{cwd}$ `
 
       // Setup screensavers
       // TODO: This shouldn't really be a part of the kernel
@@ -677,6 +713,9 @@ export class Kernel implements IKernel {
 
         this.storage.local.setItem('ecmaos:first-boot', Date.now().toString())
       }
+
+      // const currentUser = this.users.get(this.shell.credentials.euid ?? this.shell.credentials.uid ?? 0)
+      // this.terminal.promptTemplate = `{user}:{cwd}${currentUser && currentUser.uid !== 0 ? '$' : '#' } `
 
       this.terminal.write(ansi.erase.inLine(2) + this.terminal.prompt())
       this.terminal.focus()

@@ -181,18 +181,12 @@ const createMenuBar = (
 
 const main = async (params: ProcessEntryParams) => {
   const { args, kernel, shell, terminal, instance } = params
-  
+
   const file = args?.[0] ? path.resolve(shell.cwd, args[0]) : path.resolve(shell.cwd, 'Untitled.txt')
   if (!file) { terminal.writeln('Usage: code <file>'); return 1 }
 
   try { await kernel.filesystem.fs.mkdir(path.dirname(file), { recursive: true }) } catch {}
-  // Create file if it doesn't exist (using filesystem API instead of shell.execute to avoid spawning a process)
-  try {
-    await kernel.filesystem.fs.access(file)
-  } catch {
-    // File doesn't exist, create it
-    await kernel.filesystem.fs.writeFile(file, '')
-  }
+  try { await kernel.filesystem.fs.access(file) } catch { await kernel.filesystem.fs.writeFile(file, '') }
 
   const fileHandle = await instance.open(file, 'r+')
   const value = await fileHandle.readFile('utf-8') as string

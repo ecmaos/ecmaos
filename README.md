@@ -76,7 +76,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - Run the installed app (bins are linked to `/usr/bin`): `# code /root/hello.js`
 - During development, it can be useful to run a [Verdaccio](https://github.com/verdaccio/verdaccio) server to test local packages
 - To publish to Verdaccio, run `# npm publish --registry http://localhost:4873` in your app's development environment
-- Then to install from your local registry, run `# install @myscope/mypackage --registry http://localhost:4873`
+- Then to install from your local registry, run (inside ecmaOS) `# install @myscope/mypackage --registry http://localhost:4873`
 
 ### BIOS
 
@@ -91,8 +91,13 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 
 > [/core/kernel/src/tree/lib/commands](/core/kernel/src/tree/lib/commands)
 
-- Commands are small utilities that aren't quite full Apps, provided by the shell
-- Some builtin commands that exist now will be moved into separate apps over time
+- `Commands` are built-in shell commands that are provided by the kernel, e.g. `download`, `install`, `load`, etc.
+
+### Coreutils
+
+> [/core/utils](/core/utils)
+
+- `Coreutils` are similar to `Commands`, but are provided by the `@ecmaos/coreutils` package, e.g. `cat`, `cd`, `chmod`, `cp`, `echo`, `ls`, `mkdir`, `mv`, `pwd`, `rm`, `rmdir`, `stat`, `touch`, etc.
 
 ### Devices
 
@@ -119,6 +124,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 
 - Jaffa is a [Tauri](https://tauri.app) wrapper for the ecmaOS kernel
 - It's used to tie the kernel into a desktop or mobile environment, allowing for native functionality
+- It needs more work
 
 ### Kernel
 
@@ -171,7 +177,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 ### Packages
 
 - Packages are [NPM packages](https://www.npmjs.com) that are installed into the ecmaOS environment
-- They can be installed from the terminal using the `install` command, e.g. `# install jquery`
+- They can be installed from the terminal using the `install` command, e.g. `# install @ecmaos-apps/ai`
 - Client-side packages should work well
 - Some basic Node emulation is in place, but don't expect anything to work at this point
 - NPM version specifiers are supported, e.g.:

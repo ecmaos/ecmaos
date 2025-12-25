@@ -37,7 +37,8 @@
     "You can install any NPM package - e.g. 'install jquery'",
     "Use the 'news' command to see the latest news about ecmaOS",
     "Type 'ls /bin' to see all built-in commands",
-    "Type 'ls /usr/bin' to see all installed commands"
+    "Type 'ls /usr/bin' to see all installed commands",
+    "Try 'fetch /xkcd-os.sixel'"
   ],
   "type": "module",
   "files": [
@@ -148,6 +149,7 @@
     "vitest-canvas-mock": "^0.3.3"
   },
   "dependencies": {
+    "@ecmaos/coreutils": "workspace:^",
     "@ecmaos-devices/audio": "workspace:^",
     "@ecmaos-devices/battery": "workspace:^",
     "@ecmaos-devices/bluetooth": "workspace:^",

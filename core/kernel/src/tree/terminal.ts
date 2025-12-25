@@ -395,17 +395,158 @@ export class Terminal extends XTerm implements ITerminal {
     return new Spinner(this, interval, frames, prefix, suffix)
   }
 
-  // TODO: make more configurable and robust
-  prompt(text: string = this._promptTemplate) {
+  /**
+   * Parses a PS1-like prompt format string
+   * Supports placeholders: \u (user), \h (hostname), \w (full cwd), \W (basename cwd), \$ ($ or #), \s (shell)
+   * Supports colors: \C{colorname} (e.g., \C{green}, \C{cyan}, \C{red})
+   * Supports reset: \C{reset} or \C{default}
+   * Supports non-printing sequences: \[...\] for ANSI codes
+   */
+  private parsePromptFormat(format: string): string {
     const user = this._kernel.users.get(this._shell.credentials.euid ?? 0)
+    const username = user?.username || 'root'
+    const hostname = globalThis.location?.hostname || 'localhost'
+    const shell = this._shell.env.get('SHELL') || 'ecmaos'
+    const isRoot = (user?.uid ?? 0) === 0
+    const promptChar = isRoot ? '#' : '$'
+    
+    // Get basename of cwd
+    const cwdBasename = path.basename(this.cwd) || '/'
+    const cwdFull = this.cwd
 
-    // @ts-expect-error
-    return this.ansi.style[this.options.theme?.promptColor || 'green'] + text
-      .replace('{cwd}', chalk.cyan(this.cwd))
-      .replace('{uid}', chalk.white(user?.uid.toString() || ''))
-      .replace('{gid}', chalk.white(user?.gid.toString() || ''))
-      .replace('{user}', chalk.white(user?.username || ''))
-      + this.ansi.style.white
+    let output = ''
+    let i = 0
+
+    // Color mapping
+    const colorMap: Record<string, string> = {
+      'black': '\x1b[30m',
+      'red': '\x1b[31m',
+      'green': '\x1b[32m',
+      'yellow': '\x1b[33m',
+      'blue': '\x1b[34m',
+      'magenta': '\x1b[35m',
+      'cyan': '\x1b[36m',
+      'white': '\x1b[37m',
+      'gray': '\x1b[90m',
+      'grey': '\x1b[90m',
+      'reset': '\x1b[0m',
+      'default': '\x1b[0m',
+      'bold': '\x1b[1m',
+      'dim': '\x1b[2m',
+      'italic': '\x1b[3m',
+      'underline': '\x1b[4m',
+    }
+
+    // Process character by character
+    while (i < format.length) {
+      const char = format[i]
+      const nextChar = format[i + 1]
+
+      // Handle escape sequences
+      if (char === '\\' && nextChar) {
+        switch (nextChar) {
+          case 'u': // username
+            output += chalk.white(username)
+            i += 2
+            break
+          case 'h': // hostname
+            output += chalk.white(hostname)
+            i += 2
+            break
+          case 'w': // full working directory
+            output += chalk.cyan(cwdFull)
+            i += 2
+            break
+          case 'W': // basename of working directory
+            output += chalk.cyan(cwdBasename)
+            i += 2
+            break
+          case '$': // prompt character ($ or #)
+            output += promptChar
+            i += 2
+            break
+          case 's': // shell name
+            output += chalk.white(shell)
+            i += 2
+            break
+          case 'n': // newline
+            output += '\n'
+            i += 2
+            break
+          case 'C': // Color: \C{colorname}
+            if (format[i + 2] === '{') {
+              const endBrace = format.indexOf('}', i + 3)
+              if (endBrace !== -1) {
+                const colorName = format.substring(i + 3, endBrace)
+                const colorCode = colorMap[colorName.toLowerCase()] || ''
+                output += colorCode
+                i = endBrace + 1 // Skip to after the closing brace
+                break
+              }
+            }
+            // Fall through if invalid \C format
+            output += char
+            i++
+            break
+          case '[': // Start non-printing sequence
+            output += '\\['
+            i += 2
+            break
+          case ']': // End non-printing sequence
+            output += '\\]'
+            i += 2
+            break
+          default:
+            // Unknown escape, output as-is
+            output += char
+            i++
+            break
+        }
+      } else {
+        output += char
+        i++
+      }
+    }
+
+    return output
+  }
+
+  /**
+   * Gets the prompt string, loading from PROMPT environment variable if available
+   */
+  prompt(text?: string): string {
+    // Try to get PROMPT from environment
+    const envPrompt = this._shell.env.get('PROMPT')
+    const hasEnvPrompt = envPrompt && envPrompt.trim().length > 0
+    
+    // Use provided text, env PROMPT, or fall back to template
+    const promptFormat = text || (hasEnvPrompt ? envPrompt : this._promptTemplate)
+
+    // If using old format with {placeholders}, convert to new format
+    if (promptFormat.includes('{') && !hasEnvPrompt && !text) {
+      const user = this._kernel.users.get(this._shell.credentials.euid ?? 0)
+      // @ts-expect-error
+      return this.ansi.style[this.options.theme?.promptColor || 'green'] + promptFormat
+        .replace('{cwd}', chalk.cyan(this.cwd))
+        .replace('{uid}', chalk.white(user?.uid.toString() || ''))
+        .replace('{gid}', chalk.white(user?.gid.toString() || ''))
+        .replace('{user}', chalk.white(user?.username || ''))
+        + this.ansi.style.white
+    }
+
+    // Parse the PS1-like format
+    try {
+      return this.parsePromptFormat(promptFormat)
+    } catch {
+      // Fall back to default if parsing fails
+      const user = this._kernel.users.get(this._shell.credentials.euid ?? 0)
+      const defaultPrompt = user?.uid === 0 ? '{user}:{cwd}# ' : '{user}:{cwd}$ '
+      // @ts-expect-error
+      return this.ansi.style[this.options.theme?.promptColor || 'green'] + defaultPrompt
+        .replace('{cwd}', chalk.cyan(this.cwd))
+        .replace('{user}', chalk.white(user?.username || ''))
+        + this.ansi.style.white
+    }
   }
 
   override async paste(data?: string) {

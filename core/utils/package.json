@@ -1,0 +1,40 @@
+{
+  "name": "@ecmaos/coreutils",
+  "description": "ecmaOS: Core utilities for the ecmaOS framework",
+  "version": "0.1.0",
+  "license": "MIT+Apache-2.0",
+  "homepage": "https://ecmaos.sh",
+  "repository": "https://github.com/ecmaos/ecmaos",
+  "author": {
+    "name": "Jay Mathis",
+    "email": "code@mathis.network",
+    "url": "https://github.com/mathiscode"
+  },
+  "bugs": {
+    "url": "https://github.com/ecmaos/ecmaos/issues",
+    "email": "code@mathis.network"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest --coverage"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@ecmaos/types": "workspace:^",
+    "chalk": "^5.3.0",
+    "command-line-args": "^6.0.0",
+    "command-line-usage": "^7.0.3",
+    "human-format": "^1.2.1",
+    "@zip.js/zip.js": "^2.7.52",
+    "@zenfs/core": "^2.4.2"
+  }
+}
