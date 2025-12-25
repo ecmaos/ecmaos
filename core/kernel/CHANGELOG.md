@@ -1,5 +1,11 @@
 # @ecmaos/kernel
 
+## 0.6.1
+
+### Patch Changes
+
+- 8c19676: fix vite config and coreutils
+
 ## 0.6.0
 
 ### Minor Changes
