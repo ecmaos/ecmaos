@@ -32,5 +32,9 @@
     "command-line-args": "^6.0.0",
     "command-line-usage": "^7.0.3",
     "human-format": "^1.2.1"
+  },
+  "devDependencies": {
+    "@types/command-line-args": "^5.2.3",
+    "@types/command-line-usage": "^5.0.4"
   }
 }
