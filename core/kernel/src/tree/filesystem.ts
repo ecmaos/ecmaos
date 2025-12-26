@@ -164,6 +164,48 @@ export class Filesystem {
     const hasPackageDir = tar.fileInfos.some(file => file.name.startsWith('package/'))
     const stripPrefix = hasPackageDir ? 'package/' : ''
 
+    // Helper function to ensure a directory exists, removing any file that conflicts
+    const ensureDirectory = async (dirPath: string) => {
+      const normalizedPath = path.normalize(dirPath)
+      
+      // Check if path exists and what type it is
+      if (await this.fs.exists(normalizedPath)) {
+        try {
+          const stat = await this.fs.stat(normalizedPath)
+          if (stat.isFile()) {
+            // A file exists where we need a directory - remove it
+            await this.fs.unlink(normalizedPath)
+          } else if (stat.isDirectory()) {
+            // Directory already exists, nothing to do
+            return
+          }
+        } catch (statError) {
+          // If stat fails, try to proceed with mkdir anyway
+        }
+      }
+      
+      // Create the directory (recursive will create parent dirs if needed)
+      try {
+        await this.fs.mkdir(normalizedPath, { mode: directoryMode, recursive: true })
+      } catch (mkdirError: any) {
+        // If mkdir fails with ENOTDIR, it means a parent path is a file, not a directory
+        // Recursively check and fix parent directories
+        if (mkdirError?.code === 'ENOTDIR' || mkdirError?.message?.includes('ENOTDIR')) {
+          const parent = path.dirname(normalizedPath)
+          if (parent !== normalizedPath && parent !== '.' && parent !== '/') {
+            // Recursively ensure parent directory exists
+            await ensureDirectory(parent)
+            // Retry creating the directory
+            await this.fs.mkdir(normalizedPath, { mode: directoryMode, recursive: true })
+          } else {
+            throw mkdirError
+          }
+        } else {
+          throw mkdirError
+        }
+      }
+    }
+
     for (const file of tar.fileInfos) {
       if (hasPackageDir && !file.name.startsWith(stripPrefix)) continue
 
@@ -172,16 +214,27 @@ export class Filesystem {
 
       try {
         if (relativePath.endsWith('/')) {
-          await this.fs.mkdir(path.join(extractPath, relativePath), { mode: directoryMode, recursive: true })
+          await ensureDirectory(path.join(extractPath, relativePath))
           continue
         }
 
-        await this.fs.mkdir(path.join(extractPath, path.dirname(relativePath)), { mode: directoryMode, recursive: true })
+        await ensureDirectory(path.join(extractPath, path.dirname(relativePath)))
 
         const blob = tar.getFileBlob(file.name)
-        const binaryData = await blob.arrayBuffer().then(buffer => new Uint8Array(buffer))
-        const filePath = path.join(extractPath, relativePath)
-        await this.fs.writeFile(filePath, binaryData, { encoding: 'binary', mode: fileMode })
+        if (!blob || !(blob instanceof Blob)) {
+          // Skip files that can't be extracted (e.g., hard links, symlinks, or empty files)
+          continue
+        }
+
+        try {
+          const binaryData = await blob.arrayBuffer().then(buffer => new Uint8Array(buffer))
+          const filePath = path.join(extractPath, relativePath)
+          await this.fs.writeFile(filePath, binaryData, { encoding: 'binary', mode: fileMode })
+        } catch (extractError) {
+          // If we can't extract the file content, skip it rather than failing the entire extraction
+          globalThis.kernel?.terminal.writeln(`Failed to extract file ${file.name}: ${extractError instanceof Error ? extractError.message : String(extractError)}`)
+          continue
+        }
       } catch (error) {
         globalThis.kernel?.terminal.writeln(`Failed to extract file ${file.name}: ${error}`)
       }

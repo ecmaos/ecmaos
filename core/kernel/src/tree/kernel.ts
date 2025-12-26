@@ -599,9 +599,18 @@ export class Kernel implements IKernel {
         while (true) {
           try {
             const loc = globalThis.location
+            const protocol = loc?.protocol || 'ecmaos:'
             const hostname = loc?.hostname || 'localhost'
             const port = loc && loc.port && loc.port !== '80' && loc.port !== '443' ? `:${loc.port}` : ''
-            this.terminal.writeln(`⚓  ${hostname}${port}`)
+
+            // Color http red, others green, and pick icon: unlocked for http, lock for others
+            const isHttp = protocol === 'http:'
+            const protocolStr = isHttp
+              ? chalk.red(protocol)
+              : chalk.green(protocol)
+            const icon = isHttp ? '🔓' : '🔒'
+
+            this.terminal.writeln(`${icon}  ${protocolStr}//${hostname}${port}`)
             
             const username = await this.terminal.readline(`👤  ${this.i18n.t('Username')}: `)
             const password = await this.terminal.readline(`🔒  ${this.i18n.t('Password')}: `, true)

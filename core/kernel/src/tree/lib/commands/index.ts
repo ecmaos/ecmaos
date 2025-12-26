@@ -158,6 +158,21 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         return await install({ kernel, shell, terminal, args: [argv.package, argv.registry, argv.reinstall] })
       }
     }),
+    uninstall: new TerminalCommand({
+      command: 'uninstall',
+      description: 'Uninstall a package',
+      kernel,
+      shell,
+      terminal,
+      options: [
+        HelpOption,
+        { name: 'package', type: String, typeLabel: '{underline package}', defaultOption: true, description: 'The package name and optional version (e.g. package@1.0.0). If no version is specified, all versions will be uninstalled.' }
+      ],
+      run: async (argv: CommandLineOptions) => {
+        const { default: uninstall } = await import('./uninstall')
+        return await uninstall({ kernel, shell, terminal, args: [argv.package] })
+      }
+    }),
     load: new TerminalCommand({
       command: 'load',
       description: 'Load a JavaScript file',
