@@ -10,6 +10,7 @@
         "EMSDK",
         "VITE_RECOMMENDED_APPS",
         "VITE_APP_SHOW_DEFAULT_LOGIN", 
+        "VITE_INITFS",
         "TURBO_TEAM",
         "SKIP_BUILD_BIOS"
       ]
