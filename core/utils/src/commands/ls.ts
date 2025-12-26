@@ -3,7 +3,6 @@ import chalk from 'chalk'
 import humanFormat from 'human-format'
 import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
-import { Stats } from '@zenfs/core'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout } from '../shared/helpers.js'
 
@@ -25,7 +24,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       const entries: string[] = stats.isDirectory() ? await shell.context.fs.promises.readdir(fullPath) : [fullPath]
       const descriptions = kernel.filesystem.descriptions(kernel.i18n.t)
 
-      const getModeType = (stats: Stats) => {
+      const getModeType = (stats: Awaited<ReturnType<typeof shell.context.fs.promises.stat>>) => {
         let type = '-'
         if (stats.isDirectory()) type = 'd'
         else if (stats.isSymbolicLink()) type = 'l'
@@ -36,8 +35,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return type
       }
 
-      const getModeString = (stats: Stats) => {
-        return getModeType(stats) + (stats.mode & parseInt('777', 8)).toString(8).padStart(3, '0')
+      const getModeString = (stats: Awaited<ReturnType<typeof shell.context.fs.promises.stat>>) => {
+        return getModeType(stats) + (Number(stats.mode) & parseInt('777', 8)).toString(8).padStart(3, '0')
           .replace(/0/g, '---')
           .replace(/1/g, '--' + chalk.red('x'))
           .replace(/2/g, '-' + chalk.yellow('w') + '-')
@@ -58,8 +57,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         else return chalk.gray(timestamp.toISOString().slice(0, 19).replace('T', ' '))
       }
 
-      const getOwnerString = (stats: Stats) => {
-        const owner = kernel.users.all.get(stats.uid) || kernel.users.all.get(0)
+      const getOwnerString = (stats: Awaited<ReturnType<typeof shell.context.fs.promises.stat>>) => {
+        const owner = kernel.users.all.get(Number(stats.uid)) || kernel.users.all.get(0)
 
         if (owner?.username === shell.username) return chalk.green(`${owner?.username || stats.uid}:${owner?.username || stats.gid}`)
         else if (stats.uid === 0) return chalk.red(`${owner?.username || stats.uid}:${owner?.username || stats.gid}`)
