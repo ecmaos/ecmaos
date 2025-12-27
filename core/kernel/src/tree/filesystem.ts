@@ -179,7 +179,7 @@ export class Filesystem {
             // Directory already exists, nothing to do
             return
           }
-        } catch (statError) {
+        } catch {
           // If stat fails, try to proceed with mkdir anyway
         }
       }
@@ -187,10 +187,11 @@ export class Filesystem {
       // Create the directory (recursive will create parent dirs if needed)
       try {
         await this.fs.mkdir(normalizedPath, { mode: directoryMode, recursive: true })
-      } catch (mkdirError: any) {
+      } catch (mkdirError: unknown) {
         // If mkdir fails with ENOTDIR, it means a parent path is a file, not a directory
         // Recursively check and fix parent directories
-        if (mkdirError?.code === 'ENOTDIR' || mkdirError?.message?.includes('ENOTDIR')) {
+        const error = mkdirError as { code?: string; message?: string }
+        if (error?.code === 'ENOTDIR' || error?.message?.includes('ENOTDIR')) {
           const parent = path.dirname(normalizedPath)
           if (parent !== normalizedPath && parent !== '.' && parent !== '/') {
             // Recursively ensure parent directory exists
