@@ -1,6 +1,6 @@
 {
   "name": "ecmaos",
-  "version": "0.3.0",
+  "version": "0.6.2",
   "description": "ecmaOS: Micro-kernel and framework for web technologies",
   "homepage": "https://github.com/ecmaos/ecmaos#readme",
   "license": "MIT+Apache-2.0",
@@ -28,6 +28,7 @@
     "build:docs": "typedoc && echo docs.ecmaos.sh > docs/CNAME",
     "build:kernel": "turbo run build --filter=@ecmaos/* --filter=@ecmaos-devices/*",
     "cp:readme": "cp README.md core/kernel/README.md",
+    "cp:version": "node -e \"const fs=require('fs');const v=require('./core/kernel/package.json').version;const j=JSON.parse(fs.readFileSync('package.json','utf8'));j.version=v;fs.writeFileSync('package.json',JSON.stringify(j,null,2)+'\\n')\"",
     "dev": "turbo run dev --filter=@ecmaos/* --concurrency=20",
     "dev:kernel": "turbo run dev --filter=@ecmaos/kernel",
     "dev:docs": "pnpm cp:readme && concurrently nodemon \"pnpx serve -l 30444 ./docs\"",
