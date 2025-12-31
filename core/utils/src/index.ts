@@ -23,6 +23,7 @@ import { createCommand as createStat } from './commands/stat.js'
 import { createCommand as createTouch } from './commands/touch.js'
 import { createCommand as createHex } from './commands/hex.js'
 import { createCommand as createLess } from './commands/less.js'
+import { createCommand as createSed } from './commands/sed.js'
 
 // Export individual command factories
 export { createCommand as createCat } from './commands/cat.js'
@@ -63,7 +64,8 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     stat: createStat(kernel, shell, terminal),
     touch: createTouch(kernel, shell, terminal),
     hex: createHex(kernel, shell, terminal),
-    less: createLess(kernel, shell, terminal)
+    less: createLess(kernel, shell, terminal),
+    sed: createSed(kernel, shell, terminal)
   }
 }
 
