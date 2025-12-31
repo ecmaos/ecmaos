@@ -24,7 +24,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       try {
         if (!filePath) {
           if (!process.stdin) {
-            await writelnStderr(process, terminal, 'hex: No input available')
+            await writelnStderr(process, terminal, 'Usage: hex <file>')
+            await writelnStderr(process, terminal, '   or: <command> | hex')
             return 1
           }
 
@@ -32,11 +33,29 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           const chunks: Uint8Array[] = []
 
           try {
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) break
-              if (value) {
-                chunks.push(value)
+            const firstRead = reader.read()
+            const timeout = new Promise<{ done: true, value: undefined }>((resolve) => 
+              setTimeout(() => resolve({ done: true, value: undefined }), 100)
+            )
+            
+            const first = await Promise.race([firstRead, timeout])
+            if (first.done && !first.value) {
+              await writelnStderr(process, terminal, 'Usage: hex <file>')
+              await writelnStderr(process, terminal, '   or: <command> | hex')
+              return 1
+            }
+            
+            if (first.value) {
+              chunks.push(first.value)
+            }
+            
+            if (!first.done) {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                if (value) {
+                  chunks.push(value)
+                }
               }
             }
           } finally {
@@ -44,6 +63,12 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           }
 
           const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+          if (totalLength === 0) {
+            await writelnStderr(process, terminal, 'Usage: hex <file>')
+            await writelnStderr(process, terminal, '   or: <command> | hex')
+            return 1
+          }
+
           data = new Uint8Array(totalLength)
           let offset = 0
           for (const chunk of chunks) {
