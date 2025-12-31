@@ -186,8 +186,10 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               if (linkInfo) return linkInfo
               
               if (descriptions.has(path.resolve(fullPath, file.name))) return descriptions.get(path.resolve(fullPath, file.name))
-              const ext = file.name.split('.').pop()
-              if (ext && descriptions.has('.' + ext)) return descriptions.get('.' + ext)
+              if (file.name.includes('.')) {
+                const ext = file.name.split('.').pop()
+                if (ext && descriptions.has('.' + ext)) return descriptions.get('.' + ext)
+              }
               if (!file.stats) return ''
               if (file.stats.isBlockDevice() || file.stats.isCharacterDevice()) {
                 // TODO: zenfs `fs.mounts` is deprecated - use a better way of getting device info

@@ -7,38 +7,66 @@ import { writelnStdout, writelnStderr } from '../shared/helpers.js'
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
     command: 'hex',
-    description: 'Display file contents in hexadecimal format',
+    description: 'Display file contents or stdin in hexadecimal format',
     kernel,
     shell,
     terminal,
     options: [
       { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file to display' }
+      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file to display (if omitted, reads from stdin)' }
     ],
     run: async (argv: CommandLineOptions, process?: Process) => {
+      if (!process) return 1
+
       const filePath = argv.path as string | undefined
-
-      if (!filePath) {
-        await writelnStderr(process, terminal, 'Usage: hex <file>')
-        return 1
-      }
-
-      const fullPath = path.resolve(shell.cwd, filePath)
+      let data: Uint8Array
 
       try {
-        const exists = await shell.context.fs.promises.exists(fullPath)
-        if (!exists) {
-          await writelnStderr(process, terminal, `hex: ${filePath}: No such file or directory`)
-          return 1
-        }
+        if (!filePath) {
+          if (!process.stdin) {
+            await writelnStderr(process, terminal, 'hex: No input available')
+            return 1
+          }
 
-        const stats = await shell.context.fs.promises.stat(fullPath)
-        if (stats.isDirectory()) {
-          await writelnStderr(process, terminal, `hex: ${filePath}: Is a directory`)
-          return 1
-        }
+          const reader = process.stdin.getReader()
+          const chunks: Uint8Array[] = []
 
-        const data = await shell.context.fs.promises.readFile(fullPath)
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              if (value) {
+                chunks.push(value)
+              }
+            }
+          } finally {
+            reader.releaseLock()
+          }
+
+          const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+          data = new Uint8Array(totalLength)
+          let offset = 0
+          for (const chunk of chunks) {
+            data.set(chunk, offset)
+            offset += chunk.length
+          }
+        } else {
+          const fullPath = path.resolve(shell.cwd, filePath)
+
+          const exists = await shell.context.fs.promises.exists(fullPath)
+          if (!exists) {
+            await writelnStderr(process, terminal, `hex: ${filePath}: No such file or directory`)
+            return 1
+          }
+
+          const stats = await shell.context.fs.promises.stat(fullPath)
+          if (stats.isDirectory()) {
+            await writelnStderr(process, terminal, `hex: ${filePath}: Is a directory`)
+            return 1
+          }
+
+          data = await shell.context.fs.promises.readFile(fullPath)
+        }
         const bytesPerLine = 16
 
         for (let offset = 0; offset < data.length; offset += bytesPerLine) {
@@ -84,7 +112,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
         return 0
       } catch (error) {
-        await writelnStderr(process, terminal, `hex: ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        const errorPath = filePath || 'stdin'
+        await writelnStderr(process, terminal, `hex: ${errorPath}: ${error instanceof Error ? error.message : 'Unknown error'}`)
         return 1
       }
     }
