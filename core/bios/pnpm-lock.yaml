@@ -7,6 +7,8 @@ settings:
 overrides:
   canvas: Automattic/node-canvas#master
 
+pnpmfileChecksum: sha256-Zzw6AUu2SJputeGoAFT8YK9JWXNZcYWS/QbYOLDEi5E=
+
 importers:
 
   .:
