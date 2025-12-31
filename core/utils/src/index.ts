@@ -22,6 +22,7 @@ import { createCommand as createRmdir } from './commands/rmdir.js'
 import { createCommand as createStat } from './commands/stat.js'
 import { createCommand as createTouch } from './commands/touch.js'
 import { createCommand as createHex } from './commands/hex.js'
+import { createCommand as createLess } from './commands/less.js'
 
 // Export individual command factories
 export { createCommand as createCat } from './commands/cat.js'
@@ -39,6 +40,7 @@ export { createCommand as createRmdir } from './commands/rmdir.js'
 export { createCommand as createStat } from './commands/stat.js'
 export { createCommand as createTouch } from './commands/touch.js'
 export { createCommand as createHex } from './commands/hex.js'
+export { createCommand as createLess } from './commands/less.js'
 
 /**
  * Creates all coreutils commands.
@@ -60,7 +62,8 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     rmdir: createRmdir(kernel, shell, terminal),
     stat: createStat(kernel, shell, terminal),
     touch: createTouch(kernel, shell, terminal),
-    hex: createHex(kernel, shell, terminal)
+    hex: createHex(kernel, shell, terminal),
+    less: createLess(kernel, shell, terminal)
   }
 }
 
