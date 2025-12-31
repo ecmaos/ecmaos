@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.4.3
+
+### Patch Changes
+
+- 97b4dbf: implement passkey management and login
+
 ## 0.4.2
 
 ### Patch Changes

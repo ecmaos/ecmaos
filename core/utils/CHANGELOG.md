@@ -1,5 +1,13 @@
 # @ecmaos/coreutils
 
+## 0.1.4
+
+### Patch Changes
+
+- 97b4dbf: implement passkey management and login
+- Updated dependencies [97b4dbf]
+  - @ecmaos/types@0.4.3
+
 ## 0.1.3
 
 ### Patch Changes
