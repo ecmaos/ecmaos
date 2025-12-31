@@ -603,17 +603,16 @@ export class Kernel implements IKernel {
             const hostname = loc?.hostname || 'localhost'
             const port = loc && loc.port && loc.port !== '80' && loc.port !== '443' ? `:${loc.port}` : ''
 
-            // Color http red, others green, and pick icon: unlocked for http, lock for others
-            const isHttp = protocol === 'http:'
-            const protocolStr = isHttp
-              ? chalk.red(protocol)
-              : chalk.green(protocol)
-            const icon = isHttp ? '🔓' : '🔒'
+            const isSecure = globalThis.window?.isSecureContext ?? false
+            const protocolStr = isSecure
+              ? chalk.green(protocol)
+              : chalk.red(protocol)
+            const icon = isSecure ? '🔒' : '🔓'
 
             this.terminal.writeln(`${icon}  ${protocolStr}//${hostname}${port}`)
-            
+
             const username = await this.terminal.readline(`👤  ${this.i18n.t('Username')}: `)
-            const password = await this.terminal.readline(`🔒  ${this.i18n.t('Password')}: `, true)
+            const password = await this.terminal.readline(`🔑  ${this.i18n.t('Password')}: `, true)
             const { user, cred } = await this.users.login(username, password)
             this.shell.credentials = cred
             this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })

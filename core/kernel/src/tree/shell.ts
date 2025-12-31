@@ -293,6 +293,76 @@ export class Shell implements IShell {
     }
   }
 
+  /**
+   * Expands tilde (~) to the user's home directory
+   * Handles ~, ~/, and ~/path patterns
+   * Respects quotes: no expansion inside single quotes, expansion inside double quotes
+   */
+  expandTilde(input: string): string {
+    const home = this._env.get('HOME')
+    if (!home) return input
+
+    let result = ''
+    let inSingleQuote = false
+    let inDoubleQuote = false
+    let escaped = false
+    let i = 0
+
+    while (i < input.length) {
+      const char = input[i]
+      const nextChar = input[i + 1]
+
+      if (escaped) {
+        result += char
+        escaped = false
+        i++
+        continue
+      }
+
+      if (char === '\\') {
+        escaped = true
+        result += char
+        i++
+        continue
+      }
+
+      if (char === "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote
+        result += char
+        i++
+        continue
+      }
+
+      if (char === '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote
+        result += char
+        i++
+        continue
+      }
+
+      // Only expand tilde outside single quotes
+      // Tilde can be expanded inside double quotes (standard shell behavior)
+      if (!inSingleQuote && char === '~') {
+        // Check if this is a word boundary (start of string, after whitespace, or after =)
+        const isWordStart = i === 0 || (i > 0 && /\s|=/.test(input[i - 1] ?? ' '))
+        
+        if (isWordStart) {
+          // Check if it's ~/path or just ~
+          if (nextChar === '/' || nextChar === undefined || /\s/.test(nextChar)) {
+            result += home
+            i++
+            continue
+          }
+        }
+      }
+
+      result += char
+      i++
+    }
+
+    return result
+  }
+
   private parseRedirection(commandLine: string): { 
     command: string, 
     redirections: { type: '>' | '>>' | '<' | '2>' | '2>>' | '2>&1' | '&>' | '&>>', target: string }[] 
@@ -366,6 +436,7 @@ export class Shell implements IShell {
             if (!commandLine) continue
 
             commandLine = await this.parseCommandSubstitution(commandLine)
+            commandLine = this.expandTilde(commandLine)
 
             const { command, redirections } = this.parseRedirection(commandLine)
             const [commandName, ...args] = shellQuote.parse(command, this.envObject) as string[]

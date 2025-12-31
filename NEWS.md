@@ -6,6 +6,11 @@
 
 ---
 
+## 2025-12-31
+
+- Development is picking back up!
+- This project could really use some issues and PRs to move the needle forward, help out if you can!
+
 ## 2024-12-13
 
 - Added `@ecmaos-apps/news` to pull ecmaos news

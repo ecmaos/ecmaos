@@ -65,4 +65,11 @@ export interface Shell {
    * @param args - Arguments to set
    */
   setPositionalParameters(args: string[]): void
-} 
+
+  /**
+   * Expands tilde (~) to the user's home directory
+   * @param input - String that may contain tilde
+   * @returns String with tilde expanded to HOME directory
+   */
+  expandTilde(input: string): string
+}

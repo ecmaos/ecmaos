@@ -14,14 +14,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the directory to change to' }
     ],
     run: async (argv) => {
-      let destination = (argv.path as string) || shell.cwd
-      if (destination && destination.startsWith('~')) {
-        const home = shell.env.get('HOME')
-        if (home) {
-          destination = destination.replace(/^~(?=$|\/)/, home)
-        }
-      }
-      
+      const destination = (argv.path as string) || shell.cwd
       const fullPath = destination ? path.resolve(shell.cwd, destination) : shell.cwd
       await shell.context.fs.promises.access(fullPath)
       shell.cwd = fullPath

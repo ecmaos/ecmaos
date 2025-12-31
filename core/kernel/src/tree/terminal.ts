@@ -737,11 +737,12 @@ export class Terminal extends XTerm implements ITerminal {
 
         const matches = await this.getCompletionMatches(this._lastTabCommand) // Use original command for matches
         if (this._cmd.endsWith('/')) { // show possible entries in directory
-          const path = this._cmd.split(' ').slice(-1)[0]
-          if (!path) break
-          if (!(await this._kernel.filesystem.fs.exists(path))) break
+          const pathArg = this._cmd.split(' ').slice(-1)[0]
+          if (!pathArg) break
+          const expandedPath = this._shell.expandTilde(pathArg)
+          if (!(await this._kernel.filesystem.fs.exists(expandedPath))) break
           await this.write('\n')
-          await this._shell.execute(`ls ${path}`)
+          await this._shell.execute(`ls ${expandedPath}`)
           this.write(this.prompt() + this._cmd)
         } else if (matches.length > 0) {
           this.write('\r' + ansi.erase.inLine())
@@ -897,14 +898,18 @@ export class Terminal extends XTerm implements ITerminal {
       return [...new Set(matches)].map(match => match) // Remove duplicates
     }
 
+    // Expand tilde in the last word for filesystem operations
+    const expandedLastWord = this._shell.expandTilde(lastWord)
+    const home = this._shell.env.get('HOME') || ''
+    
     // Existing file/directory completion logic
-    const lastSlashIndex = lastWord.lastIndexOf('/')
+    const lastSlashIndex = expandedLastWord.lastIndexOf('/')
     const searchDir = lastSlashIndex !== -1 ? 
-      path.resolve(this._shell.cwd, lastWord.substring(0, lastSlashIndex + 1)) : 
+      path.resolve(this._shell.cwd, expandedLastWord.substring(0, lastSlashIndex + 1)) : 
       this._shell.cwd
     const searchTerm = lastSlashIndex !== -1 ? 
-      lastWord.substring(lastSlashIndex + 1) : 
-      lastWord
+      expandedLastWord.substring(lastSlashIndex + 1) : 
+      expandedLastWord
 
     try {
       const entries = await this._kernel.filesystem.fs.readdir(searchDir)
@@ -913,14 +918,31 @@ export class Terminal extends XTerm implements ITerminal {
         return entry.toLowerCase().startsWith(searchTerm.toLowerCase())
       })
 
-      const prefix = lastSlashIndex !== -1 ? (lastWord || '').substring(0, lastSlashIndex + 1) : ''
+      // Determine the prefix to use - preserve tilde if original had it
+      const hadTilde = lastWord.startsWith('~')
+      const expandedPrefix = lastSlashIndex !== -1 ? expandedLastWord.substring(0, lastSlashIndex + 1) : ''
+      
       const matchesMap = await Promise.all(matches.map(async (match: string) => {
         const fullPath = path.join(searchDir, match)
         const isDirectory = (await this._kernel.filesystem.fs.stat(fullPath)).isDirectory()
         const escapedMatch = match.includes(' ') ? match.replace(/ /g, '\\ ') : match
         const matchWithSlash = isDirectory ? escapedMatch + '/' : escapedMatch
+        
+        // If the original had tilde and the path is within HOME, convert back to tilde notation
+        let completionPath: string
+        if (hadTilde && home && fullPath.startsWith(home + '/')) {
+          const relativePath = path.relative(home, fullPath)
+          const tildePath = `~/${relativePath}`
+          completionPath = isDirectory && !tildePath.endsWith('/') ? tildePath + '/' : tildePath
+        } else if (hadTilde && home && fullPath === home) {
+          completionPath = '~' + (isDirectory ? '/' : '')
+        } else {
+          // Use the expanded prefix
+          completionPath = expandedPrefix + matchWithSlash
+        }
+        
         const newParts = [...parts]
-        newParts[newParts.length - 1] = prefix + matchWithSlash
+        newParts[newParts.length - 1] = completionPath
         return newParts.join(' ')
       }))
 
