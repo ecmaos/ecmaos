@@ -547,7 +547,6 @@ export const fetch = async ({ shell, terminal, process, args }: CommandArgs) => 
     } finally {
       reader.releaseLock()
       writer?.releaseLock()
-      await writeStdout(process, terminal, '\n')
     }
 
     return 0

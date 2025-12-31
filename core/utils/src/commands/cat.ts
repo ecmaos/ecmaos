@@ -3,7 +3,6 @@ import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
-import { writeStdout } from '../shared/helpers.js'
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -96,7 +95,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 0
       } finally {
         writer.releaseLock()
-        await writeStdout(process, terminal, '\n')
       }
     }
   })
