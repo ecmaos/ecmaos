@@ -173,7 +173,7 @@ async function readStdin(stdin: ReadableStream<Uint8Array> | undefined, timeoutM
 }
 
 async function main(processEntryParams: ProcessEntryParams) {
-  const { args, shell, stdin, stdout, stderr } = processEntryParams
+  const { args, shell, stdin, stdout, stderr, terminal } = processEntryParams
   const { options, params } = parser(args)
 
   const stdoutWriter = stdout?.getWriter()
@@ -259,6 +259,41 @@ async function main(processEntryParams: ProcessEntryParams) {
   } catch (error) {
     await print(`Error: ${error instanceof Error ? error.message : String(error)}\n`, 'stderr')
     return 1
+  } finally {
+    try {
+      if (stdoutWriter) {
+        if (stdout && terminal && stdout !== terminal.stdout) {
+          try {
+            await stdoutWriter.close()
+          } catch {
+            try {
+              stdoutWriter.releaseLock()
+            } catch {
+            }
+          }
+        } else {
+          stdoutWriter.releaseLock()
+        }
+      }
+    } catch {
+    }
+    try {
+      if (stderrWriter) {
+        if (stderr && terminal && stderr !== terminal.stderr) {
+          try {
+            await stderrWriter.close()
+          } catch {
+            try {
+              stderrWriter.releaseLock()
+            } catch {
+            }
+          }
+        } else {
+          stderrWriter.releaseLock()
+        }
+      }
+    } catch {
+    }
   }
 }
 

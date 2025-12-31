@@ -24,6 +24,7 @@ import { createCommand as createTouch } from './commands/touch.js'
 import { createCommand as createHex } from './commands/hex.js'
 import { createCommand as createLess } from './commands/less.js'
 import { createCommand as createSed } from './commands/sed.js'
+import { createCommand as createTee } from './commands/tee.js'
 
 // Export individual command factories
 export { createCommand as createCat } from './commands/cat.js'
@@ -42,6 +43,8 @@ export { createCommand as createStat } from './commands/stat.js'
 export { createCommand as createTouch } from './commands/touch.js'
 export { createCommand as createHex } from './commands/hex.js'
 export { createCommand as createLess } from './commands/less.js'
+export { createCommand as createSed } from './commands/sed.js'
+export { createCommand as createTee } from './commands/tee.js'
 
 /**
  * Creates all coreutils commands.
@@ -65,7 +68,8 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     touch: createTouch(kernel, shell, terminal),
     hex: createHex(kernel, shell, terminal),
     less: createLess(kernel, shell, terminal),
-    sed: createSed(kernel, shell, terminal)
+    sed: createSed(kernel, shell, terminal),
+    tee: createTee(kernel, shell, terminal)
   }
 }
 
