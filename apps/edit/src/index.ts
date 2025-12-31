@@ -1,13 +1,18 @@
-#!ecmaos:bin:app:edit
-
 import type { ProcessEntryParams } from '@ecmaos/types'
+import { Editor } from './editor.js'
 
 const main = async (params: ProcessEntryParams) => {
-  console.log('edit App:', params)
-  const { args, command, cwd, gid, kernel, pid, shell, terminal, stdin, stdout, stderr, uid } = params
-  terminal.writeln(`Hello, ${kernel.name} ${kernel.id}!`)
-  terminal.writeln(`CWD: ${shell.cwd}`)
-  terminal.writeln(`ARGS: ${args.join(' ')}`)
+  const { args, shell, terminal } = params
+  
+  if (!args || args.length === 0 || !args[0]) {
+    terminal.writeln('Usage: edit <file>')
+    return 1
+  }
+  
+  const filePath = args[0]
+  const editor = new Editor(terminal, shell, filePath)
+  
+  return await editor.start()
 }
 
 export default main

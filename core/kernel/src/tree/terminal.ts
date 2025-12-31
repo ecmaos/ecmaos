@@ -372,10 +372,13 @@ export class Terminal extends XTerm implements ITerminal {
             if (cursor < input.length) input = input.slice(0, cursor) + input.slice(cursor + 1)
             break
           default:
-            if (domEvent.key.length === 1 && domEvent.key.match(/^[a-zA-Z0-9]$/)) {
-              input = input.slice(0, cursor) + domEvent.key + input.slice(cursor)
-              if (!hide) this.write(ansi.cursor.horizontalAbsolute(0) + ansi.erase.inLine(2) + prompt + input)
-              cursor++
+            if (domEvent.key.length === 1 && !domEvent.ctrlKey && !domEvent.metaKey && !domEvent.altKey) {
+              const charCode = domEvent.key.charCodeAt(0)
+              if (charCode >= 32 && charCode <= 126) {
+                input = input.slice(0, cursor) + domEvent.key + input.slice(cursor)
+                if (!hide) this.write(ansi.cursor.horizontalAbsolute(0) + ansi.erase.inLine(2) + prompt + input)
+                cursor++
+              }
             }
         }
 
