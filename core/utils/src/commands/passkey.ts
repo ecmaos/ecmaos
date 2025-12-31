@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import type { CommandLineOptions } from 'command-line-args'
-import type { Kernel, Passkey, Process, Shell, Terminal } from '@ecmaos/types'
+import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
 
