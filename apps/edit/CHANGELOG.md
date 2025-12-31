@@ -1,6 +1,6 @@
-# @ecmaos/coreutils
+# @ecmaos-apps/edit
 
-## 0.1.2
+## 0.1.1
 
 ### Patch Changes
 
@@ -164,14 +164,3 @@
   - The edit command has been moved from the kernel to apps/edit package. Any code referencing the edit command in the kernel should be updated to use the new package.
   - The ls command now shows additional link information, which may affect scripts parsing its output.
   - Shell commands now support tilde expansion (~), which may affect scripts that previously handled paths differently.
-
-- Updated dependencies [ae8f619]
-  - @ecmaos/types@0.4.2
-
-## 0.1.1
-
-### Patch Changes
-
-- f2fa236: Update README for clarity on local package installation and enhance kernel command descriptions. Refactor command handling to integrate coreutils commands, streamline terminal command definitions, and improve prompt formatting. Add command substitution support in shell. Update user environment variables during login. Adjust package dependencies in various apps.
-- Updated dependencies [f2fa236]
-  - @ecmaos/types@0.4.1
