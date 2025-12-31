@@ -1,5 +1,12 @@
 # @ecmaos/kernel
 
+## 0.6.4
+
+### Patch Changes
+
+- Updated dependencies [ebc97d6]
+  - @ecmaos/coreutils@0.1.3
+
 ## 0.6.3
 
 ### Patch Changes
