@@ -35,8 +35,10 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return type
       }
 
-      const getModeString = (stats: Awaited<ReturnType<typeof shell.context.fs.promises.stat>>) => {
-        return getModeType(stats) + (Number(stats.mode) & parseInt('777', 8)).toString(8).padStart(3, '0')
+      const getModeString = (stats: Awaited<ReturnType<typeof shell.context.fs.promises.stat>>, targetStats?: Awaited<ReturnType<typeof shell.context.fs.promises.stat>>) => {
+        const type = getModeType(stats)
+        const modeStats = targetStats || stats
+        const permissions = (Number(modeStats.mode) & parseInt('777', 8)).toString(8).padStart(3, '0')
           .replace(/0/g, '---')
           .replace(/1/g, '--' + chalk.red('x'))
           .replace(/2/g, '-' + chalk.yellow('w') + '-')
@@ -45,6 +47,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           .replace(/5/g, chalk.green('r') + '-' + chalk.red('x'))
           .replace(/6/g, chalk.green('r') + chalk.yellow('w') + '-')
           .replace(/7/g, chalk.green('r') + chalk.yellow('w') + chalk.red('x'))
+        return type + permissions
       }
 
       const getTimestampString = (timestamp: Date) => {
@@ -65,13 +68,39 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         else return chalk.gray(`${owner?.username || stats.uid}:${owner?.username || stats.gid}`)
       }
 
+      const getLinkInfo = (linkTarget: string | null, linkStats: Awaited<ReturnType<typeof shell.context.fs.promises.stat>> | null, stats: Awaited<ReturnType<typeof shell.context.fs.promises.stat>> | null) => {
+        if (linkTarget || (linkStats && linkStats.isSymbolicLink())) return kernel.i18n.t('Symbolic Link')
+        if (stats && stats.nlink > 1) return kernel.i18n.t('Hard Link')
+        return ''
+      }
+
       const filesMap = await Promise.all(entries
         .map(async entry => {
           const target = path.resolve(fullPath, entry)
           try {
-            return { target, name: entry, stats: await shell.context.fs.promises.stat(target) }
+            let linkTarget: string | null = null
+            let linkStats = null
+            let stats = null
+            
+            try {
+              linkStats = await shell.context.fs.promises.lstat(target)
+              if (linkStats.isSymbolicLink()) {
+                try {
+                  linkTarget = await shell.context.fs.promises.readlink(target)
+                  stats = await shell.context.fs.promises.stat(target)
+                } catch {
+                  stats = linkStats
+                }
+              } else {
+                stats = linkStats
+              }
+            } catch {
+              stats = await shell.context.fs.promises.stat(target)
+            }
+            
+            return { target, name: entry, stats, linkStats, linkTarget }
           } catch {
-            return { target, name: entry, stats: null }
+            return { target, name: entry, stats: null, linkStats: null, linkTarget: null }
           }
         }))
 
@@ -83,9 +112,29 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         .map(async entry => {
           const target = path.resolve(fullPath, entry)
           try {
-            return { target, name: entry, stats: await shell.context.fs.promises.stat(target) }
+            let linkTarget: string | null = null
+            let linkStats = null
+            let stats = null
+            
+            try {
+              linkStats = await shell.context.fs.promises.lstat(target)
+              if (linkStats.isSymbolicLink()) {
+                try {
+                  linkTarget = await shell.context.fs.promises.readlink(target)
+                  stats = await shell.context.fs.promises.stat(target)
+                } catch {
+                  stats = linkStats
+                }
+              } else {
+                stats = linkStats
+              }
+            } catch {
+              stats = await shell.context.fs.promises.stat(target)
+            }
+            
+            return { target, name: entry, stats, linkStats, linkTarget }
           } catch {
-            return { target, name: entry, stats: null }
+            return { target, name: entry, stats: null, linkStats: null, linkTarget: null }
           }
         }))
 
@@ -97,22 +146,45 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       const data = [
         ['Name', 'Size', 'Modified', 'Mode', 'Owner', 'Info'],
         ...directories.sort((a, b) => a.name.localeCompare(b.name)).map(directory => {
+          const displayName = directory.linkTarget
+            ? `${directory.name} ${chalk.cyan('⟶')} ${directory.linkTarget}`
+            : directory.name
+          const modeStats = directory.linkStats && directory.linkStats.isSymbolicLink() 
+            ? directory.linkStats 
+            : directory.stats
+          const modeString = modeStats 
+            ? getModeString(modeStats, directory.linkStats?.isSymbolicLink() ? directory.stats : undefined)
+            : ''
+          const linkInfo = getLinkInfo(directory.linkTarget, directory.linkStats, directory.stats)
           return [
-            directory.name,
+            displayName,
             '',
             directory.stats ? getTimestampString(directory.stats.mtime) : '',
-            directory.stats ? getModeString(directory.stats) : '',
+            modeString,
             directory.stats ? getOwnerString(directory.stats) : '',
+            linkInfo
           ]
         }),
         ...files.sort((a, b) => a.name.localeCompare(b.name)).map(file => {
+          const displayName = file.linkTarget
+            ? `${file.name} ${chalk.cyan('⟶')} ${file.linkTarget}`
+            : file.name
+          const modeStats = file.linkStats && file.linkStats.isSymbolicLink() 
+            ? file.linkStats 
+            : file.stats
+          const modeString = modeStats 
+            ? getModeString(modeStats, file.linkStats?.isSymbolicLink() ? file.stats : undefined)
+            : ''
           return [
-            file.name,
+            displayName,
             file.stats ? humanFormat(file.stats.size) : '',
             file.stats ? getTimestampString(file.stats.mtime) : '',
-            file.stats ? getModeString(file.stats) : '',
+            modeString,
             file.stats ? getOwnerString(file.stats) : '',
             (() => {
+              const linkInfo = getLinkInfo(file.linkTarget, file.linkStats, file.stats)
+              if (linkInfo) return linkInfo
+              
               if (descriptions.has(path.resolve(fullPath, file.name))) return descriptions.get(path.resolve(fullPath, file.name))
               const ext = file.name.split('.').pop()
               if (ext && descriptions.has('.' + ext)) return descriptions.get('.' + ext)
@@ -142,7 +214,9 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           .map((cell, index) => {
             const paddedCell = cell.padEnd(columnWidths?.[index] ?? 0)
             if (index === 0 && rowIndex > 0) {
-              return row[3]?.startsWith('d') ? chalk.blue(paddedCell) : chalk.green(paddedCell)
+              if (row[3]?.startsWith('d')) return chalk.blue(paddedCell)
+              else if (row[3]?.startsWith('l')) return chalk.cyan(paddedCell)
+              else return chalk.green(paddedCell)
             } else return rowIndex === 0 ? chalk.bold(paddedCell) : chalk.gray(paddedCell)
           })
           .join('  ')
