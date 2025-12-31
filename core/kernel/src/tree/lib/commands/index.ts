@@ -30,7 +30,7 @@ import type {
 } from '@ecmaos/types'
 
 // Import coreutils commands
-import { createAllCommands as createCoreutilsCommands, TerminalCommand, CommandArgs, writeStdout, writelnStdout, writelnStderr } from '@ecmaos/coreutils'
+import { createAllCommands as createCoreutilsCommands, TerminalCommand, CommandArgs, writelnStdout, writelnStderr } from '@ecmaos/coreutils'
 
 /**
  * The TerminalCommands function creates the set of builtin terminal commands.
