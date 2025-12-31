@@ -69,16 +69,16 @@ function parser(args: string[]): ParsedArgs {
 }
 
 async function loadSession(session: string, { shell }: { shell: Shell }) {
-  const sessionExists = await shell.context.fs.promises.exists(`${shell.envObject.HOME}/.config/ai/sessions/${session}`)
-  if (!sessionExists) await shell.context.fs.promises.mkdir(`${shell.envObject.HOME}/.config/ai/sessions/${session}`, { recursive: true })
-  const sessionFileExists = await shell.context.fs.promises.exists(`${shell.envObject.HOME}/.config/ai/sessions/${session}/session.json`)
-  if (!sessionFileExists) await shell.context.fs.promises.writeFile(`${shell.envObject.HOME}/.config/ai/sessions/${session}/session.json`, JSON.stringify(DefaultSessionData))
-  const sessionData = await shell.context.fs.promises.readFile(`${shell.envObject.HOME}/.config/ai/sessions/${session}/session.json`, 'utf-8')
+  const sessionExists = await shell.context.fs.promises.exists(`${shell.envObject.HOME}/.cache/ai/sessions/${session}`)
+  if (!sessionExists) await shell.context.fs.promises.mkdir(`${shell.envObject.HOME}/.cache/ai/sessions/${session}`, { recursive: true })
+  const sessionFileExists = await shell.context.fs.promises.exists(`${shell.envObject.HOME}/.cache/ai/sessions/${session}/session.json`)
+  if (!sessionFileExists) await shell.context.fs.promises.writeFile(`${shell.envObject.HOME}/.cache/ai/sessions/${session}/session.json`, JSON.stringify(DefaultSessionData))
+  const sessionData = await shell.context.fs.promises.readFile(`${shell.envObject.HOME}/.cache/ai/sessions/${session}/session.json`, 'utf-8')
   return JSON.parse(sessionData)
 }
 
 async function saveSession(session: string, data: any, { shell }: { shell: Shell }) {
-  await shell.context.fs.promises.writeFile(`${shell.envObject.HOME}/.config/ai/sessions/${session}/session.json`, JSON.stringify(data))
+  await shell.context.fs.promises.writeFile(`${shell.envObject.HOME}/.cache/ai/sessions/${session}/session.json`, JSON.stringify(data))
 }
 
 async function compressMessages(messages: Array<{ role: string, content: string }>, openai: OpenAI, model: string): Promise<string> {
