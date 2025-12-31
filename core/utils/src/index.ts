@@ -23,6 +23,7 @@ import { createCommand as createStat } from './commands/stat.js'
 import { createCommand as createTouch } from './commands/touch.js'
 import { createCommand as createHex } from './commands/hex.js'
 import { createCommand as createLess } from './commands/less.js'
+import { createCommand as createPasskey } from './commands/passkey.js'
 import { createCommand as createSed } from './commands/sed.js'
 import { createCommand as createTee } from './commands/tee.js'
 
@@ -68,6 +69,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     touch: createTouch(kernel, shell, terminal),
     hex: createHex(kernel, shell, terminal),
     less: createLess(kernel, shell, terminal),
+    passkey: createPasskey(kernel, shell, terminal),
     sed: createSed(kernel, shell, terminal),
     tee: createTee(kernel, shell, terminal)
   }

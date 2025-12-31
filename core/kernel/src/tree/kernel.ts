@@ -61,6 +61,7 @@ import type {
   KernelOptions,
   KernelPanicEvent,
   Terminal as ITerminal,
+  User,
   Wasm as IWasm,
   Windows as IWindows,
   Workers as IWorkers,
@@ -612,20 +613,71 @@ export class Kernel implements IKernel {
             this.terminal.writeln(`${icon}  ${protocolStr}//${hostname}${port}`)
 
             const username = await this.terminal.readline(`👤  ${this.i18n.t('Username')}: `)
-            const password = await this.terminal.readline(`🔑  ${this.i18n.t('Password')}: `, true)
-            const { user, cred } = await this.users.login(username, password)
-            this.shell.credentials = cred
-            this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
+            const user = Array.from(this.users.all.values()).find(u => u.username === username)
+            
+            let loginSuccess = false
+            let userCred: { user: User, cred: Credentials } | null = null
+
+            if (user) {
+              const passkeys = await this.users.getPasskeys(user.uid)
+              if (passkeys.length > 0 && this.auth.passkey.isSupported()) {
+                try {
+                  const challenge = crypto.getRandomValues(new Uint8Array(32))
+                  const rpId = globalThis.location.hostname || 'localhost'
+                  
+                  const allowCredentials = passkeys.map(pk => {
+                    const credentialIdBytes = Uint8Array.from(atob(pk.credentialId), c => c.charCodeAt(0))
+                    return {
+                      id: credentialIdBytes.buffer,
+                      type: 'public-key' as const,
+                      transports: ['usb', 'nfc', 'ble', 'internal'] as AuthenticatorTransport[]
+                    }
+                  })
+
+                  const requestOptions: PublicKeyCredentialRequestOptions = {
+                    challenge,
+                    allowCredentials,
+                    rpId,
+                    userVerification: 'preferred',
+                    timeout: 60000
+                  }
+
+                  this.terminal.writeln(chalk.yellow('🔐  Please use your passkey to authenticate...'))
+                  const credential = await this.auth.passkey.get(requestOptions)
+                  
+                  if (credential && credential instanceof PublicKeyCredential) {
+                    userCred = await this.users.login(username, undefined, credential)
+                    loginSuccess = true
+                  } else {
+                    this.terminal.writeln(chalk.yellow('Passkey authentication cancelled or failed. Falling back to password...'))
+                  }
+                } catch (err) {
+                  this.terminal.writeln(chalk.yellow(`Passkey authentication error: ${(err as Error).message}. Falling back to password...`))
+                }
+              }
+            }
+
+            if (!loginSuccess) {
+              const password = await this.terminal.readline(`🔑  ${this.i18n.t('Password')}: `, true)
+              userCred = await this.users.login(username, password)
+            }
+
+            if (!userCred) {
+              throw new Error('Login failed')
+            }
+
+            this.shell.credentials = userCred.cred
+            this.shell.context = bindContext({ root: '/', pwd: '/', credentials: userCred.cred })
             await this.shell.loadEnvFile()
-            this.shell.env.set('UID', user.uid.toString())
-            this.shell.env.set('GID', user.gid.toString())
-            this.shell.env.set('SUID', cred.suid.toString())
-            this.shell.env.set('SGID', cred.sgid.toString())
-            this.shell.env.set('EUID', cred.euid.toString())
-            this.shell.env.set('EGID', cred.egid.toString())
-            this.shell.env.set('SHELL', user.shell || 'ecmaos')
-            this.shell.env.set('HOME', user.home || '/root')
-            this.shell.env.set('USER', user.username)
+            this.shell.env.set('UID', userCred.user.uid.toString())
+            this.shell.env.set('GID', userCred.user.gid.toString())
+            this.shell.env.set('SUID', userCred.cred.suid.toString())
+            this.shell.env.set('SGID', userCred.cred.sgid.toString())
+            this.shell.env.set('EUID', userCred.cred.euid.toString())
+            this.shell.env.set('EGID', userCred.cred.egid.toString())
+            this.shell.env.set('SHELL', userCred.user.shell || 'ecmaos')
+            this.shell.env.set('HOME', userCred.user.home || '/root')
+            this.shell.env.set('USER', userCred.user.username)
             process.env = Object.fromEntries(this.shell.env)
             break
           } catch (err) {

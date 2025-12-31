@@ -31,7 +31,7 @@
     "Lots of unfinished work; watch your step"
   ],
   "tips": [
-    "If it ever fails to boot, check your logs or try clearing all data",
+    "If it ever fails to boot, check your logs, try clearing all data, try incognito mode, or try another browser",
     "You can run some devices that offer a CLI - e.g. '/dev/battery --help'",
     "Use the 'install' command to install packages - e.g. 'install @ecmaos-apps/news'",
     "You can install any NPM package - e.g. 'install jquery'",
@@ -39,6 +39,7 @@
     "Type 'ls /bin' to see all built-in commands",
     "Type 'ls /usr/bin' to see all installed commands",
     "You can set your environment variables in ~/.env (try setting PROMPT to a PS1-like format)",
+    "You can register and login with a passkey: 'passkey register' and 'passkey list'",
     "Try 'fetch /xkcd-os.sixel'"
   ],
   "type": "module",

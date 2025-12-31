@@ -58,6 +58,24 @@ export interface AddUserOptions {
 }
 
 /**
+ * Interface representing a passkey credential
+ */
+export interface Passkey {
+  /** Unique identifier for this passkey */
+  id: string
+  /** Base64-encoded credential ID from WebAuthn */
+  credentialId: string
+  /** Public key data (COSE format) */
+  publicKey: ArrayBuffer | Uint8Array
+  /** Timestamp when passkey was created */
+  createdAt: number
+  /** Timestamp when passkey was last used (optional) */
+  lastUsed?: number
+  /** User-friendly name/description (optional) */
+  name?: string
+}
+
+/**
  * Interface for user management functionality
  */
 export interface Users {
@@ -85,9 +103,10 @@ export interface Users {
   /**
    * Login with credentials
    * @param username - Username
-   * @param password - Password
+   * @param password - Password (optional if using passkey)
+   * @param passkeyCredential - Passkey credential (optional if using password)
    */
-  login(username: string, password: string): Promise<{ cred: { uid: number, gid: number } }>
+  login(username: string, password?: string, passkeyCredential?: PublicKeyCredential): Promise<{ user: User, cred: { uid: number, gid: number } }>
 
   /**
    * Change a user's password
@@ -108,4 +127,37 @@ export interface Users {
    * @param updates - User properties to update
    */
   update(uid: UID, updates: Partial<User>): Promise<void>
+
+  /**
+   * Get all passkeys for a user
+   * @param uid - User ID
+   */
+  getPasskeys(uid: UID): Promise<Passkey[]>
+
+  /**
+   * Save passkeys for a user
+   * @param uid - User ID
+   * @param passkeys - Array of passkeys to save
+   */
+  savePasskeys(uid: UID, passkeys: Passkey[]): Promise<void>
+
+  /**
+   * Add a passkey to a user's collection
+   * @param uid - User ID
+   * @param passkey - Passkey to add
+   */
+  addPasskey(uid: UID, passkey: Passkey): Promise<void>
+
+  /**
+   * Remove a passkey by ID
+   * @param uid - User ID
+   * @param passkeyId - Passkey ID to remove
+   */
+  removePasskey(uid: UID, passkeyId: string): Promise<void>
+
+  /**
+   * Check if a user has any registered passkeys
+   * @param uid - User ID
+   */
+  hasPasskeys(uid: UID): Promise<boolean>
 } 

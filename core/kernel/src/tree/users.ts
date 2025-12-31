@@ -8,6 +8,7 @@
 
 import type {
   AddUserOptions,
+  Passkey,
   User,
   UsersOptions
 } from '@ecmaos/types'
@@ -145,10 +146,31 @@ export class Users {
   /**
    * Login a user
    */
-  async login(username: string, password: string): Promise<{ user: User, cred: Credentials }> {
+  async login(username: string, password?: string, passkeyCredential?: PublicKeyCredential): Promise<{ user: User, cred: Credentials }> {
     const user = Array.from(this._users.values()).find(u => u.username === username)
-    const hashedPassword = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password.trim()))
-    if (!user || user.password !== Array.from(new Uint8Array(hashedPassword)).map(b => b.toString(16).padStart(2, '0')).join('')) throw new Error('Invalid username or password')
+    if (!user) throw new Error('Invalid username or password')
+
+    if (passkeyCredential) {
+      const passkeys = await this.getPasskeys(user.uid)
+      const credential = passkeyCredential as PublicKeyCredential
+      
+      const credentialId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)))
+      const matchingPasskey = passkeys.find(pk => pk.credentialId === credentialId)
+      
+      if (!matchingPasskey) {
+        throw new Error('Passkey not found for this user')
+      }
+
+      matchingPasskey.lastUsed = Date.now()
+      await this.savePasskeys(user.uid, passkeys)
+    } else if (password) {
+      const hashedPassword = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password.trim()))
+      if (user.password !== Array.from(new Uint8Array(hashedPassword)).map(b => b.toString(16).padStart(2, '0')).join('')) {
+        throw new Error('Invalid username or password')
+      }
+    } else {
+      throw new Error('Password or passkey required')
+    }
 
     const cred = createCredentials({
       uid: user.uid,
@@ -199,5 +221,90 @@ export class Users {
     } else {
       throw new Error(`User with UID ${uid} not found`);
     }
+  }
+
+  /**
+   * Get all passkeys for a user
+   */
+  async getPasskeys(uid: number): Promise<Passkey[]> {
+    const user = this._users.get(uid)
+    if (!user) return []
+
+    const passkeysPath = `${user.home}/.passkeys`
+    try {
+      const exists = await this._options.kernel.filesystem.fs.exists(passkeysPath)
+      if (!exists) return []
+
+      const content = await this._options.kernel.filesystem.fs.readFile(passkeysPath, 'utf-8')
+      const parsed = JSON.parse(content) as Array<Omit<Passkey, 'publicKey'> & { publicKey: string }>
+      
+      return parsed.map(pk => {
+        const publicKeyArray = JSON.parse(pk.publicKey)
+        return {
+          ...pk,
+          publicKey: new Uint8Array(publicKeyArray)
+        }
+      })
+    } catch (error) {
+      this._options.kernel.log.warn(`Failed to read passkeys for user ${uid}: ${error}`)
+      return []
+    }
+  }
+
+  /**
+   * Save passkeys for a user
+   */
+  async savePasskeys(uid: number, passkeys: Passkey[]): Promise<void> {
+    const user = this._users.get(uid)
+    if (!user) throw new Error(`User with UID ${uid} not found`)
+
+    const passkeysPath = `${user.home}/.passkeys`
+    
+    const serialized = passkeys.map(pk => {
+      const publicKeyArray = pk.publicKey instanceof ArrayBuffer 
+        ? Array.from(new Uint8Array(pk.publicKey))
+        : Array.from(pk.publicKey)
+      
+      return {
+        ...pk,
+        publicKey: JSON.stringify(publicKeyArray)
+      }
+    })
+
+    await this._options.kernel.filesystem.fs.writeFile(
+      passkeysPath,
+      JSON.stringify(serialized, null, 2),
+      { encoding: 'utf-8', mode: 0o600 }
+    )
+    
+    try {
+      await this._options.kernel.filesystem.fs.chown(passkeysPath, uid, user.gid)
+    } catch {}
+  }
+
+  /**
+   * Add a passkey to a user's collection
+   */
+  async addPasskey(uid: number, passkey: Passkey): Promise<void> {
+    const existing = await this.getPasskeys(uid)
+    existing.push(passkey)
+    await this.savePasskeys(uid, existing)
+  }
+
+  /**
+   * Remove a passkey by ID
+   */
+  async removePasskey(uid: number, passkeyId: string): Promise<void> {
+    const existing = await this.getPasskeys(uid)
+    const filtered = existing.filter(pk => pk.id !== passkeyId)
+    await this.savePasskeys(uid, filtered)
+  }
+
+  /**
+   * Check if a user has any registered passkeys
+   */
+  async hasPasskeys(uid: number): Promise<boolean> {
+    const passkeys = await this.getPasskeys(uid)
+    return passkeys.length > 0
   }
 }
