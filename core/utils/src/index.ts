@@ -13,6 +13,7 @@ import { createCommand as createChmod } from './commands/chmod.js'
 import { createCommand as createCp } from './commands/cp.js'
 import { createCommand as createEcho } from './commands/echo.js'
 import { createCommand as createGrep } from './commands/grep.js'
+import { createCommand as createHead } from './commands/head.js'
 import { createCommand as createLn } from './commands/ln.js'
 import { createCommand as createLs } from './commands/ls.js'
 import { createCommand as createMkdir } from './commands/mkdir.js'
@@ -27,6 +28,7 @@ import { createCommand as createLess } from './commands/less.js'
 import { createCommand as createPasskey } from './commands/passkey.js'
 import { createCommand as createSed } from './commands/sed.js'
 import { createCommand as createTee } from './commands/tee.js'
+import { createCommand as createTail } from './commands/tail.js'
 
 // Export individual command factories
 export { createCommand as createCat } from './commands/cat.js'
@@ -48,6 +50,7 @@ export { createCommand as createHex } from './commands/hex.js'
 export { createCommand as createLess } from './commands/less.js'
 export { createCommand as createSed } from './commands/sed.js'
 export { createCommand as createTee } from './commands/tee.js'
+export { createCommand as createTail } from './commands/tail.js'
 
 /**
  * Creates all coreutils commands.
@@ -61,6 +64,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     cp: createCp(kernel, shell, terminal),
     echo: createEcho(kernel, shell, terminal),
     grep: createGrep(kernel, shell, terminal),
+    head: createHead(kernel, shell, terminal),
     ln: createLn(kernel, shell, terminal),
     ls: createLs(kernel, shell, terminal),
     mkdir: createMkdir(kernel, shell, terminal),
@@ -74,6 +78,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     less: createLess(kernel, shell, terminal),
     passkey: createPasskey(kernel, shell, terminal),
     sed: createSed(kernel, shell, terminal),
+    tail: createTail(kernel, shell, terminal),
     tee: createTee(kernel, shell, terminal)
   }
 }
