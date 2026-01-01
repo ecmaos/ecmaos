@@ -33,12 +33,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           const chunks: Uint8Array[] = []
 
           try {
-            const firstRead = reader.read()
-            const timeout = new Promise<{ done: true, value: undefined }>((resolve) => 
-              setTimeout(() => resolve({ done: true, value: undefined }), 100)
-            )
+            const first = await reader.read()
             
-            const first = await Promise.race([firstRead, timeout])
             if (first.done && !first.value) {
               await writelnStderr(process, terminal, 'Usage: hex <file>')
               await writelnStderr(process, terminal, '   or: <command> | hex')
