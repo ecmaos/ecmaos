@@ -1,9 +1,19 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: comm [OPTION]... FILE1 FILE2
+Compare two sorted files line by line.
+
+  -1     suppress lines unique to FILE1
+  -2     suppress lines unique to FILE2
+  -3     suppress lines that appear in both files
+  --help display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,37 +22,34 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'check', type: Boolean, description: 'Check that the input is correctly sorted' },
-      { name: 'suppress-1', type: Boolean, description: 'Suppress lines unique to FILE1' },
-      { name: 'suppress-2', type: Boolean, description: 'Suppress lines unique to FILE2' },
-      { name: 'suppress-3', type: Boolean, description: 'Suppress lines that appear in both files' },
-      { name: 'files', type: String, defaultOption: true, multiple: true, description: 'FILE1 FILE2' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process, rawArgv?: string[]) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      let files = (argv.files as string[]) || []
-      let suppress1 = (argv['suppress-1'] as boolean) || false
-      let suppress2 = (argv['suppress-2'] as boolean) || false
-      let suppress3 = (argv['suppress-3'] as boolean) || false
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
 
-      if (rawArgv) {
-        for (let i = 0; i < rawArgv.length; i++) {
-          const arg = rawArgv[i]
-          if (!arg) continue
-          
-          if (arg === '-1') {
-            suppress1 = true
-          } else if (arg === '-2') {
-            suppress2 = true
-          } else if (arg === '-3') {
-            suppress3 = true
-          } else if (!arg.startsWith('-')) {
-            if (files.length < 2) {
-              files.push(arg)
-            }
+      const files: string[] = []
+      let suppress1 = false
+      let suppress2 = false
+      let suppress3 = false
+
+      for (const arg of argv) {
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-1') {
+          suppress1 = true
+        } else if (arg === '-2') {
+          suppress2 = true
+        } else if (arg === '-3') {
+          suppress3 = true
+        } else if (!arg.startsWith('-')) {
+          if (files.length < 2) {
+            files.push(arg)
           }
         }
       }

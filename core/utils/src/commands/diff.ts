@@ -1,9 +1,18 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: diff [OPTION]... FILE1 FILE2
+Compare files line by line.
+
+  -u, --unified=NUM   output NUM (default 3) lines of unified context
+  -c, --context=NUM   output NUM (default 3) lines of copied context
+  --help              display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,16 +21,47 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'unified', type: Number, alias: 'u', description: 'Output NUM (default 3) lines of unified context' },
-      { name: 'context', type: Number, alias: 'c', description: 'Output NUM (default 3) lines of copied context' },
-      { name: 'files', type: String, defaultOption: true, multiple: true, description: 'FILE1 FILE2' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const files = (argv.files as string[]) || []
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const files: string[] = []
+      let unified = 3
+      let context = 3
+
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
+
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-u' || arg === '--unified') {
+          if (i + 1 < argv.length) {
+            const num = parseInt(argv[++i], 10)
+            if (!isNaN(num)) unified = num
+          }
+        } else if (arg.startsWith('--unified=')) {
+          const num = parseInt(arg.slice(10), 10)
+          if (!isNaN(num)) unified = num
+        } else if (arg === '-c' || arg === '--context') {
+          if (i + 1 < argv.length) {
+            const num = parseInt(argv[++i], 10)
+            if (!isNaN(num)) context = num
+          }
+        } else if (arg.startsWith('--context=')) {
+          const num = parseInt(arg.slice(10), 10)
+          if (!isNaN(num)) context = num
+        } else if (!arg.startsWith('-')) {
+          files.push(arg)
+        }
+      }
 
       if (files.length !== 2) {
         await writelnStderr(process, terminal, 'diff: exactly two files must be specified')
@@ -32,9 +72,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       const file2 = files[1]
       const fullPath1 = path.resolve(shell.cwd, file1)
       const fullPath2 = path.resolve(shell.cwd, file2)
-
-      const unified = (argv.unified as number) ?? 3
-      const context = (argv.context as number) ?? 3
 
       const writer = process.stdout.getWriter()
 

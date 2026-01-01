@@ -1,9 +1,18 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: grep [OPTION]... PATTERN [FILE]...
+Search for PATTERN in each FILE.
+
+  -i, --ignore-case   ignore case distinctions
+  -n, --line-number   print line number with output lines
+  --help              display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,16 +21,42 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'ignore-case', type: Boolean, alias: 'i', description: 'Ignore case distinctions' },
-      { name: 'line-number', type: Boolean, alias: 'n', description: 'Print line number with output lines' },
-      { name: 'args', type: String, defaultOption: true, multiple: true, description: 'Pattern and file(s) to search' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const args = (argv.args as string[]) || []
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      let ignoreCase = false
+      let showLineNumbers = false
+      const args: string[] = []
+
+      for (const arg of argv) {
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-i' || arg === '--ignore-case') {
+          ignoreCase = true
+        } else if (arg === '-n' || arg === '--line-number') {
+          showLineNumbers = true
+        } else if (arg.startsWith('-')) {
+          const flags = arg.slice(1).split('')
+          if (flags.includes('i')) ignoreCase = true
+          if (flags.includes('n')) showLineNumbers = true
+          const invalidFlags = flags.filter(f => !['i', 'n'].includes(f))
+          if (invalidFlags.length > 0) {
+            await writelnStderr(process, terminal, `grep: invalid option -- '${invalidFlags[0]}'`)
+            return 1
+          }
+        } else {
+          args.push(arg)
+        }
+      }
+
       if (args.length === 0 || !args[0]) {
         await writelnStderr(process, terminal, 'grep: pattern is required')
         return 1
@@ -29,8 +64,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       const pattern = args[0]
       const files = args.slice(1)
-      const ignoreCase = (argv['ignore-case'] as boolean) || false
-      const showLineNumbers = (argv['line-number'] as boolean) || false
 
       const flags = ignoreCase ? 'i' : ''
       let regex: RegExp

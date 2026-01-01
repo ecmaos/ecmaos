@@ -1,7 +1,16 @@
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: cal [MONTH] [YEAR]
+Display a calendar.
+
+  MONTH   month (1-12)
+  YEAR    year
+  --help  display this help and exit`
+  writelnStdout(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -10,15 +19,54 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'month', type: Number, description: 'Month (1-12)' },
-      { name: 'year', type: Number, description: 'Year' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
       const now = new Date()
-      let month = (argv.month as number | undefined) ?? (now.getMonth() + 1)
-      let year = (argv.year as number | undefined) ?? now.getFullYear()
+      let month: number | undefined
+      let year: number | undefined
+
+      if (argv.length === 1) {
+        const argStr = argv[0]
+        if (!argStr) {
+          month = now.getMonth() + 1
+          year = now.getFullYear()
+        } else {
+          const arg = parseInt(argStr, 10)
+          if (isNaN(arg)) {
+            await writelnStdout(process, terminal, 'cal: invalid argument')
+            return 1
+          }
+          if (arg >= 1 && arg <= 12) {
+            month = arg
+            year = now.getFullYear()
+          } else {
+            year = arg
+            month = now.getMonth() + 1
+          }
+        }
+      } else if (argv.length === 2) {
+        const monthStr = argv[0]
+        const yearStr = argv[1]
+        if (!monthStr || !yearStr) {
+          await writelnStdout(process, terminal, 'cal: invalid arguments')
+          return 1
+        }
+        month = parseInt(monthStr, 10)
+        year = parseInt(yearStr, 10)
+        if (isNaN(month) || isNaN(year)) {
+          await writelnStdout(process, terminal, 'cal: invalid arguments')
+          return 1
+        }
+      } else {
+        month = now.getMonth() + 1
+        year = now.getFullYear()
+      }
 
       if (month < 1 || month > 12) {
         await writelnStdout(process, terminal, 'cal: invalid month')

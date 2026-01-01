@@ -1,9 +1,19 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: uniq [OPTION]... [INPUT [OUTPUT]]
+Report or omit repeated lines.
+
+  -c, --count     prefix lines by the number of occurrences
+  -d, --repeated  only print duplicate lines
+  -u, --unique    only print unique lines
+  --help          display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,20 +22,45 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'count', type: Boolean, alias: 'c', description: 'Prefix lines by the number of occurrences' },
-      { name: 'repeated', type: Boolean, alias: 'd', description: 'Only print duplicate lines' },
-      { name: 'unique', type: Boolean, alias: 'u', description: 'Only print unique lines' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to process' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const files = (argv.path as string[]) || []
-      const count = (argv.count as boolean) || false
-      const repeated = (argv.repeated as boolean) || false
-      const unique = (argv.unique as boolean) || false
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const files: string[] = []
+      let count = false
+      let repeated = false
+      let unique = false
+
+      for (const arg of argv) {
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-c' || arg === '--count') {
+          count = true
+        } else if (arg === '-d' || arg === '--repeated') {
+          repeated = true
+        } else if (arg === '-u' || arg === '--unique') {
+          unique = true
+        } else if (arg.startsWith('-')) {
+          const flags = arg.slice(1).split('')
+          if (flags.includes('c')) count = true
+          if (flags.includes('d')) repeated = true
+          if (flags.includes('u')) unique = true
+          const invalidFlags = flags.filter(f => !['c', 'd', 'u'].includes(f))
+          if (invalidFlags.length > 0) {
+            await writelnStderr(process, terminal, `uniq: invalid option -- '${invalidFlags[0]}'`)
+            return 1
+          }
+        } else {
+          files.push(arg)
+        }
+      }
 
       const writer = process.stdout.getWriter()
 

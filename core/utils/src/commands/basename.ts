@@ -1,8 +1,17 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
-import { writelnStdout, writelnStderr } from '../shared/helpers.js'
+import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: basename NAME [SUFFIX]
+       basename OPTION... NAME...
+Strip directory and suffix from filenames.
+
+  -s, --suffix=SUFFIX  remove a trailing SUFFIX
+  --help               display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -11,16 +20,38 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'suffix', type: String, alias: 's', description: 'Remove a trailing suffix' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to process' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const paths = (argv.path as string[]) || []
-      const suffix = argv.suffix as string | undefined
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      let suffix: string | undefined
+      const paths: string[] = []
+      let i = 0
+
+      while (i < argv.length) {
+        const arg = argv[i]
+        if (arg === '-s' || arg === '--suffix') {
+          if (i + 1 < argv.length) {
+            suffix = argv[++i]
+          } else {
+            await writelnStderr(process, terminal, 'basename: option requires an argument -- \'s\'')
+            return 1
+          }
+        } else if (arg.startsWith('--suffix=')) {
+          suffix = arg.slice(9)
+        } else if (arg.startsWith('-s')) {
+          suffix = arg.slice(2)
+        } else if (!arg.startsWith('-')) {
+          paths.push(arg)
+        }
+        i++
+      }
 
       if (paths.length === 0) {
         await writelnStderr(process, terminal, 'basename: missing operand')

@@ -1,9 +1,18 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: paste [OPTION]... [FILE]...
+Merge lines of files.
+
+  -d, --delimiters=LIST  reuse characters from LIST instead of TABs
+  -s, --serial           paste one file at a time instead of in parallel
+  --help                 display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,18 +21,41 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'delimiters', type: String, alias: 'd', description: 'Reuse characters from LIST instead of TABs', defaultValue: '\t' },
-      { name: 'serial', type: Boolean, alias: 's', description: 'Paste one file at a time instead of in parallel' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to paste' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const files = (argv.path as string[]) || []
-      const delimiters = (argv.delimiters as string) || '\t'
-      const serial = (argv.serial as boolean) || false
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const files: string[] = []
+      let delimiters = '\t'
+      let serial = false
+
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
+
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-d' || arg === '--delimiters') {
+          if (i + 1 < argv.length) {
+            delimiters = argv[++i] || '\t'
+          }
+        } else if (arg.startsWith('--delimiters=')) {
+          delimiters = arg.slice(13)
+        } else if (arg.startsWith('-d')) {
+          delimiters = arg.slice(2) || '\t'
+        } else if (arg === '-s' || arg === '--serial') {
+          serial = true
+        } else if (!arg.startsWith('-')) {
+          files.push(arg)
+        }
+      }
 
       const writer = process.stdout.getWriter()
 

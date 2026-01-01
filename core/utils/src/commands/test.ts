@@ -1,8 +1,26 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: test EXPRESSION
+       test [OPTION]
+Check file types and compare values.
+
+  -f FILE     FILE exists and is a regular file
+  -d FILE     FILE exists and is a directory
+  -e FILE     FILE exists
+  -r FILE     FILE exists and is readable
+  -w FILE     FILE exists and is writable
+  -x FILE     FILE exists and is executable
+  -n STRING   STRING is not empty
+  -z STRING   STRING is empty (zero length)
+  STRING1 = STRING2   strings are equal
+  STRING1 != STRING2  strings are not equal
+  --help      display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -11,22 +29,13 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'file', type: String, alias: 'f', description: 'File exists and is a regular file' },
-      { name: 'directory', type: String, alias: 'd', description: 'File exists and is a directory' },
-      { name: 'exists', type: String, alias: 'e', description: 'File exists' },
-      { name: 'readable', type: String, alias: 'r', description: 'File exists and is readable' },
-      { name: 'writable', type: String, alias: 'w', description: 'File exists and is writable' },
-      { name: 'executable', type: String, alias: 'x', description: 'File exists and is executable' },
-      { name: 'string', type: String, alias: 'n', description: 'String is not empty' },
-      { name: 'zero', type: String, alias: 'z', description: 'String is empty (zero length)' },
-      { name: 'equal', type: String, description: 'Compare two strings for equality' },
-      { name: 'not-equal', type: String, description: 'Compare two strings for inequality' },
-      { name: 'args', type: String, defaultOption: true, multiple: true, description: 'Test arguments' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
-      const args = (argv.args as string[]) || []
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
 
       const checkFile = async (filePath: string, check: string): Promise<boolean> => {
         const fullPath = path.resolve(shell.cwd, filePath)
@@ -53,89 +62,51 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         }
       }
 
-      if (argv.file) {
-        return (await checkFile(argv.file as string, 'f')) ? 0 : 1
+      if (argv.length === 0) {
+        return 1
       }
 
-      if (argv.directory) {
-        return (await checkFile(argv.directory as string, 'd')) ? 0 : 1
+      const operator = argv[0]
+
+      if (operator === '-f' && argv[1]) {
+        return (await checkFile(argv[1], 'f')) ? 0 : 1
       }
 
-      if (argv.exists) {
-        return (await checkFile(argv.exists as string, 'e')) ? 0 : 1
+      if (operator === '-d' && argv[1]) {
+        return (await checkFile(argv[1], 'd')) ? 0 : 1
       }
 
-      if (argv.readable) {
-        return (await checkFile(argv.readable as string, 'r')) ? 0 : 1
+      if (operator === '-e' && argv[1]) {
+        return (await checkFile(argv[1], 'e')) ? 0 : 1
       }
 
-      if (argv.writable) {
-        return (await checkFile(argv.writable as string, 'w')) ? 0 : 1
+      if (operator === '-r' && argv[1]) {
+        return (await checkFile(argv[1], 'r')) ? 0 : 1
       }
 
-      if (argv.executable) {
-        return (await checkFile(argv.executable as string, 'x')) ? 0 : 1
+      if (operator === '-w' && argv[1]) {
+        return (await checkFile(argv[1], 'w')) ? 0 : 1
       }
 
-      if (argv.string) {
-        const str = argv.string as string
-        return str.length > 0 ? 0 : 1
+      if (operator === '-x' && argv[1]) {
+        return (await checkFile(argv[1], 'x')) ? 0 : 1
       }
 
-      if (argv.zero) {
-        const str = argv.zero as string
-        return str.length === 0 ? 0 : 1
+      if (operator === '-n' && argv[1]) {
+        return argv[1].length > 0 ? 0 : 1
       }
 
-      if (argv.equal) {
-        const parts = (argv.equal as string).split('=')
-        if (parts.length !== 2) {
-          await writelnStderr(process, terminal, 'test: invalid syntax for equality comparison')
-          return 1
+      if (operator === '-z' && argv[1]) {
+        return argv[1].length === 0 ? 0 : 1
+      }
+
+      if (argv.length === 3) {
+        const [left, op, right] = argv
+        if (op === '=') {
+          return left === right ? 0 : 1
         }
-        return parts[0] === parts[1] ? 0 : 1
-      }
-
-      if (argv['not-equal']) {
-        const parts = (argv['not-equal'] as string).split('!=')
-        if (parts.length !== 2) {
-          await writelnStderr(process, terminal, 'test: invalid syntax for inequality comparison')
-          return 1
-        }
-        return parts[0] !== parts[1] ? 0 : 1
-      }
-
-      if (args.length > 0) {
-        const operator = args[0]
-
-        if (operator === '-f' && args[1]) {
-          return (await checkFile(args[1], 'f')) ? 0 : 1
-        }
-
-        if (operator === '-d' && args[1]) {
-          return (await checkFile(args[1], 'd')) ? 0 : 1
-        }
-
-        if (operator === '-e' && args[1]) {
-          return (await checkFile(args[1], 'e')) ? 0 : 1
-        }
-
-        if (operator === '-n' && args[1]) {
-          return args[1].length > 0 ? 0 : 1
-        }
-
-        if (operator === '-z' && args[1]) {
-          return args[1].length === 0 ? 0 : 1
-        }
-
-        if (args.length === 3) {
-          const [left, op, right] = args
-          if (op === '=') {
-            return left === right ? 0 : 1
-          }
-          if (op === '!=') {
-            return left !== right ? 0 : 1
-          }
+        if (op === '!=') {
+          return left !== right ? 0 : 1
         }
       }
 

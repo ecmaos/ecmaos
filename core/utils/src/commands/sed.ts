@@ -1,5 +1,4 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
@@ -14,6 +13,19 @@ interface SedCommand {
     start?: number | string
     end?: number | string
   }
+}
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: sed [OPTION]... {script-only-if-no-other-script} [input-file]...
+
+Stream editor for filtering and transforming text.
+
+  -e, --expression=script  add the script to the commands to be executed
+  -f, --file=script-file    add the contents of script-file to the commands
+  -i[SUFFIX], --in-place[=SUFFIX]  edit files in place (makes backup if SUFFIX supplied)
+  -q, --quiet               suppress normal output
+  --help                    display this help and exit`
+  writelnStderr(process, terminal, usage)
 }
 
 function parseSedExpression(expr: string): SedCommand | null {
@@ -203,21 +215,21 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'expression', type: String, alias: 'e', multiple: true, description: 'Add the script to the commands to be executed' },
-      { name: 'file', type: String, alias: 'f', description: 'Add the contents of script-file to the commands to be executed' },
-      { name: 'inplace', type: String, alias: 'i', description: 'Edit files in place (makes backup if extension supplied)' },
-      { name: 'quiet', type: Boolean, alias: 'q', description: 'Suppress normal output' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'Expression or input file(s)' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      let expressions = (argv.expression as string[]) || []
-      let files = (argv.path as string[]) || []
-      const inplace = argv.inplace as string | undefined
-      const quiet = argv.quiet as boolean || false
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      let expressions: string[] = []
+      const files: string[] = []
+      let scriptFile: string | undefined
+      let inplace: string | undefined
+      let quiet = false
 
       const isSedExpression = (arg: string): boolean => {
         if (!arg) return false
@@ -232,34 +244,56 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         )
       }
 
-      const potentialExpressions: string[] = []
-      const potentialFiles: string[] = []
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
 
-      for (const arg of files) {
-        if (isSedExpression(arg)) {
-          potentialExpressions.push(arg)
-        } else {
-          potentialFiles.push(arg)
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-e' || arg === '--expression') {
+          if (i + 1 < argv.length) {
+            expressions.push(argv[++i] || '')
+          }
+        } else if (arg.startsWith('--expression=')) {
+          expressions.push(arg.slice(13))
+        } else if (arg.startsWith('-e')) {
+          expressions.push(arg.slice(2))
+        } else if (arg === '-f' || arg === '--file') {
+          if (i + 1 < argv.length) {
+            scriptFile = argv[++i]
+          }
+        } else if (arg.startsWith('--file=')) {
+          scriptFile = arg.slice(7)
+        } else if (arg.startsWith('-f')) {
+          scriptFile = arg.slice(2)
+        } else if (arg === '-i' || arg === '--in-place') {
+          inplace = ''
+        } else if (arg.startsWith('--in-place=')) {
+          inplace = arg.slice(12)
+        } else if (arg.startsWith('-i')) {
+          inplace = arg.slice(2) || ''
+        } else if (arg === '-q' || arg === '--quiet') {
+          quiet = true
+        } else if (isSedExpression(arg)) {
+          expressions.push(arg)
+        } else if (!arg.startsWith('-')) {
+          files.push(arg)
         }
       }
 
-      if (potentialExpressions.length > 0) {
-        expressions = [...expressions, ...potentialExpressions]
-        files = potentialFiles
-      }
-
-      if (expressions.length === 0 && !argv.file) {
+      if (expressions.length === 0 && !scriptFile) {
         await writelnStderr(process, terminal, 'sed: No expression provided')
         return 1
       }
 
       const commands: SedCommand[] = []
 
-      if (argv.file) {
-        const scriptPath = path.resolve(shell.cwd, argv.file as string)
+      if (scriptFile) {
+        const scriptPath = path.resolve(shell.cwd, scriptFile)
         const exists = await shell.context.fs.promises.exists(scriptPath)
         if (!exists) {
-          await writelnStderr(process, terminal, `sed: ${argv.file}: No such file or directory`)
+          await writelnStderr(process, terminal, `sed: ${scriptFile}: No such file or directory`)
           return 1
         }
 

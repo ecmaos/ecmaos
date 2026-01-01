@@ -1,6 +1,15 @@
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
+import { writelnStdout, writeStdout } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: echo [OPTION]... [STRING]...
+Echo the STRING(s) to standard output.
+
+  -n     do not output the trailing newline
+  --help display this help and exit`
+  writelnStdout(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -9,21 +18,52 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'n', type: Boolean, alias: 'n', description: 'Do not output the trailing newline' },
-      { name: 'text', type: String, typeLabel: '{underline text}', defaultOption: true, multiple: true, description: 'The text to print' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
-      const noNewline = (argv.n as boolean) || false
-      const text = ((argv.text as string[]) || []).join(' ')
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
+      if (argv.length === 0) {
+        await writelnStdout(process, terminal, '')
+        return 0
+      }
+
+      let noNewline = false
+      const textParts: string[] = []
+      let i = 0
+
+      while (i < argv.length) {
+        const arg = argv[i]
+        if (!arg) {
+          i++
+          continue
+        }
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-n') {
+          noNewline = true
+        } else if (arg.startsWith('-') && arg.length > 1 && arg !== '--') {
+          const flags = arg.slice(1).split('')
+          if (flags.includes('n')) {
+            noNewline = true
+          }
+          const invalidFlag = flags.find(f => f !== 'n')
+          if (invalidFlag) {
+            await writelnStdout(process, terminal, `echo: invalid option -- '${invalidFlag}'`)
+            return 1
+          }
+        } else {
+          textParts.push(arg)
+        }
+        i++
+      }
+
+      const text = textParts.join(' ')
       const output = noNewline ? text : text + '\n'
-      const data = new TextEncoder().encode(output)
 
       if (process) {
         const writer = process.stdout.getWriter()
         try {
-          await writer.write(data)
+          await writer.write(new TextEncoder().encode(output))
         } finally {
           writer.releaseLock()
         }

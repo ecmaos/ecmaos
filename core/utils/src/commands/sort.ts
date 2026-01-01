@@ -1,9 +1,19 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: sort [OPTION]... [FILE]...
+Sort lines of text files.
+
+  -r, --reverse  reverse the result of comparisons
+  -n, --numeric   compare according to string numerical value
+  -u, --unique    output only the first of an equal run
+  --help          display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,20 +22,45 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'reverse', type: Boolean, alias: 'r', description: 'Reverse the result of comparisons' },
-      { name: 'numeric', type: Boolean, alias: 'n', description: 'Compare according to string numerical value' },
-      { name: 'unique', type: Boolean, alias: 'u', description: 'Output only the first of an equal run' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to sort' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const files = (argv.path as string[]) || []
-      const reverse = (argv.reverse as boolean) || false
-      const numeric = (argv.numeric as boolean) || false
-      const unique = (argv.unique as boolean) || false
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const files: string[] = []
+      let reverse = false
+      let numeric = false
+      let unique = false
+
+      for (const arg of argv) {
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-r' || arg === '--reverse') {
+          reverse = true
+        } else if (arg === '-n' || arg === '--numeric') {
+          numeric = true
+        } else if (arg === '-u' || arg === '--unique') {
+          unique = true
+        } else if (arg.startsWith('-')) {
+          const flags = arg.slice(1).split('')
+          if (flags.includes('r')) reverse = true
+          if (flags.includes('n')) numeric = true
+          if (flags.includes('u')) unique = true
+          const invalidFlags = flags.filter(f => !['r', 'n', 'u'].includes(f))
+          if (invalidFlags.length > 0) {
+            await writelnStderr(process, terminal, `sort: invalid option -- '${invalidFlags[0]}'`)
+            return 1
+          }
+        } else {
+          files.push(arg)
+        }
+      }
 
       const writer = process.stdout.getWriter()
 

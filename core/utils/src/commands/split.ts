@@ -1,9 +1,18 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: split [OPTION]... [INPUT [PREFIX]]
+Split INPUT into fixed-size pieces.
+
+  -l, -lNUMBER        put NUMBER lines per output file
+  -b, -bSIZE            put SIZE bytes per output file
+  --help                 display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,44 +21,53 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'lines', type: Number, alias: 'l', description: 'Put NUMBER lines per output file' },
-      { name: 'bytes', type: Number, alias: 'b', description: 'Put NUMBER bytes per output file' },
-      { name: 'prefix', type: String, description: 'Use PREFIX for output file names', defaultValue: 'x' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file to split' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process, rawArgv?: string[]) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      let file = (argv.path as string) || ''
-      let lines = argv.lines as number | undefined
-      let bytes = argv.bytes as number | undefined
-      let prefix = (argv.prefix as string) || 'x'
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
 
-      if (rawArgv) {
-        for (let i = 0; i < rawArgv.length; i++) {
-          const arg = rawArgv[i]
-          if (!arg) continue
-          
-          if (arg === '-l' && i + 1 < rawArgv.length) {
-            const nextArg = rawArgv[++i]
+      let file = ''
+      let lines: number | undefined
+      let bytes: number | undefined
+      let prefix = 'x'
+
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
+
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-l' || arg.startsWith('-l')) {
+          if (arg === '-l' && i + 1 < argv.length) {
+            i++
+            const nextArg = argv[i]
             if (nextArg !== undefined) {
               lines = parseInt(nextArg, 10)
             }
-          } else if (arg.startsWith('-l')) {
+          } else if (arg.startsWith('-l') && arg.length > 2) {
             lines = parseInt(arg.slice(2), 10)
-          } else if (arg === '-b' && i + 1 < rawArgv.length) {
-            const nextArg = rawArgv[++i]
+          }
+        } else if (arg === '-b' || arg.startsWith('-b')) {
+          if (arg === '-b' && i + 1 < argv.length) {
+            i++
+            const nextArg = argv[i]
             if (nextArg !== undefined) {
               bytes = parseInt(nextArg, 10)
             }
-          } else if (arg.startsWith('-b')) {
+          } else if (arg.startsWith('-b') && arg.length > 2) {
             bytes = parseInt(arg.slice(2), 10)
-          } else if (!arg.startsWith('-')) {
-            if (!file) {
-              file = arg
-            }
+          }
+        } else if (!arg.startsWith('-')) {
+          if (!file) {
+            file = arg
+          } else if (prefix === 'x') {
+            prefix = arg
           }
         }
       }

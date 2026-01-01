@@ -1,9 +1,19 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: cut OPTION... [FILE]...
+Remove sections from each line of files.
+
+  -f, --fields=LIST       select only these fields
+  -d, --delimiter=DELIM   use DELIM instead of TAB for field delimiter
+  -c, --characters=LIST    select only these characters
+  --help                  display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,66 +22,68 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'fields', type: String, alias: 'f', description: 'Select only these fields' },
-      { name: 'delimiter', type: String, alias: 'd', description: 'Use DELIM instead of TAB for field delimiter', defaultValue: '\t' },
-      { name: 'characters', type: String, alias: 'c', description: 'Select only these characters' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to process' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process, rawArgv?: string[]) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      let fields: string | undefined = (argv.fields as string | undefined) || (argv.f as string | undefined)
-      let delimiter: string = (argv.delimiter as string) || (argv.d as string) || '\t'
-      let characters: string | undefined = (argv.characters as string | undefined) || (argv.c as string | undefined)
-      const processedArgs = new Set<number>()
-
-      if (rawArgv) {
-        for (let i = 0; i < rawArgv.length; i++) {
-          const arg = rawArgv[i]
-          if (!arg) continue
-          
-          if (arg === '-f' || arg.startsWith('-f')) {
-            processedArgs.add(i)
-            if (arg === '-f' && i + 1 < rawArgv.length) {
-              const nextArg = rawArgv[++i]
-              if (nextArg !== undefined) {
-                fields = nextArg
-                processedArgs.add(i)
-              }
-            } else if (arg.startsWith('-f')) {
-              fields = arg.slice(2)
-            }
-          } else if (arg === '-c' || arg.startsWith('-c')) {
-            processedArgs.add(i)
-            if (arg === '-c' && i + 1 < rawArgv.length) {
-              const nextArg = rawArgv[++i]
-              if (nextArg !== undefined) {
-                characters = nextArg
-                processedArgs.add(i)
-              }
-            } else if (arg.startsWith('-c')) {
-              characters = arg.slice(2)
-            }
-          } else if (arg === '-d' || arg.startsWith('-d')) {
-            processedArgs.add(i)
-            if (arg === '-d' && i + 1 < rawArgv.length) {
-              const nextArg = rawArgv[++i]
-              if (nextArg !== undefined) {
-                delimiter = nextArg
-                processedArgs.add(i)
-              }
-            } else if (arg.startsWith('-d')) {
-              delimiter = arg.slice(2)
-            }
-          }
-        }
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
       }
 
-      const files = rawArgv 
-        ? rawArgv.filter((arg, index) => arg && !processedArgs.has(index) && !arg.startsWith('-'))
-        : ((argv.path as string[]) || [])
+      let fields: string | undefined
+      let delimiter: string = '\t'
+      let characters: string | undefined
+      const files: string[] = []
+
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
+
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-f' || arg.startsWith('-f')) {
+          if (arg === '-f' && i + 1 < argv.length) {
+            i++
+            const nextArg = argv[i]
+            if (nextArg !== undefined) {
+              fields = nextArg
+            }
+          } else if (arg.startsWith('-f') && arg.length > 2) {
+            fields = arg.slice(2)
+          } else if (arg.startsWith('--fields=')) {
+            fields = arg.slice(9)
+          }
+        } else if (arg === '-c' || arg.startsWith('-c')) {
+          if (arg === '-c' && i + 1 < argv.length) {
+            i++
+            const nextArg = argv[i]
+            if (nextArg !== undefined) {
+              characters = nextArg
+            }
+          } else if (arg.startsWith('-c') && arg.length > 2) {
+            characters = arg.slice(2)
+          } else if (arg.startsWith('--characters=')) {
+            characters = arg.slice(13)
+          }
+        } else if (arg === '-d' || arg.startsWith('-d')) {
+          if (arg === '-d' && i + 1 < argv.length) {
+            i++
+            const nextArg = argv[i]
+            if (nextArg !== undefined) {
+              delimiter = nextArg
+            }
+          } else if (arg.startsWith('-d') && arg.length > 2) {
+            delimiter = arg.slice(2)
+          } else if (arg.startsWith('--delimiter=')) {
+            delimiter = arg.slice(12)
+          }
+        } else if (!arg.startsWith('-')) {
+          files.push(arg)
+        }
+      }
 
       if (!fields && !characters) {
         await writelnStderr(process, terminal, 'cut: you must specify a list of bytes, characters, or fields')

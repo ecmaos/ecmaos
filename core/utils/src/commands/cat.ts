@@ -1,8 +1,16 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
+import { writelnStdout } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: cat [OPTION]... [FILE]...
+Concatenate files and print on the standard output.
+
+  --help  display this help and exit`
+  writelnStdout(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -11,22 +19,36 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to concatenate' },
-      { name: 'bytes', type: Number, description: 'The number of bytes to read from the file' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      // Get a single writer for the entire operation
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const files: string[] = []
+
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (arg === undefined) continue
+
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (!arg.startsWith('-')) {
+          files.push(arg)
+        }
+      }
+
       const writer = process.stdout.getWriter()
       const isTTY = process.stdoutIsTTY ?? false
       let lastByte: number | undefined
 
       try {
-        // If no files specified, read from stdin
-        if (!argv.path || !(argv.path as string[])[0]) {
+        if (files.length === 0) {
           const reader = process.stdin!.getReader()
 
           try {
@@ -42,7 +64,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             reader.releaseLock()
           }
 
-          // Add newline at end if outputting to terminal and last byte wasn't newline
           if (isTTY && lastByte !== undefined && lastByte !== 0x0A) {
             await writer.write(new Uint8Array([0x0A]))
           }
@@ -50,9 +71,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           return 0
         }
 
-        // Otherwise process files
-        const files = (argv.path as string[]) || []
-        const bytes = argv.bytes as string | undefined
         for (const file of files) {
           const fullPath = path.resolve(shell.cwd, file)
 
@@ -82,8 +100,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               }
             } else {
               const device = await shell.context.fs.promises.open(fullPath)
-              const maxBytes = bytes ? parseInt(bytes) : undefined
-              let totalBytesRead = 0
               const chunkSize = 1024
               const data = new Uint8Array(chunkSize)
               let bytesRead = 0
@@ -93,24 +109,19 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
                 const result = await device.read(data)
                 bytesRead = result.bytesRead
                 if (bytesRead > 0) {
-                  const bytesToWrite = maxBytes ? Math.min(bytesRead, maxBytes - totalBytesRead) : bytesRead
-                  if (bytesToWrite > 0) {
-                    const chunk = data.subarray(0, bytesToWrite)
-                    if (chunk.length > 0) {
-                      lastByte = chunk[chunk.length - 1]
-                    }
-                    await writer.write(chunk)
-                    totalBytesRead += bytesToWrite
+                  const chunk = data.subarray(0, bytesRead)
+                  if (chunk.length > 0) {
+                    lastByte = chunk[chunk.length - 1]
                   }
+                  await writer.write(chunk)
                 }
-              } while (bytesRead > 0 && (!maxBytes || totalBytesRead < maxBytes))
+              } while (bytesRead > 0)
             }
           } finally {
             kernel.terminal.events.off(TerminalEvents.INTERRUPT, interruptHandler)
           }
         }
 
-        // Add newline at end if outputting to terminal and last byte wasn't newline
         if (isTTY && lastByte !== undefined && lastByte !== 0x0A) {
           await writer.write(new Uint8Array([0x0A]))
         }
@@ -122,4 +133,3 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     }
   })
 }
-

@@ -1,7 +1,17 @@
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: date [OPTION]... [+FORMAT]
+Print or set the system date and time.
+
+  -I, --iso-8601[=TIMESPEC]  output date/time in ISO 8601 format
+  -R, --rfc-2822              output date and time in RFC 2822 format
+  -f, --format=FORMAT         output date/time in specified format (strftime-like)
+  --help                      display this help and exit`
+  writelnStdout(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -10,22 +20,54 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'iso-8601', type: Boolean, alias: 'I', description: 'Output date/time in ISO 8601 format' },
-      { name: 'rfc-2822', type: Boolean, alias: 'R', description: 'Output date and time in RFC 2822 format' },
-      { name: 'format', type: String, alias: 'f', description: 'Output date/time in specified format (strftime-like)' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
       const now = new Date()
       let output = ''
+      let iso8601 = false
+      let rfc2822 = false
+      let format: string | undefined
 
-      if (argv['iso-8601'] as boolean) {
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
+
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-I' || arg === '--iso-8601') {
+          iso8601 = true
+        } else if (arg === '-R' || arg === '--rfc-2822') {
+          rfc2822 = true
+        } else if (arg === '-f' || arg === '--format') {
+          if (i + 1 < argv.length) {
+            format = argv[++i]
+          } else {
+            await writelnStdout(process, terminal, 'date: option requires an argument -- \'f\'')
+            return 1
+          }
+        } else if (arg.startsWith('--format=')) {
+          format = arg.slice(9)
+        } else if (arg.startsWith('--iso-8601=')) {
+          iso8601 = true
+        } else if (arg.startsWith('-f')) {
+          format = arg.slice(2)
+        } else if (arg.startsWith('+')) {
+          format = arg.slice(1)
+        }
+      }
+
+      if (iso8601) {
         output = now.toISOString()
-      } else if (argv['rfc-2822'] as boolean) {
+      } else if (rfc2822) {
         output = now.toUTCString()
-      } else if (argv.format as string) {
-        const format = argv.format as string
+      } else if (format) {
         const year = now.getFullYear()
         const month = String(now.getMonth() + 1).padStart(2, '0')
         const day = String(now.getDate()).padStart(2, '0')

@@ -1,9 +1,16 @@
-import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
-import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: tr [OPTION]... SET1 [SET2]
+Translate or delete characters.
+
+  -d, --delete    delete characters in SET1
+  -s, --squeeze   replace each sequence of a repeated character
+  --help          display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,18 +19,41 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'delete', type: Boolean, alias: 'd', description: 'Delete characters in SET1' },
-      { name: 'squeeze', type: Boolean, alias: 's', description: 'Replace each sequence of a repeated character' },
-      { name: 'args', type: String, defaultOption: true, multiple: true, description: 'SET1 [SET2]' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const args = (argv.args as string[]) || []
-      const deleteMode = (argv.delete as boolean) || false
-      const squeeze = (argv.squeeze as boolean) || false
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const args: string[] = []
+      let deleteMode = false
+      let squeeze = false
+
+      for (const arg of argv) {
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-d' || arg === '--delete') {
+          deleteMode = true
+        } else if (arg === '-s' || arg === '--squeeze') {
+          squeeze = true
+        } else if (arg.startsWith('-')) {
+          const flags = arg.slice(1).split('')
+          if (flags.includes('d')) deleteMode = true
+          if (flags.includes('s')) squeeze = true
+          const invalidFlags = flags.filter(f => !['d', 's'].includes(f))
+          if (invalidFlags.length > 0) {
+            await writelnStderr(process, terminal, `tr: invalid option -- '${invalidFlags[0]}'`)
+            return 1
+          }
+        } else {
+          args.push(arg)
+        }
+      }
 
       if (args.length === 0) {
         await writelnStderr(process, terminal, 'tr: missing operand')

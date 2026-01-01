@@ -1,9 +1,21 @@
 import path from 'path'
 import chalk from 'chalk'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: ln [OPTION]... [-T] TARGET LINK_NAME
+   or:  ln [OPTION]... TARGET
+   or:  ln [OPTION]... TARGET... DIRECTORY
+Create links between files.
+
+  -s, --symbolic  make symbolic links instead of hard links
+  -f, --force     remove existing destination files
+  -v, --verbose   print name of each linked file
+  --help          display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,18 +24,43 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'symbolic', type: Boolean, alias: 's', description: 'Create symbolic links instead of hard links' },
-      { name: 'force', type: Boolean, alias: 'f', description: 'Remove existing destination files' },
-      { name: 'verbose', type: Boolean, alias: 'v', description: 'Print name of each linked file' },
-      { name: 'args', type: String, multiple: true, defaultOption: true, description: 'The target and optional link name' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
-      const args = (argv.args as string[]) || []
-      const symbolic = argv.symbolic as boolean || false
-      const force = argv.force as boolean || false
-      const verbose = argv.verbose as boolean || false
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const args: string[] = []
+      let symbolic = false
+      let force = false
+      let verbose = false
+
+      for (const arg of argv) {
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-s' || arg === '--symbolic') {
+          symbolic = true
+        } else if (arg === '-f' || arg === '--force') {
+          force = true
+        } else if (arg === '-v' || arg === '--verbose') {
+          verbose = true
+        } else if (arg.startsWith('-')) {
+          const flags = arg.slice(1).split('')
+          if (flags.includes('s')) symbolic = true
+          if (flags.includes('f')) force = true
+          if (flags.includes('v')) verbose = true
+          const invalidFlags = flags.filter(f => !['s', 'f', 'v'].includes(f))
+          if (invalidFlags.length > 0) {
+            await writelnStderr(process, terminal, `ln: invalid option -- '${invalidFlags[0]}'`)
+            return 1
+          }
+        } else {
+          args.push(arg)
+        }
+      }
 
       if (args.length === 0) {
         await writelnStderr(process, terminal, chalk.red('ln: missing file operand'))

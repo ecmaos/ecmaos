@@ -1,8 +1,15 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: rm [OPTION]... FILE...
+Remove (unlink) the FILE(s).
+
+  --help  display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -11,44 +18,36 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) or directory(ies) to remove' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process, rawArgv?: string[]) => {
-      let pathArray: string[] = []
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
 
-      if (rawArgv && rawArgv.length > 0) {
-        pathArray = rawArgv
-          .map(arg => {
-            if (typeof arg === 'string') return arg
-            if (typeof arg === 'object' && arg !== null) {
-              const obj = arg as Record<string, unknown>
-              if ('pattern' in obj && typeof obj.pattern === 'string') return obj.pattern
-              if ('path' in obj && typeof obj.path === 'string') return obj.path
-              if ('value' in obj && typeof obj.value === 'string') return obj.value
-              if ('_unknown' in obj && Array.isArray(obj._unknown)) {
-                return obj._unknown.filter((a: unknown) => typeof a === 'string').join(' ')
-              }
-              const entries = Object.entries(obj).filter(([k, v]) => k !== 'op' && typeof v === 'string' && !v.startsWith('-'))
-              if (entries.length > 0 && entries[0]) {
-                const value = entries[0][1]
-                return typeof value === 'string' ? value : null
-              }
-              return null
-            }
-            return null
-          })
-          .filter((arg): arg is string => typeof arg === 'string' && arg.length > 0 && !arg.startsWith('-'))
-      } else {
-        const paths = argv.path
-        if (paths) {
-          pathArray = Array.isArray(paths) ? paths.filter((p): p is string => typeof p === 'string') : (typeof paths === 'string' ? [paths] : [])
+      if (argv.length === 0) {
+        await writelnStderr(process, terminal, 'rm: missing operand')
+        await writelnStderr(process, terminal, "Try 'rm --help' for more information.")
+        return 1
+      }
+
+      if (argv[0] === '--help' || argv[0] === '-h') {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const pathArray: string[] = []
+      for (const arg of argv) {
+        if (arg.startsWith('-') && arg !== '--') {
+          if (arg !== '-f' && arg !== '-r' && arg !== '-rf' && arg !== '-fr') {
+            await writelnStderr(process, terminal, `rm: invalid option -- '${arg.slice(1)}'`)
+            await writelnStderr(process, terminal, "Try 'rm --help' for more information.")
+            return 1
+          }
+        } else {
+          pathArray.push(arg)
         }
       }
 
       if (pathArray.length === 0) {
         await writelnStderr(process, terminal, 'rm: missing operand')
+        await writelnStderr(process, terminal, "Try 'rm --help' for more information.")
         return 1
       }
 
@@ -97,6 +96,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       if (expandedPaths.length === 0) {
         await writelnStderr(process, terminal, 'rm: missing operand')
+        await writelnStderr(process, terminal, "Try 'rm --help' for more information.")
         return 1
       }
 
@@ -129,4 +129,3 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     }
   })
 }
-

@@ -1,11 +1,18 @@
-// TODO: Custom usage output after arg parsing is less rigid for coreutils
-
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: find [PATH]... [OPTION]...
+Search for files in a directory hierarchy.
+
+  -name PATTERN  file name matches shell pattern PATTERN
+  -type TYPE     file is of type TYPE (f=file, d=directory, l=symlink)
+  --help         display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -14,13 +21,17 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, alias: 'h', description: kernel.i18n.t('Display help') }
-    ],
-    run: async (_argv: CommandLineOptions, process?: Process, rawArgv?: string[]) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      if (!rawArgv || rawArgv.length === 0) {
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      if (argv.length === 0) {
         await writelnStderr(process, terminal, 'find: missing path argument')
         return 1
       }
@@ -29,21 +40,39 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       let namePattern: string | undefined
       let fileType: string | undefined
 
-      for (let i = 0; i < rawArgv.length; i++) {
-        const arg = rawArgv[i]
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
         if (arg === undefined) continue
         
-        if (arg === '-name' && i + 1 < rawArgv.length) {
-          const nextArg = rawArgv[++i]
-          if (nextArg !== undefined) {
-            namePattern = nextArg
+        if (arg === '-name') {
+          if (i + 1 < argv.length) {
+            i++
+            const nextArg = argv[i]
+            if (nextArg !== undefined && typeof nextArg === 'string' && !nextArg.startsWith('-')) {
+              namePattern = nextArg
+            } else {
+              await writelnStderr(process, terminal, 'find: missing argument to -name')
+              return 1
+            }
+          } else {
+            await writelnStderr(process, terminal, 'find: missing argument to -name')
+            return 1
           }
-        } else if (arg === '-type' && i + 1 < rawArgv.length) {
-          const nextArg = rawArgv[++i]
-          if (nextArg !== undefined) {
-            fileType = nextArg
+        } else if (arg === '-type') {
+          if (i + 1 < argv.length) {
+            i++
+            const nextArg = argv[i]
+            if (nextArg !== undefined && typeof nextArg === 'string' && !nextArg.startsWith('-')) {
+              fileType = nextArg
+            } else {
+              await writelnStderr(process, terminal, 'find: missing argument to -type')
+              return 1
+            }
+          } else {
+            await writelnStderr(process, terminal, 'find: missing argument to -type')
+            return 1
           }
-        } else if (!arg.startsWith('-')) {
+        } else if (typeof arg === 'string' && !arg.startsWith('-')) {
           startPaths.push(arg)
         }
       }
@@ -55,12 +84,29 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       const writer = process.stdout.getWriter()
 
       const matchesPattern = (filename: string, pattern: string): boolean => {
-        const regexPattern = pattern
-          .replace(/\./g, '\\.')
-          .replace(/\*/g, '.*')
-          .replace(/\?/g, '.')
-        const regex = new RegExp(`^${regexPattern}$`)
-        return regex.test(filename)
+        if (!pattern) return false
+        
+        let regexPattern = ''
+        for (let i = 0; i < pattern.length; i++) {
+          const char = pattern[i]
+          if (char === undefined) continue
+          if (char === '*') {
+            regexPattern += '.*'
+          } else if (char === '?') {
+            regexPattern += '.'
+          } else if (char === '.') {
+            regexPattern += '\\.'
+          } else {
+            const needsEscaping = /[+^${}()|[\]\\]/.test(char)
+            regexPattern += needsEscaping ? '\\' + char : char
+          }
+        }
+        try {
+          const regex = new RegExp(`^${regexPattern}$`)
+          return regex.test(filename)
+        } catch {
+          return false
+        }
       }
 
       const searchDirectory = async (dirPath: string): Promise<void> => {

@@ -1,8 +1,20 @@
 import chalk from 'chalk'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: passkey <subcommand> [options]
+
+Subcommands:
+  register [--name <name>]    Register a new passkey
+  list                        List all registered passkeys
+  remove --id <id>            Remove a specific passkey
+  remove-all                  Remove all passkeys
+
+  --help  display this help and exit`
+  writelnStdout(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -11,14 +23,15 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'subcommand', type: String, defaultOption: true, description: 'Subcommand: register, list, remove, remove-all' },
-      { name: 'name', type: String, description: 'Name/description for the passkey (used with register)' },
-      { name: 'id', type: String, description: 'Passkey ID to remove (used with remove)' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
+
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
 
       const currentUid = shell.credentials.uid
       const user = kernel.users.get(currentUid)
@@ -27,16 +40,32 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 1
       }
 
-      const subcommand = (argv.subcommand as string)?.toLowerCase()
+      if (argv.length === 0) {
+        printUsage(process, terminal)
+        return 0
+      }
 
-      if (!subcommand || subcommand === 'help' || argv.help) {
-        await writelnStdout(process, terminal, 'Usage: passkey <subcommand> [options]')
-        await writelnStdout(process, terminal, '')
-        await writelnStdout(process, terminal, 'Subcommands:')
-        await writelnStdout(process, terminal, '  register [--name <name>]    Register a new passkey')
-        await writelnStdout(process, terminal, '  list                        List all registered passkeys')
-        await writelnStdout(process, terminal, '  remove --id <id>            Remove a specific passkey')
-        await writelnStdout(process, terminal, '  remove-all                  Remove all passkeys')
+      const subcommand = argv[0]?.toLowerCase()
+      let name: string | undefined
+      let id: string | undefined
+
+      for (let i = 1; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
+
+        if (arg === '--name' && i + 1 < argv.length) {
+          name = argv[++i]
+        } else if (arg.startsWith('--name=')) {
+          name = arg.slice(7)
+        } else if (arg === '--id' && i + 1 < argv.length) {
+          id = argv[++i]
+        } else if (arg.startsWith('--id=')) {
+          id = arg.slice(5)
+        }
+      }
+
+      if (!subcommand || subcommand === 'help') {
+        printUsage(process, terminal)
         return 0
       }
 
@@ -48,7 +77,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               return 1
             }
 
-            const name = (argv.name as string) || undefined
             const username = user.username
             const userId = new TextEncoder().encode(username)
 
@@ -156,7 +184,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           }
 
           case 'remove': {
-            const id = argv.id as string
             if (!id) {
               await writelnStderr(process, terminal, chalk.red('Error: --id is required for remove command'))
               await writelnStdout(process, terminal, 'Usage: passkey remove --id <id>')

@@ -1,8 +1,16 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: hex [FILE]
+Display file contents or stdin in hexadecimal format.
+
+  FILE    the file to display (if omitted, reads from stdin)
+  --help  display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -11,14 +19,18 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file to display (if omitted, reads from stdin)' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const filePath = argv.path as string | undefined
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const firstArg = argv.length > 0 ? argv[0] : undefined
+      const filePath = firstArg !== undefined && !firstArg.startsWith('-') ? firstArg : undefined
       let data: Uint8Array
 
       try {

@@ -1,10 +1,18 @@
 import path from 'path'
 import ansi from 'ansi-escape-sequences'
-import type { CommandLineOptions } from 'command-line-args'
 import type { IDisposable } from '@xterm/xterm'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: less [OPTION]... FILE
+View file contents interactively.
+
+  FILE    the file to view (if omitted, reads from stdin)
+  --help  display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -13,12 +21,15 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file to view' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
+
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
 
       let lines: string[] = []
       let currentLine = 0
@@ -26,8 +37,9 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       let linesRendered = 0
 
       try {
-        if (argv.path) {
-          const filePath = argv.path as string
+        const filePath = argv.length > 0 && argv[0] !== undefined && !argv[0].startsWith('-') ? argv[0] : undefined
+
+        if (filePath) {
           const expandedPath = shell.expandTilde(filePath)
           const fullPath = path.resolve(shell.cwd, expandedPath)
 

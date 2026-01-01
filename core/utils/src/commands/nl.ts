@@ -1,9 +1,21 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: nl [OPTION]... [FILE]...
+Number lines of files.
+
+  -v, --starting-line=NUMBER  first line number for each section (default: 1)
+  -i, --increment=NUMBER      line number increment at each line (default: 1)
+  -n, --format=FORMAT         line number format: ln, rn, rz (default: rn)
+  -w, --width=NUMBER          use NUMBER columns for line numbers (default: 6)
+  -s, --separator=STRING      add STRING after (possible) line number (default: TAB)
+  --help                      display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,24 +24,70 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'starting-line', type: Number, alias: 'v', description: 'First line number for each section', defaultValue: 1 },
-      { name: 'increment', type: Number, alias: 'i', description: 'Line number increment at each line', defaultValue: 1 },
-      { name: 'format', type: String, alias: 'n', description: 'Line number format: ln (left, no zero), rn (right, no zero), rz (right, zero)', defaultValue: 'rn' },
-      { name: 'width', type: Number, alias: 'w', description: 'Use NUMBER columns for line numbers', defaultValue: 6 },
-      { name: 'separator', type: String, alias: 's', description: 'Add STRING after (possible) line number', defaultValue: '\t' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to number' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const files = (argv.path as string[]) || []
-      const startLine = (argv['starting-line'] as number) ?? 1
-      const increment = (argv.increment as number) ?? 1
-      const format = (argv.format as string) || 'rn'
-      const width = (argv.width as number) ?? 6
-      const separator = (argv.separator as string) || '\t'
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      const files: string[] = []
+      let startLine = 1
+      let increment = 1
+      let format = 'rn'
+      let width = 6
+      let separator = '\t'
+
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
+
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-v' || arg === '--starting-line') {
+          if (i + 1 < argv.length) {
+            const num = parseInt(argv[++i], 10)
+            if (!isNaN(num)) startLine = num
+          }
+        } else if (arg.startsWith('--starting-line=')) {
+          const num = parseInt(arg.slice(16), 10)
+          if (!isNaN(num)) startLine = num
+        } else if (arg === '-i' || arg === '--increment') {
+          if (i + 1 < argv.length) {
+            const num = parseInt(argv[++i], 10)
+            if (!isNaN(num)) increment = num
+          }
+        } else if (arg.startsWith('--increment=')) {
+          const num = parseInt(arg.slice(12), 10)
+          if (!isNaN(num)) increment = num
+        } else if (arg === '-n' || arg === '--format') {
+          if (i + 1 < argv.length) {
+            format = argv[++i] || 'rn'
+          }
+        } else if (arg.startsWith('--format=')) {
+          format = arg.slice(9) || 'rn'
+        } else if (arg === '-w' || arg === '--width') {
+          if (i + 1 < argv.length) {
+            const num = parseInt(argv[++i], 10)
+            if (!isNaN(num)) width = num
+          }
+        } else if (arg.startsWith('--width=')) {
+          const num = parseInt(arg.slice(8), 10)
+          if (!isNaN(num)) width = num
+        } else if (arg === '-s' || arg === '--separator') {
+          if (i + 1 < argv.length) {
+            separator = argv[++i] || '\t'
+          }
+        } else if (arg.startsWith('--separator=')) {
+          separator = arg.slice(12) || '\t'
+        } else if (!arg.startsWith('-')) {
+          files.push(arg)
+        }
+      }
 
       const writer = process.stdout.getWriter()
 

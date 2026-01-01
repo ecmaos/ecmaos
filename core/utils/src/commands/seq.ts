@@ -1,7 +1,17 @@
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: seq [OPTION]... LAST
+       seq [OPTION]... FIRST LAST
+       seq [OPTION]... FIRST INCREMENT LAST
+Print numbers from FIRST to LAST, in steps of INCREMENT.
+
+  -s, --separator=STRING   use STRING to separate numbers (default: \\n)
+  --help                    display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -10,16 +20,39 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'separator', type: String, alias: 's', description: 'Use STRING to separate numbers', defaultValue: '\n' },
-      { name: 'args', type: String, defaultOption: true, multiple: true, description: 'FIRST [INCREMENT] LAST' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      const args = (argv.args as string[]) || []
-      const separator = (argv.separator as string) || '\n'
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      let separator = '\n'
+      const args: string[] = []
+
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-s' || arg === '--separator') {
+          if (i + 1 < argv.length) {
+            separator = argv[++i]
+          } else {
+            await writelnStderr(process, terminal, 'seq: option requires an argument -- \'s\'')
+            return 1
+          }
+        } else if (arg.startsWith('--separator=')) {
+          separator = arg.slice(12)
+        } else if (arg.startsWith('-s')) {
+          separator = arg.slice(2)
+        } else if (!arg.startsWith('-')) {
+          args.push(arg)
+        }
+      }
 
       if (args.length === 0) {
         await writelnStderr(process, terminal, 'seq: missing operand')

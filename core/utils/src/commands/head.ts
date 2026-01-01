@@ -1,8 +1,17 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
+import { writelnStdout } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: head [OPTION]... [FILE]...
+Print the first 10 lines of each FILE to standard output.
+
+  -n, -nNUMBER        print the first NUMBER lines instead of 10
+  --help             display this help and exit`
+  writelnStdout(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -11,19 +20,47 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'lines', type: Number, alias: 'n', description: 'Print the first NUM lines instead of the first 10' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to read' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
+
+      let numLines = 10
+      const files: string[] = []
+
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
+
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-n' || arg.startsWith('-n')) {
+          if (arg === '-n' && i + 1 < argv.length) {
+            i++
+            const nextArg = argv[i]
+            if (nextArg !== undefined) {
+              const num = parseInt(nextArg, 10)
+              if (!isNaN(num)) numLines = num
+            }
+          } else if (arg.startsWith('-n') && arg.length > 2) {
+            const num = parseInt(arg.slice(2), 10)
+            if (!isNaN(num)) numLines = num
+          }
+        } else if (!arg.startsWith('-')) {
+          files.push(arg)
+        }
+      }
+
       const writer = process.stdout.getWriter()
-      const numLines = (argv.lines as number) ?? 10
 
       try {
-        if (!argv.path || !(argv.path as string[])[0]) {
+        if (files.length === 0) {
           if (!process.stdin) {
             return 0
           }
@@ -76,7 +113,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           return 0
         }
 
-        const files = (argv.path as string[]) || []
         const isMultipleFiles = files.length > 1
 
         for (let i = 0; i < files.length; i++) {

@@ -1,9 +1,19 @@
 import path from 'path'
-import type { CommandLineOptions } from 'command-line-args'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalEvents } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStderr } from '../shared/helpers.js'
+
+function printUsage(process: Process | undefined, terminal: Terminal): void {
+  const usage = `Usage: join [OPTION]... FILE1 FILE2
+Join lines of two files on a common field.
+
+  -1 FIELD    join on this FIELD of file 1
+  -2 FIELD    join on this FIELD of file 2
+  -t CHAR     use CHAR as input and output field separator
+  --help      display this help and exit`
+  writelnStderr(process, terminal, usage)
+}
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
@@ -12,48 +22,48 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     kernel,
     shell,
     terminal,
-    options: [
-      { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'field', type: Number, alias: 'j', description: 'Specify field for joining', defaultValue: 1 },
-      { name: 'file1-field', type: Number, description: 'Field to join from file1' },
-      { name: 'file2-field', type: Number, description: 'Field to join from file2' },
-      { name: 'delimiter', type: String, alias: 't', description: 'Use character as field delimiter', defaultValue: ' ' },
-      { name: 'files', type: String, defaultOption: true, multiple: true, description: 'FILE1 FILE2' }
-    ],
-    run: async (argv: CommandLineOptions, process?: Process, rawArgv?: string[]) => {
+    run: async (pid: number, argv: string[]) => {
+      const process = kernel.processes.get(pid) as Process | undefined
+
       if (!process) return 1
 
-      let files = (argv.files as string[]) || []
-      let field1 = (argv['file1-field'] as number) ?? ((argv.field as number) ?? 1)
-      let field2 = (argv['file2-field'] as number) ?? ((argv.field as number) ?? 1)
-      let delimiter = (argv.delimiter as string) || ' '
+      if (argv.length > 0 && (argv[0] === '--help' || argv[0] === '-h')) {
+        printUsage(process, terminal)
+        return 0
+      }
 
-      if (rawArgv) {
-        for (let i = 0; i < rawArgv.length; i++) {
-          const arg = rawArgv[i]
-          if (!arg) continue
-          
-          if (arg === '-1' && i + 1 < rawArgv.length) {
-            const nextArg = rawArgv[++i]
-            if (nextArg !== undefined) {
-              field1 = parseInt(nextArg, 10) || 1
-            }
-          } else if (arg === '-2' && i + 1 < rawArgv.length) {
-            const nextArg = rawArgv[++i]
-            if (nextArg !== undefined) {
-              field2 = parseInt(nextArg, 10) || 1
-            }
-          } else if (arg.startsWith('-t')) {
-            delimiter = arg.slice(2) || ' '
-          } else if (arg === '-t' && i + 1 < rawArgv.length) {
-            const nextArg = rawArgv[++i]
-            if (nextArg !== undefined) {
-              delimiter = nextArg
-            }
-          } else if (!arg.startsWith('-')) {
-            if (files.length < 2) {
-              files.push(arg)
-            }
+      const files: string[] = []
+      let field1 = 1
+      let field2 = 1
+      let delimiter = ' '
+
+      for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]
+        if (!arg) continue
+
+        if (arg === '--help' || arg === '-h') {
+          printUsage(process, terminal)
+          return 0
+        } else if (arg === '-1' && i + 1 < argv.length) {
+          const nextArg = argv[++i]
+          if (nextArg !== undefined) {
+            field1 = parseInt(nextArg, 10) || 1
+          }
+        } else if (arg === '-2' && i + 1 < argv.length) {
+          const nextArg = argv[++i]
+          if (nextArg !== undefined) {
+            field2 = parseInt(nextArg, 10) || 1
+          }
+        } else if (arg.startsWith('-t')) {
+          delimiter = arg.slice(2) || ' '
+        } else if (arg === '-t' && i + 1 < argv.length) {
+          const nextArg = argv[++i]
+          if (nextArg !== undefined) {
+            delimiter = nextArg
+          }
+        } else if (!arg.startsWith('-')) {
+          if (files.length < 2) {
+            files.push(arg)
           }
         }
       }

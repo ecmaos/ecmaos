@@ -248,7 +248,7 @@ export interface TerminalCommand {
   command: string
   description: string
   kernel: Kernel
-  options: OptionDefinition[]
+  options?: OptionDefinition[]
   run: (pid: number, argv: string[]) => Promise<number | undefined | void>
   shell: Shell
   terminal: Terminal
@@ -256,10 +256,10 @@ export interface TerminalCommand {
   stdout?: WritableStream<Uint8Array>
   stderr?: WritableStream<Uint8Array>
   
-  /** Get formatted usage string including command description and options */
-  readonly usage: string
-  /** Get formatted usage content string */
-  readonly usageContent: string
+  /** Get formatted usage string including command description and options (only available when using unified parser) */
+  readonly usage?: string
+  /** Get formatted usage content string (only available when using unified parser) */
+  readonly usageContent?: string
 }
 
 
