@@ -12,6 +12,7 @@ import { createCommand as createCd } from './commands/cd.js'
 import { createCommand as createChmod } from './commands/chmod.js'
 import { createCommand as createCp } from './commands/cp.js'
 import { createCommand as createEcho } from './commands/echo.js'
+import { createCommand as createGrep } from './commands/grep.js'
 import { createCommand as createLn } from './commands/ln.js'
 import { createCommand as createLs } from './commands/ls.js'
 import { createCommand as createMkdir } from './commands/mkdir.js'
@@ -33,6 +34,7 @@ export { createCommand as createCd } from './commands/cd.js'
 export { createCommand as createChmod } from './commands/chmod.js'
 export { createCommand as createCp } from './commands/cp.js'
 export { createCommand as createEcho } from './commands/echo.js'
+export { createCommand as createGrep } from './commands/grep.js'
 export { createCommand as createLn } from './commands/ln.js'
 export { createCommand as createLs } from './commands/ls.js'
 export { createCommand as createMkdir } from './commands/mkdir.js'
@@ -58,6 +60,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     chmod: createChmod(kernel, shell, terminal),
     cp: createCp(kernel, shell, terminal),
     echo: createEcho(kernel, shell, terminal),
+    grep: createGrep(kernel, shell, terminal),
     ln: createLn(kernel, shell, terminal),
     ls: createLs(kernel, shell, terminal),
     mkdir: createMkdir(kernel, shell, terminal),
