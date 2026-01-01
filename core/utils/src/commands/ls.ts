@@ -1,5 +1,6 @@
 import path from 'path'
 import chalk from 'chalk'
+import columnify from 'columnify'
 import humanFormat from 'human-format'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
@@ -153,87 +154,100 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         .filter((entry, index, self) => self.findIndex(e => e?.name === entry?.name) === index)
         .filter((entry): entry is NonNullable<typeof entry> => entry !== null && entry !== undefined)
 
-      const data = [
-        ['Name', 'Size', 'Modified', 'Mode', 'Owner', 'Info'],
-        ...directories.sort((a, b) => a.name.localeCompare(b.name)).map(directory => {
-          const displayName = directory.linkTarget
-            ? `${directory.name} ${chalk.cyan('⟶')} ${directory.linkTarget}`
-            : directory.name
-          const modeStats = directory.linkStats && directory.linkStats.isSymbolicLink() 
-            ? directory.linkStats 
-            : directory.stats
-          const modeString = modeStats 
-            ? getModeString(modeStats, directory.linkStats?.isSymbolicLink() ? directory.stats : undefined)
-            : ''
-          const linkInfo = getLinkInfo(directory.linkTarget, directory.linkStats, directory.stats)
-          return [
-            displayName,
-            '',
-            directory.stats ? getTimestampString(directory.stats.mtime) : '',
-            modeString,
-            directory.stats ? getOwnerString(directory.stats) : '',
-            linkInfo
-          ]
-        }),
-        ...files.sort((a, b) => a.name.localeCompare(b.name)).map(file => {
-          const displayName = file.linkTarget
-            ? `${file.name} ${chalk.cyan('⟶')} ${file.linkTarget}`
-            : file.name
-          const modeStats = file.linkStats && file.linkStats.isSymbolicLink() 
-            ? file.linkStats 
-            : file.stats
-          const modeString = modeStats 
-            ? getModeString(modeStats, file.linkStats?.isSymbolicLink() ? file.stats : undefined)
-            : ''
-          return [
-            displayName,
-            file.stats ? humanFormat(file.stats.size) : '',
-            file.stats ? getTimestampString(file.stats.mtime) : '',
-            modeString,
-            file.stats ? getOwnerString(file.stats) : '',
-            (() => {
-              const linkInfo = getLinkInfo(file.linkTarget, file.linkStats, file.stats)
-              if (linkInfo) return linkInfo
-              
-              if (descriptions.has(path.resolve(fullPath, file.name))) return descriptions.get(path.resolve(fullPath, file.name))
-              if (file.name.includes('.')) {
-                const ext = file.name.split('.').pop()
-                if (ext && descriptions.has('.' + ext)) return descriptions.get('.' + ext)
-              }
-              if (!file.stats) return ''
-              if (file.stats.isBlockDevice() || file.stats.isCharacterDevice()) {
-                // TODO: zenfs `fs.mounts` is deprecated - use a better way of getting device info
-              }
+      const isDevDirectory = fullPath.startsWith('/dev')
+      const columns = isDevDirectory ? ['Name', 'Mode', 'Owner', 'Info'] : ['Name', 'Size', 'Modified', 'Mode', 'Owner', 'Info']
 
-              return ''
-            })()
-          ]
+      const directoryRows = directories.sort((a, b) => a.name.localeCompare(b.name)).map(directory => {
+        const displayName = directory.linkTarget
+          ? `${directory.name} ${chalk.cyan('⟶')} ${directory.linkTarget}`
+          : directory.name
+        const modeStats = directory.linkStats && directory.linkStats.isSymbolicLink() 
+          ? directory.linkStats 
+          : directory.stats
+        const modeString = modeStats 
+          ? getModeString(modeStats, directory.linkStats?.isSymbolicLink() ? directory.stats : undefined)
+          : ''
+        const linkInfo = getLinkInfo(directory.linkTarget, directory.linkStats, directory.stats)
+        
+        const modeType = modeString?.charAt(0) || ''
+        const coloredName = modeType === 'd' ? chalk.blue(displayName) 
+          : modeType === 'l' ? chalk.cyan(displayName) 
+          : chalk.green(displayName)
+
+        const row: Record<string, string> = {
+          Name: coloredName,
+          Mode: chalk.gray(modeString),
+          Owner: directory.stats ? chalk.gray(getOwnerString(directory.stats)) : '',
+          Info: chalk.gray(linkInfo)
+        }
+
+        if (!isDevDirectory) {
+          row.Size = ''
+          row.Modified = directory.stats ? chalk.gray(getTimestampString(directory.stats.mtime)) : ''
+        }
+
+        return row
+      })
+
+      const fileRows = files.sort((a, b) => a.name.localeCompare(b.name)).map(file => {
+        const displayName = file.linkTarget
+          ? `${file.name} ${chalk.cyan('⟶')} ${file.linkTarget}`
+          : file.name
+        const modeStats = file.linkStats && file.linkStats.isSymbolicLink() 
+          ? file.linkStats 
+          : file.stats
+        const modeString = modeStats 
+          ? getModeString(modeStats, file.linkStats?.isSymbolicLink() ? file.stats : undefined)
+          : ''
+        
+        const modeType = modeString?.charAt(0) || ''
+        const coloredName = modeType === 'd' ? chalk.blue(displayName) 
+          : modeType === 'l' ? chalk.cyan(displayName) 
+          : chalk.green(displayName)
+
+        const info = (() => {
+          const linkInfo = getLinkInfo(file.linkTarget, file.linkStats, file.stats)
+          if (linkInfo) return linkInfo
+          
+          if (descriptions.has(path.resolve(fullPath, file.name))) return descriptions.get(path.resolve(fullPath, file.name)) || ''
+          if (file.name.includes('.')) {
+            const ext = file.name.split('.').pop()
+            if (ext && descriptions.has('.' + ext)) return descriptions.get('.' + ext) || ''
+          }
+          if (!file.stats) return ''
+          if (file.stats.isBlockDevice() || file.stats.isCharacterDevice()) {
+            // TODO: zenfs `fs.mounts` is deprecated - use a better way of getting device info
+          }
+
+          return ''
+        })()
+
+        const row: Record<string, string> = {
+          Name: coloredName,
+          Mode: chalk.gray(modeString),
+          Owner: file.stats ? chalk.gray(getOwnerString(file.stats)) : '',
+          Info: chalk.gray(info)
+        }
+
+        if (!isDevDirectory) {
+          row.Size = file.stats ? chalk.gray(humanFormat(file.stats.size)) : ''
+          row.Modified = file.stats ? chalk.gray(getTimestampString(file.stats.mtime)) : ''
+        }
+
+        return row
+      })
+
+      const data = [...directoryRows, ...fileRows]
+
+      if (data.length > 0) {
+        const table = columnify(data, {
+          columns,
+          columnSplitter: '  ',
+          showHeaders: true,
+          headingTransform: (heading: string) => chalk.bold(heading)
         })
-      ] as string[][]
 
-      // Special output for certain directories
-      if (fullPath.startsWith('/dev')) data.forEach(row => row.splice(1, 2)) // remove size and modified columns
-
-      const columnWidths = data[0]?.map((_, colIndex) => Math.max(...data.map(row => {
-        // Remove ANSI escape sequences before calculating length
-        const cleanedCell = row[colIndex]?.replace(/\u001b\[.*?m/g, '')
-        // count all emojis as two characters
-        return cleanedCell?.length || 0
-      })))
-
-      for (const [rowIndex, row] of data.entries()) {
-        const line = row
-          .map((cell, index) => {
-            const paddedCell = cell.padEnd(columnWidths?.[index] ?? 0)
-            if (index === 0 && rowIndex > 0) {
-              if (row[3]?.startsWith('d')) return chalk.blue(paddedCell)
-              else if (row[3]?.startsWith('l')) return chalk.cyan(paddedCell)
-              else return chalk.green(paddedCell)
-            } else return rowIndex === 0 ? chalk.bold(paddedCell) : chalk.gray(paddedCell)
-          })
-          .join('  ')
-
-        if (data.length > 1) await writelnStdout(process, terminal, line)
+        await writelnStdout(process, terminal, table)
       }
 
       return 0
