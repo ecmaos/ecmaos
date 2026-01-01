@@ -6,7 +6,7 @@
 >
 > [![Stars](https://img.shields.io/github/stars/mathiscode?style=flat&logo=github&label=⭐️)](https://github.com/mathiscode) [![Followers](https://img.shields.io/github/followers/mathiscode?style=flat&logo=github&label=follow)](https://github.com/mathiscode)
 
-[ecmaOS](https://ecmaos.sh) is a [browser-based operating system kernel](https://global.discourse-cdn.com/spiceworks/original/4X/8/7/b/87b7be8e7e2cd932affe5449dba69dc16e30d721.gif) and suite of applications written primarily in TypeScript, AssemblyScript, and C++. It's the successor of [web3os](https://github.com/web3os-org/kernel).
+[ecmaOS](https://ecmaos.sh) is a browser-based operating system kernel and suite of applications written primarily in TypeScript, AssemblyScript, and C++. It's the successor of [web3os](https://github.com/web3os-org/kernel).
 
 The goal is to create a kernel and supporting apps that tie together modern web technologies and utilities to form an "operating system" that can run on modern browsers, not just to create a "desktop experience". It offers the ability to run a wide variety of apps on top of an already (mostly) sandboxed foundation, offering some measure of security by default as well as rich developer tooling. Its main use case is to provide a consistent environment for running web apps, but it has features that allow for more powerful custom scenarios, such as a platform for custom applications, games, and more.
 
@@ -56,8 +56,8 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - Storage manager for managing Storage API capabilities: IndexedDB, localStorage, etc.
 - Internationalization framework for translating text powered by [i18next](https://www.i18next.com)
 - Window manager powered by [WinBox](https://github.com/nextapps-de/winbox)
-- `BIOS`: A C++ module compiled to WebAssembly with [Emscripten](https://emscripten.org) providing performance-critical functionality
-- `Jaffa`: A [Tauri](https://tauri.app) app for running ecmaOS in a desktop or mobile environment
+<!-- - `BIOS`: A C++ module compiled to WebAssembly with [Emscripten](https://emscripten.org) providing performance-critical functionality -->
+<!-- - `Jaffa`: A [Tauri](https://tauri.app) app for running ecmaOS in a desktop or mobile environment -->
 - `Metal`: An API server for allowing connections to physical systems from ecmaOS using [Hono](https://hono.dev)
 - `SWAPI`: An API server running completely inside a service worker using [Hono](https://hono.dev)
 
@@ -78,14 +78,15 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - To publish to Verdaccio, run `# npm publish --registry http://localhost:4873` in your app's development environment
 - Then to install from your local registry, run (inside ecmaOS) `# install @myscope/mypackage --registry http://localhost:4873`
 
-### BIOS
+<!-- Will revamp once more work is done on this -->
+<!-- ### BIOS
 
 > [/core/bios](/core/bios)
 
 - The BIOS is a C++ module compiled to WebAssembly with [Emscripten](https://emscripten.org) providing performance-critical functionality
 - The BIOS has its own filesystem, located at `/bios` — this allows data to be copied in and out of the BIOS for custom code and utilities
 - The main idea is that data and custom code can be loaded into it from the OS for WASM-native performance, as well as providing various utilities
-- Confusingly, the Kernel loads the BIOS — not the other way around
+- Confusingly, the Kernel loads the BIOS — not the other way around -->
 
 ### Commands
 
@@ -118,23 +119,25 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - They are located in the `turbo/generators` directory of the repository
 - They are used by the `turbo gen` command, e.g. `turbo gen app`, `turbo gen device`, `turbo gen module`, etc.
 
-### Jaffa
+<!-- Will revamp once more work is done on this -->
+<!-- ### Jaffa
 
 > [/core/jaffa](/core/jaffa)
 
 - Jaffa is a [Tauri](https://tauri.app) wrapper for the ecmaOS kernel
 - It's used to tie the kernel into a desktop or mobile environment, allowing for native functionality
-- It needs more work
+- It needs more work -->
 
 ### Kernel
 
 > [/core/kernel](/core/kernel)
 
 - The kernel ties together the various components of the system into a cohesive whole
-  - Authentication (WebAuthn)
+  - Authentication (Passwords, Passkeys, Credentials)
   - Components (Web Components/Custom Elements)
-  - Devices
-  - DOM
+  - Coreutils (Built-in commands)
+  - Devices (Web Hardware APIs)
+  - DOM (DOM Utilities and Interfaces)
   - Events (CustomEvents)
   - Filesystem (ZenFS)
   - Internationalization (i18next)
@@ -145,13 +148,15 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
   - Protocol Handlers (web+ecmaos://...)
   - Service Worker Manager
   - Shell
+  - Sockets (WebSocket, WebTransport)
   - Storage (IndexedDB, localStorage, sessionStorage, etc.)
+  - Telemetry (OpenTelemetry)
   - Terminal (xterm.js)
   - User Manager
   - WASM Loader
-  - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps
+  <!-- - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps -->
   - Window Manager (WinBox)
-  - Workers (Web Workers)
+  - Web Workers
 
 ### Metal
 
@@ -187,6 +192,11 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - [JSR](https://jsr.io) may be used with the [NPM compatibility layer](https://jsr.io/docs/npm-compatibility):
   - `# install @jsr/defaude__hello-jsr --registry https://npm.jsr.io`
 
+### Sockets
+
+- A socket manager is available for creating and managing WebSocket and WebTransport connections
+- It can be accessed via the `kernel.sockets` property or the `sockets` command
+
 ### SWAPI
 
 > [/core/swapi](/core/swapi)
@@ -195,6 +205,12 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - It allows for various operations including the `fs` route to fetch files via URL
 - e.g., `# fetch /swapi/fs/home/user/hello.txt`
 - e.g., `# fetch /swapi/fake/person/fullName`
+
+### Telemetry
+
+- [OpenTelemetry](https://opentelemetry.io) is used for collecting and analyzing telemetry data from the kernel and applications
+- It is only active if the VITE_OPENTELEMETRY_ENDPOINT environment variable is set when building the kernel
+- There is a simple test server included in the `utils/opentelemetry` directory that can be used to test the telemetry system: `python3 utils/opentelemetry/otlp-server.py`
 
 ### Utils
 

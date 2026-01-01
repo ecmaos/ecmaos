@@ -19,6 +19,7 @@ import { addDevice, bindContext, Credentials, DeviceDriver } from '@zenfs/core'
 import { JSONSchemaForNPMPackageJsonFiles } from '@schemastore/package'
 import { Notyf } from 'notyf'
 import { WebContainer } from '@webcontainer/api'
+import { context, trace } from '@opentelemetry/api'
 
 import './../themes/default.scss'
 import 'notyf/notyf.min.css'
@@ -40,6 +41,7 @@ import { DefaultServiceOptions, Service } from '#service.ts'
 import { Sockets } from '#sockets.ts'
 import { Shell } from '#shell.ts'
 import { Storage } from '#storage.ts'
+import { Telemetry } from '#telemetry.ts'
 import { Users } from '#users.ts'
 import { Wasm } from '#wasm.ts'
 import { Windows } from '#windows.ts'
@@ -182,6 +184,8 @@ export class Kernel implements IKernel {
   public readonly shell: Shell
   /** Storage provider interface */
   public readonly storage: Storage
+  /** Telemetry service for OpenTelemetry tracing */
+  public readonly telemetry: Telemetry
   /** Terminal interface for user interaction */
   public readonly terminal: ITerminal
   /** Toast notification service */
@@ -227,6 +231,7 @@ export class Kernel implements IKernel {
     this.service = new Service({ kernel: this, ...this.options.service })
     this.shell = new Shell({ kernel: this, uid: 0, gid: 0 })
     this.storage = new Storage({ kernel: this })
+    this.telemetry = new Telemetry({ kernel: this })
     this.terminal = new Terminal({ kernel: this, socket: this.options.socket })
     this.toast = new Notyf(this.options.toast)
     this.users = new Users({ kernel: this })
@@ -250,6 +255,16 @@ export class Kernel implements IKernel {
    * @throws {Error} If boot process fails
    */
   async boot(options: BootOptions = DefaultBootOptions) {
+    const tracer = this.telemetry.getTracer('ecmaos.kernel', this.version)
+    const bootSpan = tracer.startSpan('kernel.boot', {
+      attributes: {
+        'kernel.id': this.id,
+        'kernel.name': this.name,
+        'kernel.version': this.version,
+        'boot.silent': options.silent || false
+      }
+    })
+
     let spinner
     const t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
 
@@ -459,8 +474,11 @@ export class Kernel implements IKernel {
         this.toast.success(`${import.meta.env['NAME']} v${import.meta.env['VERSION']}`)
       }
 
+      const configureSpan = tracer.startSpan('kernel.boot.configure', {}, trace.setSpan(context.active(), bootSpan))
       await this.configure({ devices: this.options.devices || DefaultDevices, filesystem: Filesystem.options() })
+      configureSpan.end()
 
+      const filesystemSpan = tracer.startSpan('kernel.boot.filesystem', {}, trace.setSpan(context.active(), bootSpan))
       // We don't strictly conform to the FHS, but we try to follow it as closely as possible where relevant
       // User packages can use them as they see fit, and we'll find more uses for them as we go along
       const requiredPaths = [
@@ -480,6 +498,8 @@ export class Kernel implements IKernel {
         if (specialPermissions[path]) mode = specialPermissions[path]
         if (!(await this.filesystem.fs.exists(path))) await this.filesystem.fs.mkdir(path, { recursive: true, mode })
       }
+      filesystemSpan.setAttribute('filesystem.paths_created', requiredPaths.length)
+      filesystemSpan.end()
 
       // Log to /var/log/kernel.log
       this.log.attachTransport((logObj) => {
@@ -512,9 +532,11 @@ export class Kernel implements IKernel {
       this.intervals.set('/proc', this.registerProc.bind(this), import.meta.env['VITE_KERNEL_INTERVALS_PROC'] ?? 1000)
 
       // Load kernel modules
+      const modulesSpan = tracer.startSpan('kernel.boot.modules', {}, trace.setSpan(context.active(), bootSpan))
       const modules = import.meta.env['VITE_KERNEL_MODULES']
       if (modules) {
         const mods = modules.split(',')
+        modulesSpan.setAttribute('modules.count', mods.length)
         for (const mod of mods) {
           try {
             const spec = mod.match(/(@[^/]+\/[^@]+|[^@]+)(?:@([^/]+))?/)
@@ -555,18 +577,30 @@ export class Kernel implements IKernel {
       }
 
       // Setup root user or load existing users
+      const usersSpan = tracer.startSpan('kernel.boot.users', {}, trace.setSpan(context.active(), bootSpan))
       try {
-        if (!await this.filesystem.fs.exists('/etc/passwd')) await this.users.add({ username: 'root', password: 'root', home: '/root' }, { noHome: true })
-        else await this.users.load()
+        if (!await this.filesystem.fs.exists('/etc/passwd')) {
+          await this.users.add({ username: 'root', password: 'root', home: '/root' }, { noHome: true })
+          usersSpan.setAttribute('users.action', 'create_root')
+        } else {
+          await this.users.load()
+          usersSpan.setAttribute('users.action', 'load')
+        }
+        usersSpan.setAttribute('users.count', this.users.all.size)
       } catch (err) {
+        usersSpan.recordException(err as Error)
+        usersSpan.setStatus({ code: 2, message: (err as Error).message })
         this.log.error(err)
         this.terminal.writeln(chalk.red((err as Error).message))
+        usersSpan.end()
         throw err
       }
+      usersSpan.end()
 
       spinner?.stop()
 
       // Show login prompt or auto-login
+      const authSpan = tracer.startSpan('kernel.boot.authentication', {}, trace.setSpan(context.active(), bootSpan))
       if (this.options.credentials) {
         const { user, cred } = await this.users.login(this.options.credentials.username, this.options.credentials.password)
         this.shell.credentials = cred
@@ -582,6 +616,9 @@ export class Kernel implements IKernel {
         this.shell.env.set('USER', user.username)
         process.env = Object.fromEntries(this.shell.env)
         await this.shell.loadEnvFile()
+        authSpan.setAttribute('auth.method', 'auto_login')
+        authSpan.setAttribute('auth.username', this.options.credentials.username)
+        authSpan.end()
       } else {
         if (import.meta.env['VITE_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold('Default Login: root / root\n'))
 
@@ -743,6 +780,7 @@ export class Kernel implements IKernel {
         for (const event of events) globalThis.addEventListener(event, resetIdleTime)
       }
 
+      const initSpan = tracer.startSpan('kernel.boot.init', {}, trace.setSpan(context.active(), bootSpan))
       if (!await this.filesystem.fs.exists('/boot/init')) await this.filesystem.fs.writeFile('/boot/init', '#!ecmaos:bin:script:init\n\n')
       const initProcess = new Process({
         args: [],
@@ -757,9 +795,20 @@ export class Kernel implements IKernel {
 
       initProcess.keepAlive()
       initProcess.start()
+      initSpan.end()
 
       this._state = KernelState.RUNNING
       this.setupDebugGlobals()
+      
+      bootSpan.setAttribute('kernel.state', this._state)
+      bootSpan.end()
+      
+      if (this.telemetry.active) {
+        const provider = (this.telemetry as unknown as { _provider?: { forceFlush?: () => Promise<void> } })._provider
+        if (provider?.forceFlush) {
+          await provider.forceFlush().catch(() => {})
+        }
+      }
 
       // Install recommended apps if desired by user on first boot
       if (!this.storage.local.getItem('ecmaos:first-boot')) {
@@ -786,6 +835,10 @@ export class Kernel implements IKernel {
       this.terminal.focus()
       this.terminal.listen()
     } catch (error) {
+      bootSpan.recordException(error as Error)
+      bootSpan.setStatus({ code: 2, message: (error as Error).message })
+      bootSpan.setAttribute('kernel.state', KernelState.PANIC)
+      bootSpan.end()
       this.log.error(error)
       this._state = KernelState.PANIC
       this.events.dispatch<KernelPanicEvent>(KernelEvents.PANIC, { error: error as Error })

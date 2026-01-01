@@ -34,6 +34,7 @@ import type {
   Shell,
   Sockets,
   StorageProvider,
+  Telemetry,
   Terminal,
   Users,
   Wasm,
@@ -139,6 +140,9 @@ export interface Kernel {
 
   /** Storage provider interface */
   readonly storage: StorageProvider
+
+  /** Telemetry service for OpenTelemetry tracing */
+  readonly telemetry: Telemetry
 
   /** Toast notification service */
   readonly toast: Notyf

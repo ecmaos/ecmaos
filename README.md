@@ -150,6 +150,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
   - Shell
   - Sockets (WebSocket, WebTransport)
   - Storage (IndexedDB, localStorage, sessionStorage, etc.)
+  - Telemetry (OpenTelemetry)
   - Terminal (xterm.js)
   - User Manager
   - WASM Loader
@@ -191,6 +192,11 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - [JSR](https://jsr.io) may be used with the [NPM compatibility layer](https://jsr.io/docs/npm-compatibility):
   - `# install @jsr/defaude__hello-jsr --registry https://npm.jsr.io`
 
+### Sockets
+
+- A socket manager is available for creating and managing WebSocket and WebTransport connections
+- It can be accessed via the `kernel.sockets` property or the `sockets` command
+
 ### SWAPI
 
 > [/core/swapi](/core/swapi)
@@ -199,6 +205,12 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - It allows for various operations including the `fs` route to fetch files via URL
 - e.g., `# fetch /swapi/fs/home/user/hello.txt`
 - e.g., `# fetch /swapi/fake/person/fullName`
+
+### Telemetry
+
+- [OpenTelemetry](https://opentelemetry.io) is used for collecting and analyzing telemetry data from the kernel and applications
+- It is only active if the VITE_OPENTELEMETRY_ENDPOINT environment variable is set when building the kernel
+- There is a simple test server included in the `utils/opentelemetry` directory that can be used to test the telemetry system: `python3 utils/opentelemetry/otlp-server.py`
 
 ### Utils
 
