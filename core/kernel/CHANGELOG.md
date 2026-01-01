@@ -1,5 +1,42 @@
 # @ecmaos/kernel
 
+## 0.6.6
+
+### Patch Changes
+
+- 3a329b1: Features
+
+  - Add head and tail commands for viewing file contents
+  - Add grep command for text search
+  - Enhance terminal input handling and improve command mode interactions in editor
+  - Add stdin support for hex command
+
+  Fixes
+
+  - Improve error handling and usage messages for hex command
+  - Fix filesystem entry descriptions in ls command
+
+  Refactoring
+
+  - Simplify first read logic in hex command
+  - Cleanup unused imports
+
+- Updated dependencies [3a329b1]
+  - @ecmaos/coreutils@0.1.5
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.6.5
 
 ### Patch Changes

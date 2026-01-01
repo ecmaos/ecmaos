@@ -1,5 +1,29 @@
 # @ecmaos/coreutils
 
+## 0.1.5
+
+### Patch Changes
+
+- 3a329b1: Features
+
+  - Add head and tail commands for viewing file contents
+  - Add grep command for text search
+  - Enhance terminal input handling and improve command mode interactions in editor
+  - Add stdin support for hex command
+
+  Fixes
+
+  - Improve error handling and usage messages for hex command
+  - Fix filesystem entry descriptions in ls command
+
+  Refactoring
+
+  - Simplify first read logic in hex command
+  - Cleanup unused imports
+
+- Updated dependencies [3a329b1]
+  - @ecmaos/types@0.4.4
+
 ## 0.1.4
 
 ### Patch Changes
