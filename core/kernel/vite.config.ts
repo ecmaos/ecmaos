@@ -4,15 +4,39 @@ import path from 'path'
 import { defineConfig, ViteUserConfig } from 'vitest/config'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import dts from 'vite-plugin-dts'
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
 
 import pkg from './package.json'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+function getVersion(depName: string, depValue: string): string {
+  if (depValue.startsWith('workspace:')) {
+    const workspaceMap: Record<string, string> = {
+      '@ecmaos/coreutils': 'core/utils',
+      '@ecmaos/types': 'core/types',
+      '@ecmaos/bios': 'core/bios',
+      '@ecmaos/kernel': 'core/kernel'
+    }
+    const workspacePath = workspaceMap[depName] || depName.replace('@ecmaos/', 'core/')
+    const packageJsonPath = path.resolve(__dirname, '..', workspacePath, 'package.json')
+    try {
+      const workspacePkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
+      return workspacePkg.version
+    } catch {
+      return depValue.replace('workspace:', '').replace('^', '').replace('~', '')
+    }
+  }
+  return depValue.replace('^', '').replace('~', '')
+}
+
 const coreutils = pkg.dependencies['@ecmaos/coreutils']
-const coreutilsVersion = coreutils.replace('^', '').replace('~', '')
+const coreutilsVersion = getVersion('@ecmaos/coreutils', coreutils)
 const xterm = pkg.dependencies['@xterm/xterm']
-const xtermVersion = xterm.replace('^', '').replace('~', '')
+const xtermVersion = getVersion('@xterm/xterm', xterm)
 const zenfs = pkg.dependencies['@zenfs/core']
-const zenfsVersion = zenfs.replace('^', '').replace('~', '')
+const zenfsVersion = getVersion('@zenfs/core', zenfs)
 
 export default defineConfig({
   plugins: [
