@@ -4,39 +4,13 @@ import path from 'path'
 import { defineConfig, ViteUserConfig } from 'vitest/config'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import dts from 'vite-plugin-dts'
-import { readFileSync } from 'fs'
-import { fileURLToPath } from 'url'
 
 import pkg from './package.json'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-function getVersion(depName: string, depValue: string): string {
-  if (depValue.startsWith('workspace:')) {
-    const workspaceMap: Record<string, string> = {
-      '@ecmaos/coreutils': 'core/utils',
-      '@ecmaos/types': 'core/types',
-      '@ecmaos/bios': 'core/bios',
-      '@ecmaos/kernel': 'core/kernel'
-    }
-    const workspacePath = workspaceMap[depName] || depName.replace('@ecmaos/', 'core/')
-    const packageJsonPath = path.resolve(__dirname, '..', workspacePath, 'package.json')
-    try {
-      const workspacePkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
-      return workspacePkg.version
-    } catch {
-      return depValue.replace('workspace:', '').replace('^', '').replace('~', '')
-    }
-  }
-  return depValue.replace('^', '').replace('~', '')
-}
-
-const coreutils = pkg.dependencies['@ecmaos/coreutils']
-const coreutilsVersion = getVersion('@ecmaos/coreutils', coreutils)
 const xterm = pkg.dependencies['@xterm/xterm']
-const xtermVersion = getVersion('@xterm/xterm', xterm)
+const xtermVersion = xterm.replace('^', '').replace('~', '')
 const zenfs = pkg.dependencies['@zenfs/core']
-const zenfsVersion = getVersion('@zenfs/core', zenfs)
+const zenfsVersion = zenfs.replace('^', '').replace('~', '')
 
 export default defineConfig({
   plugins: [
@@ -55,7 +29,6 @@ export default defineConfig({
   define: {
     'import.meta.env.NAME': JSON.stringify(pkg.name),
     'import.meta.env.VERSION': JSON.stringify(pkg.version),
-    'import.meta.env.COREUTILS_VERSION': JSON.stringify(coreutilsVersion),
     'import.meta.env.XTERM_VERSION': JSON.stringify(xtermVersion),
     'import.meta.env.ZENFS_VERSION': JSON.stringify(zenfsVersion),
     'import.meta.env.DESCRIPTION': JSON.stringify(pkg.description),

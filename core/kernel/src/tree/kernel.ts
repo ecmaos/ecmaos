@@ -428,7 +428,6 @@ export class Kernel implements IKernel {
         }
 
         const dependencyLinks = [
-          { name: '@ecmaos/coreutils', link: this.terminal.createSpecialLink('https://github.com/ecmaos/ecmaos/tree/main/core/utils/src/commands', '@ecmaos/coreutils') + `@${import.meta.env['COREUTILS_VERSION']}` },
           { name: '@xterm/xterm', link: this.terminal.createSpecialLink('https://github.com/xtermjs/xterm.js', '@xterm/xterm') + `@${import.meta.env['XTERM_VERSION']}` },
           { name: '@zen-fs/core', link: this.terminal.createSpecialLink('https://github.com/zen-fs/core', '@zenfs/core') + `@${import.meta.env['ZENFS_VERSION']}` },
         ]
