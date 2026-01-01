@@ -30,17 +30,28 @@ import { createCommand as createSed } from './commands/sed.js'
 import { createCommand as createTee } from './commands/tee.js'
 import { createCommand as createTail } from './commands/tail.js'
 import { createCommand as createBasename } from './commands/basename.js'
+import { createCommand as createCal } from './commands/cal.js'
+import { createCommand as createComm } from './commands/comm.js'
 import { createCommand as createCut } from './commands/cut.js'
 import { createCommand as createDate } from './commands/date.js'
 import { createCommand as createDiff } from './commands/diff.js'
 import { createCommand as createDirname } from './commands/dirname.js'
+import { createCommand as createFalse } from './commands/false.js'
 import { createCommand as createFind } from './commands/find.js'
+import { createCommand as createId } from './commands/id.js'
+import { createCommand as createJoin } from './commands/join.js'
+import { createCommand as createNl } from './commands/nl.js'
+import { createCommand as createPaste } from './commands/paste.js'
+import { createCommand as createSeq } from './commands/seq.js'
 import { createCommand as createSort } from './commands/sort.js'
+import { createCommand as createSplit } from './commands/split.js'
 import { createCommand as createTest } from './commands/test.js'
 import { createCommand as createTr } from './commands/tr.js'
+import { createCommand as createTrue } from './commands/true.js'
 import { createCommand as createUniq } from './commands/uniq.js'
 import { createCommand as createWc } from './commands/wc.js'
 import { createCommand as createWhich } from './commands/which.js'
+import { createCommand as createWhoami } from './commands/whoami.js'
 
 // Export individual command factories
 export { createCommand as createCat } from './commands/cat.js'
@@ -105,17 +116,28 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     tail: createTail(kernel, shell, terminal),
     tee: createTee(kernel, shell, terminal),
     basename: createBasename(kernel, shell, terminal),
+    cal: createCal(kernel, shell, terminal),
+    comm: createComm(kernel, shell, terminal),
     cut: createCut(kernel, shell, terminal),
     date: createDate(kernel, shell, terminal),
     diff: createDiff(kernel, shell, terminal),
     dirname: createDirname(kernel, shell, terminal),
+    false: createFalse(kernel, shell, terminal),
     find: createFind(kernel, shell, terminal),
+    id: createId(kernel, shell, terminal),
+    join: createJoin(kernel, shell, terminal),
+    nl: createNl(kernel, shell, terminal),
+    paste: createPaste(kernel, shell, terminal),
+    seq: createSeq(kernel, shell, terminal),
     sort: createSort(kernel, shell, terminal),
+    split: createSplit(kernel, shell, terminal),
     test: createTest(kernel, shell, terminal),
     tr: createTr(kernel, shell, terminal),
+    true: createTrue(kernel, shell, terminal),
     uniq: createUniq(kernel, shell, terminal),
     wc: createWc(kernel, shell, terminal),
-    which: createWhich(kernel, shell, terminal)
+    which: createWhich(kernel, shell, terminal),
+    whoami: createWhoami(kernel, shell, terminal)
   }
 }
 

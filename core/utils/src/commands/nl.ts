@@ -7,27 +7,42 @@ import { writelnStderr } from '../shared/helpers.js'
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
-    command: 'uniq',
-    description: 'Report or omit repeated lines',
+    command: 'nl',
+    description: 'Number lines of files',
     kernel,
     shell,
     terminal,
     options: [
       { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
-      { name: 'count', type: Boolean, alias: 'c', description: 'Prefix lines by the number of occurrences' },
-      { name: 'repeated', type: Boolean, alias: 'd', description: 'Only print duplicate lines' },
-      { name: 'unique', type: Boolean, alias: 'u', description: 'Only print unique lines' },
-      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to process' }
+      { name: 'starting-line', type: Number, alias: 'v', description: 'First line number for each section', defaultValue: 1 },
+      { name: 'increment', type: Number, alias: 'i', description: 'Line number increment at each line', defaultValue: 1 },
+      { name: 'format', type: String, alias: 'n', description: 'Line number format: ln (left, no zero), rn (right, no zero), rz (right, zero)', defaultValue: 'rn' },
+      { name: 'width', type: Number, alias: 'w', description: 'Use NUMBER columns for line numbers', defaultValue: 6 },
+      { name: 'separator', type: String, alias: 's', description: 'Add STRING after (possible) line number', defaultValue: '\t' },
+      { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, multiple: true, description: 'The path(s) to the file(s) to number' }
     ],
     run: async (argv: CommandLineOptions, process?: Process) => {
       if (!process) return 1
 
       const files = (argv.path as string[]) || []
-      const count = (argv.count as boolean) || false
-      const repeated = (argv.repeated as boolean) || false
-      const unique = (argv.unique as boolean) || false
+      const startLine = (argv['starting-line'] as number) ?? 1
+      const increment = (argv.increment as number) ?? 1
+      const format = (argv.format as string) || 'rn'
+      const width = (argv.width as number) ?? 6
+      const separator = (argv.separator as string) || '\t'
 
       const writer = process.stdout.getWriter()
+
+      const formatNumber = (num: number): string => {
+        const numStr = num.toString()
+        if (format === 'rz') {
+          return numStr.padStart(width, '0')
+        } else if (format === 'ln') {
+          return numStr.padEnd(width, ' ')
+        } else {
+          return numStr.padStart(width, ' ')
+        }
+      }
 
       try {
         let lines: string[] = []
@@ -68,7 +83,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
             try {
               if (fullPath.startsWith('/dev')) {
-                await writelnStderr(process, terminal, `uniq: ${file}: cannot process device files`)
+                await writelnStderr(process, terminal, `nl: ${file}: cannot number device files`)
                 continue
               }
 
@@ -96,53 +111,18 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               }
               lines.push(...fileLines)
             } catch (error) {
-              await writelnStderr(process, terminal, `uniq: ${file}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+              await writelnStderr(process, terminal, `nl: ${file}: ${error instanceof Error ? error.message : 'Unknown error'}`)
             } finally {
               kernel.terminal.events.off(TerminalEvents.INTERRUPT, interruptHandler)
             }
           }
         }
 
-        if (lines.length === 0) {
-          return 0
-        }
-
-        let prevLine: string | null = null
-        let countValue = 1
-
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i]
-          if (line === undefined) continue
-
-          if (prevLine === null) {
-            prevLine = line
-            countValue = 1
-            continue
-          }
-
-          if (line === prevLine) {
-            countValue++
-          } else {
-            if (repeated && countValue === 1) {
-            } else if (unique && countValue > 1) {
-            } else {
-              const output = count ? `${countValue.toString().padStart(7)} ${prevLine}` : prevLine
-              await writer.write(new TextEncoder().encode(output + '\n'))
-            }
-            if (line !== undefined) {
-              prevLine = line
-            }
-            countValue = 1
-          }
-        }
-
-        if (prevLine !== null) {
-          if (repeated && countValue === 1) {
-          } else if (unique && countValue > 1) {
-          } else {
-            const output = count ? `${countValue.toString().padStart(7)} ${prevLine}` : prevLine
-            await writer.write(new TextEncoder().encode(output + '\n'))
-          }
+        let lineNumber = startLine
+        for (const line of lines) {
+          const formattedNum = formatNumber(lineNumber)
+          await writer.write(new TextEncoder().encode(`${formattedNum}${separator}${line}\n`))
+          lineNumber += increment
         }
 
         return 0
