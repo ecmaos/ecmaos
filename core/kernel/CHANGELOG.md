@@ -1,5 +1,32 @@
 # @ecmaos/kernel
 
+## 0.7.1
+
+### Patch Changes
+
+- e66e9f9: - Enhanced version retrieval for workspace dependencies
+  - Removed coreutils version retrieval and updated dependency links
+  - Enhanced 'ls' command output formatting
+  - Fixed terminal input handling for cursor positioning
+  - Implemented PID files in /run directory for process tracking
+  - Added holiday emoji display functionality
+  - Rebuilt documentation
+- Updated dependencies [e66e9f9]
+  - @ecmaos/coreutils@0.2.1
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.7.0
 
 ### Minor Changes

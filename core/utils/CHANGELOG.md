@@ -1,5 +1,19 @@
 # @ecmaos/coreutils
 
+## 0.2.1
+
+### Patch Changes
+
+- e66e9f9: - Enhanced version retrieval for workspace dependencies
+  - Removed coreutils version retrieval and updated dependency links
+  - Enhanced 'ls' command output formatting
+  - Fixed terminal input handling for cursor positioning
+  - Implemented PID files in /run directory for process tracking
+  - Added holiday emoji display functionality
+  - Rebuilt documentation
+- Updated dependencies [e66e9f9]
+  - @ecmaos/types@0.5.1
+
 ## 0.2.0
 
 ### Minor Changes
