@@ -32,8 +32,11 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       }
 
       const files: string[] = []
-      let unified = 3
-      let context = 3
+      // TODO: Implement unified and context options in diff output
+      // @ts-ignore - reserved for future implementation
+      let _unified = 3
+      // @ts-ignore - reserved for future implementation
+      let _context = 3
 
       for (let i = 0; i < argv.length; i++) {
         const arg = argv[i]
@@ -44,20 +47,26 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           return 0
         } else if (arg === '-u' || arg === '--unified') {
           if (i + 1 < argv.length) {
-            const num = parseInt(argv[++i], 10)
-            if (!isNaN(num)) unified = num
+            const nextArg = argv[++i]
+            if (nextArg !== undefined) {
+              const num = parseInt(nextArg, 10)
+              if (!isNaN(num)) _unified = num
+            }
           }
         } else if (arg.startsWith('--unified=')) {
           const num = parseInt(arg.slice(10), 10)
-          if (!isNaN(num)) unified = num
+          if (!isNaN(num)) _unified = num
         } else if (arg === '-c' || arg === '--context') {
           if (i + 1 < argv.length) {
-            const num = parseInt(argv[++i], 10)
-            if (!isNaN(num)) context = num
+            const nextArg = argv[++i]
+            if (nextArg !== undefined) {
+              const num = parseInt(nextArg, 10)
+              if (!isNaN(num)) _context = num
+            }
           }
         } else if (arg.startsWith('--context=')) {
           const num = parseInt(arg.slice(10), 10)
-          if (!isNaN(num)) context = num
+          if (!isNaN(num)) _context = num
         } else if (!arg.startsWith('-')) {
           files.push(arg)
         }
@@ -70,8 +79,12 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       const file1 = files[0]
       const file2 = files[1]
-      const fullPath1 = path.resolve(shell.cwd, file1)
-      const fullPath2 = path.resolve(shell.cwd, file2)
+      if (!file1 || !file2) {
+        await writelnStderr(process, terminal, 'diff: exactly two files must be specified')
+        return 1
+      }
+      const fullPath1 = path.resolve(shell.cwd || '/', file1)
+      const fullPath2 = path.resolve(shell.cwd || '/', file2)
 
       const writer = process.stdout.getWriter()
 
@@ -122,14 +135,21 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         const lcs = (a: string[], b: string[]): number[][] => {
           const m = a.length
           const n = b.length
-          const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+          const dp: number[][] = []
+          for (let i = 0; i <= m; i++) {
+            dp[i] = Array(n + 1).fill(0)
+          }
 
           for (let i = 1; i <= m; i++) {
+            const row = dp[i]!
             for (let j = 1; j <= n; j++) {
               if (a[i - 1] === b[j - 1]) {
-                dp[i][j] = dp[i - 1][j - 1] + 1
+                const prev = dp[i - 1]?.[j - 1] ?? 0
+                row[j] = prev + 1
               } else {
-                dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+                const left = dp[i - 1]?.[j] ?? 0
+                const up = row[j - 1] ?? 0
+                row[j] = Math.max(left, up)
               }
             }
           }
@@ -148,7 +168,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               result.unshift(`  ${a[i - 1]}`)
               i--
               j--
-            } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+            } else if (j > 0 && (i === 0 || (dp[i]?.[j - 1] ?? 0) >= (dp[i - 1]?.[j] ?? 0))) {
               result.unshift(`+ ${b[j - 1]}`)
               j--
             } else if (i > 0) {

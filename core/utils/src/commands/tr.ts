@@ -75,14 +75,21 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         let i = 0
         while (i < set.length) {
           if (i < set.length - 2 && set[i + 1] === '-') {
-            const start = set[i].charCodeAt(0)
-            const end = set[i + 2].charCodeAt(0)
-            for (let j = start; j <= end; j++) {
-              result += String.fromCharCode(j)
+            const startChar = set[i]
+            const endChar = set[i + 2]
+            if (startChar !== undefined && endChar !== undefined) {
+              const start = startChar.charCodeAt(0)
+              const end = endChar.charCodeAt(0)
+              for (let j = start; j <= end; j++) {
+                result += String.fromCharCode(j)
+              }
             }
             i += 3
           } else {
-            result += set[i]
+            const char = set[i]
+            if (char !== undefined) {
+              result += char
+            }
             i++
           }
         }
@@ -127,9 +134,11 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           const maxLen = Math.max(expandedSet1.length, expandedSet2.length)
           
           for (let i = 0; i < maxLen; i++) {
-            const from = expandedSet1[i] || expandedSet1[expandedSet1.length - 1]
-            const to = expandedSet2[i] || expandedSet2[expandedSet2.length - 1]
-            map.set(from, to)
+            const from = expandedSet1[i] || (expandedSet1.length > 0 ? expandedSet1[expandedSet1.length - 1] : '')
+            const to = expandedSet2[i] || (expandedSet2.length > 0 ? expandedSet2[expandedSet2.length - 1] : '')
+            if (from !== undefined) {
+              map.set(from, to || '')
+            }
           }
 
           for (const char of content) {

@@ -75,6 +75,10 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       const file1 = files[0]
       const file2 = files[1]
+      if (!file1 || !file2) {
+        await writelnStderr(process, terminal, 'join: exactly two files must be specified')
+        return 1
+      }
 
       const writer = process.stdout.getWriter()
 
@@ -117,8 +121,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       }
 
       try {
-        const fullPath1 = path.resolve(shell.cwd, file1)
-        const fullPath2 = path.resolve(shell.cwd, file2)
+        const fullPath1 = path.resolve(shell.cwd || '/', file1)
+        const fullPath2 = path.resolve(shell.cwd || '/', file2)
 
         const lines1 = await readFileLines(fullPath1)
         const lines2 = await readFileLines(fullPath2)

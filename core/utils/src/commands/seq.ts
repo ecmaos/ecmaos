@@ -35,12 +35,16 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       for (let i = 0; i < argv.length; i++) {
         const arg = argv[i]
+        if (!arg) continue
         if (arg === '--help' || arg === '-h') {
           printUsage(process, terminal)
           return 0
         } else if (arg === '-s' || arg === '--separator') {
           if (i + 1 < argv.length) {
-            separator = argv[++i]
+            const nextArg = argv[++i]
+            if (nextArg !== undefined) {
+              separator = nextArg
+            }
           } else {
             await writelnStderr(process, terminal, 'seq: option requires an argument -- \'s\'')
             return 1
@@ -64,22 +68,40 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       let last: number
 
       if (args.length === 1) {
-        last = parseFloat(args[0])
+        const arg0 = args[0]
+        if (arg0 === undefined) {
+          await writelnStderr(process, terminal, 'seq: missing operand')
+          return 1
+        }
+        last = parseFloat(arg0)
         if (isNaN(last)) {
-          await writelnStderr(process, terminal, `seq: invalid number: ${args[0]}`)
+          await writelnStderr(process, terminal, `seq: invalid number: ${arg0}`)
           return 1
         }
       } else if (args.length === 2) {
-        first = parseFloat(args[0])
-        last = parseFloat(args[1])
+        const arg0 = args[0]
+        const arg1 = args[1]
+        if (arg0 === undefined || arg1 === undefined) {
+          await writelnStderr(process, terminal, 'seq: missing operand')
+          return 1
+        }
+        first = parseFloat(arg0)
+        last = parseFloat(arg1)
         if (isNaN(first) || isNaN(last)) {
           await writelnStderr(process, terminal, 'seq: invalid number')
           return 1
         }
       } else if (args.length === 3) {
-        first = parseFloat(args[0])
-        increment = parseFloat(args[1])
-        last = parseFloat(args[2])
+        const arg0 = args[0]
+        const arg1 = args[1]
+        const arg2 = args[2]
+        if (arg0 === undefined || arg1 === undefined || arg2 === undefined) {
+          await writelnStderr(process, terminal, 'seq: missing operand')
+          return 1
+        }
+        first = parseFloat(arg0)
+        increment = parseFloat(arg1)
+        last = parseFloat(arg2)
         if (isNaN(first) || isNaN(increment) || isNaN(last)) {
           await writelnStderr(process, terminal, 'seq: invalid number')
           return 1

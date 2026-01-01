@@ -4,7 +4,7 @@
 <p>Made with ❤️ by <a href="https://jaymath.is" target="_blank" class="external">Jay Mathis</a></p>
 <p><a href="https://github.com/mathiscode" target="_blank" class="external"><img src="https://img.shields.io/github/stars/mathiscode?style=flat&amp;logo=github&amp;label=%E2%AD%90%EF%B8%8F" alt="Stars"></a> <a href="https://github.com/mathiscode" target="_blank" class="external"><img src="https://img.shields.io/github/followers/mathiscode?style=flat&amp;logo=github&amp;label=follow" alt="Followers"></a></p>
 </blockquote>
-<p><a href="https://ecmaos.sh" target="_blank" class="external">ecmaOS</a> is a <a href="https://global.discourse-cdn.com/spiceworks/original/4X/8/7/b/87b7be8e7e2cd932affe5449dba69dc16e30d721.gif" target="_blank" class="external">browser-based operating system kernel</a> and suite of applications written primarily in TypeScript, AssemblyScript, and C++. It's the successor of <a href="https://github.com/web3os-org/kernel" target="_blank" class="external">web3os</a>.</p>
+<p><a href="https://ecmaos.sh" target="_blank" class="external">ecmaOS</a> is a browser-based operating system kernel and suite of applications written primarily in TypeScript, AssemblyScript, and C++. It's the successor of <a href="https://github.com/web3os-org/kernel" target="_blank" class="external">web3os</a>.</p>
 <p>The goal is to create a kernel and supporting apps that tie together modern web technologies and utilities to form an "operating system" that can run on modern browsers, not just to create a "desktop experience". It offers the ability to run a wide variety of apps on top of an already (mostly) sandboxed foundation, offering some measure of security by default as well as rich developer tooling. Its main use case is to provide a consistent environment for running web apps, but it has features that allow for more powerful custom scenarios, such as a platform for custom applications, games, and more.</p>
 <p>This is NOT intended to be a "Linux kernel in Javascript" - while it takes its heaviest inspiration from Linux, it is more experimental and follows different design principles and architecture, and also doesn't need to cover nearly the same scope.</p>
 <hr>
@@ -46,8 +46,10 @@
 <li>Storage manager for managing Storage API capabilities: IndexedDB, localStorage, etc.</li>
 <li>Internationalization framework for translating text powered by <a href="https://www.i18next.com" target="_blank" class="external">i18next</a></li>
 <li>Window manager powered by <a href="https://github.com/nextapps-de/winbox" target="_blank" class="external">WinBox</a></li>
-<li><code>BIOS</code>: A C++ module compiled to WebAssembly with <a href="https://emscripten.org" target="_blank" class="external">Emscripten</a> providing performance-critical functionality</li>
-<li><code>Jaffa</code>: A <a href="https://tauri.app" target="_blank" class="external">Tauri</a> app for running ecmaOS in a desktop or mobile environment</li>
+</ul>
+<!-- - `BIOS`: A C++ module compiled to WebAssembly with [Emscripten](https://emscripten.org) providing performance-critical functionality -->
+<!-- - `Jaffa`: A [Tauri](https://tauri.app) app for running ecmaOS in a desktop or mobile environment -->
+<ul>
 <li><code>Metal</code>: An API server for allowing connections to physical systems from ecmaOS using <a href="https://hono.dev" target="_blank" class="external">Hono</a></li>
 <li><code>SWAPI</code>: An API server running completely inside a service worker using <a href="https://hono.dev" target="_blank" class="external">Hono</a></li>
 </ul>
@@ -66,15 +68,15 @@
 <li>To publish to Verdaccio, run <code># npm publish --registry http://localhost:4873</code> in your app's development environment</li>
 <li>Then to install from your local registry, run (inside ecmaOS) <code># install @myscope/mypackage --registry http://localhost:4873</code></li>
 </ul>
-<a id="bios" class="tsd-anchor"></a><h3 class="tsd-anchor-link">BIOS<a href="#bios" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><blockquote>
-<p><a href="/core/bios">/core/bios</a></p>
-</blockquote>
-<ul>
-<li>The BIOS is a C++ module compiled to WebAssembly with <a href="https://emscripten.org" target="_blank" class="external">Emscripten</a> providing performance-critical functionality</li>
-<li>The BIOS has its own filesystem, located at <code>/bios</code> — this allows data to be copied in and out of the BIOS for custom code and utilities</li>
-<li>The main idea is that data and custom code can be loaded into it from the OS for WASM-native performance, as well as providing various utilities</li>
-<li>Confusingly, the Kernel loads the BIOS — not the other way around</li>
-</ul>
+<!-- Will revamp once more work is done on this -->
+<!-- ### BIOS
+
+> [/core/bios](/core/bios)
+
+- The BIOS is a C++ module compiled to WebAssembly with [Emscripten](https://emscripten.org) providing performance-critical functionality
+- The BIOS has its own filesystem, located at `/bios` — this allows data to be copied in and out of the BIOS for custom code and utilities
+- The main idea is that data and custom code can be loaded into it from the OS for WASM-native performance, as well as providing various utilities
+- Confusingly, the Kernel loads the BIOS — not the other way around -->
 <a id="commands" class="tsd-anchor"></a><h3 class="tsd-anchor-link">Commands<a href="#commands" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><blockquote>
 <p><a href="/core/kernel/src/tree/lib/commands">/core/kernel/src/tree/lib/commands</a></p>
 </blockquote>
@@ -106,24 +108,25 @@
 <li>They are located in the <code>turbo/generators</code> directory of the repository</li>
 <li>They are used by the <code>turbo gen</code> command, e.g. <code>turbo gen app</code>, <code>turbo gen device</code>, <code>turbo gen module</code>, etc.</li>
 </ul>
-<a id="jaffa" class="tsd-anchor"></a><h3 class="tsd-anchor-link">Jaffa<a href="#jaffa" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><blockquote>
-<p><a href="/core/jaffa">/core/jaffa</a></p>
-</blockquote>
-<ul>
-<li>Jaffa is a <a href="https://tauri.app" target="_blank" class="external">Tauri</a> wrapper for the ecmaOS kernel</li>
-<li>It's used to tie the kernel into a desktop or mobile environment, allowing for native functionality</li>
-<li>It needs more work</li>
-</ul>
+<!-- Will revamp once more work is done on this -->
+<!-- ### Jaffa
+
+> [/core/jaffa](/core/jaffa)
+
+- Jaffa is a [Tauri](https://tauri.app) wrapper for the ecmaOS kernel
+- It's used to tie the kernel into a desktop or mobile environment, allowing for native functionality
+- It needs more work -->
 <a id="kernel" class="tsd-anchor"></a><h3 class="tsd-anchor-link">Kernel<a href="#kernel" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><blockquote>
 <p><a href="/core/kernel">/core/kernel</a></p>
 </blockquote>
 <ul>
 <li>The kernel ties together the various components of the system into a cohesive whole
 <ul>
-<li>Authentication (WebAuthn)</li>
+<li>Authentication (Passwords, Passkeys, Credentials)</li>
 <li>Components (Web Components/Custom Elements)</li>
-<li>Devices</li>
-<li>DOM</li>
+<li>Coreutils (Built-in commands)</li>
+<li>Devices (Web Hardware APIs)</li>
+<li>DOM (DOM Utilities and Interfaces)</li>
 <li>Events (CustomEvents)</li>
 <li>Filesystem (ZenFS)</li>
 <li>Internationalization (i18next)</li>
@@ -134,13 +137,17 @@
 <li>Protocol Handlers (web+ecmaos://...)</li>
 <li>Service Worker Manager</li>
 <li>Shell</li>
+<li>Sockets (WebSocket, WebTransport)</li>
 <li>Storage (IndexedDB, localStorage, sessionStorage, etc.)</li>
+<li>Telemetry (OpenTelemetry)</li>
 <li>Terminal (xterm.js)</li>
 <li>User Manager</li>
 <li>WASM Loader</li>
-<li><a href="https://github.com/stackblitz/webcontainer-core" target="_blank" class="external">WebContainer</a> for running Node.js apps</li>
+</ul>
+<!-- - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps -->
+<ul>
 <li>Window Manager (WinBox)</li>
-<li>Workers (Web Workers)</li>
+<li>Web Workers</li>
 </ul>
 </li>
 </ul>
@@ -186,6 +193,10 @@
 </ul>
 </li>
 </ul>
+<a id="sockets" class="tsd-anchor"></a><h3 class="tsd-anchor-link">Sockets<a href="#sockets" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><ul>
+<li>A socket manager is available for creating and managing WebSocket and WebTransport connections</li>
+<li>It can be accessed via the <code>kernel.sockets</code> property or the <code>sockets</code> command</li>
+</ul>
 <a id="swapi" class="tsd-anchor"></a><h3 class="tsd-anchor-link">SWAPI<a href="#swapi" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><blockquote>
 <p><a href="/core/swapi">/core/swapi</a></p>
 </blockquote>
@@ -194,6 +205,11 @@
 <li>It allows for various operations including the <code>fs</code> route to fetch files via URL</li>
 <li>e.g., <code># fetch /swapi/fs/home/user/hello.txt</code></li>
 <li>e.g., <code># fetch /swapi/fake/person/fullName</code></li>
+</ul>
+<a id="telemetry" class="tsd-anchor"></a><h3 class="tsd-anchor-link">Telemetry<a href="#telemetry" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><ul>
+<li><a href="https://opentelemetry.io" target="_blank" class="external">OpenTelemetry</a> is used for collecting and analyzing telemetry data from the kernel and applications</li>
+<li>It is only active if the VITE_OPENTELEMETRY_ENDPOINT environment variable is set when building the kernel</li>
+<li>There is a simple test server included in the <code>utils/opentelemetry</code> directory that can be used to test the telemetry system: <code>python3 utils/opentelemetry/otlp-server.py</code></li>
 </ul>
 <a id="utils" class="tsd-anchor"></a><h3 class="tsd-anchor-link">Utils<a href="#utils" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><blockquote>
 <p><a href="/utils">/utils</a></p>
@@ -274,4 +290,4 @@ install jquery
 <p>Also see <a href="media/turbo.json">turbo.json</a> and <a href="/CONTRIBUTING.md">CONTRIBUTING.md</a> for more information.</p>
 <a id="security-vulnerabilities" class="tsd-anchor"></a><h2 class="tsd-anchor-link">Security Vulnerabilities<a href="#security-vulnerabilities" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><p>See <a href="/SECURITY.md">SECURITY.md</a> for more information.</p>
 <p>If you find a serious security vulnerability, please submit a new <a href="https://github.com/ecmaos/ecmaos/security" target="_blank" class="external">Draft Security Advisory</a> or contact the project maintainer directly at <a href="mailto:code@mathis.network">code@mathis.network</a>.</p>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked=""><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open="" class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>On This Page</h3></summary><div class="tsd-accordion-details" tabindex="-1"><a href="#the-web-kernel"><span>The <wbr>Web <wbr>Kernel</span></a><ul><li><a href="#features"><span>Features</span></a></li><li><a href="#basic-concepts"><span>Basic <wbr>Concepts</span></a></li><li><ul><li><a href="#apps"><span>Apps</span></a></li><li><a href="#bios"><span>BIOS</span></a></li><li><a href="#commands"><span>Commands</span></a></li><li><a href="#coreutils"><span>Coreutils</span></a></li><li><a href="#devices"><span>Devices</span></a></li><li><a href="#generators"><span>Generators</span></a></li><li><a href="#jaffa"><span>Jaffa</span></a></li><li><a href="#kernel"><span>Kernel</span></a></li><li><a href="#metal"><span>Metal</span></a></li><li><a href="#modules"><span>Modules</span></a></li><li><a href="#packages"><span>Packages</span></a></li><li><a href="#swapi"><span>SWAPI</span></a></li><li><a href="#utils"><span>Utils</span></a></li></ul></li><li><a href="#important-files-and-directories"><span>Important <wbr>Files and <wbr>Directories</span></a></li><li><a href="#command-examples"><span>Command <wbr>Examples</span></a></li><li><a href="#device-examples"><span>Device <wbr>Examples</span></a></li><li><a href="#code-execution-example"><span>Code <wbr>Execution <wbr>Example</span></a></li><li><a href="#scripting"><span>Scripting</span></a></li><li><a href="#startup"><span>Startup</span></a></li><li><a href="#app-development"><span>App <wbr>Development</span></a></li><li><a href="#appkernel-interface-example"><span>App/<wbr>Kernel <wbr>Interface <wbr>Example</span></a></li><li><a href="#early-days"><span>Early <wbr>Days</span></a></li><li><a href="#development"><span>Development</span></a></li><li><a href="#security-vulnerabilities"><span>Security <wbr>Vulnerabilities</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html" class="current">ecmaOS</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a> with the <a href="https://www.npmjs.com/package/@typhonjs-typedoc/typedoc-theme-dmt" target="_blank">Default Modern Theme</a></p></footer></main></body></html>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked=""><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open="" class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><h3><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><use href="assets/icons.svg#icon-chevronDown"></use></svg>On This Page</h3></summary><div class="tsd-accordion-details" tabindex="-1"><a href="#the-web-kernel"><span>The <wbr>Web <wbr>Kernel</span></a><ul><li><a href="#features"><span>Features</span></a></li><li><a href="#basic-concepts"><span>Basic <wbr>Concepts</span></a></li><li><ul><li><a href="#apps"><span>Apps</span></a></li><li><a href="#commands"><span>Commands</span></a></li><li><a href="#coreutils"><span>Coreutils</span></a></li><li><a href="#devices"><span>Devices</span></a></li><li><a href="#generators"><span>Generators</span></a></li><li><a href="#kernel"><span>Kernel</span></a></li><li><a href="#metal"><span>Metal</span></a></li><li><a href="#modules"><span>Modules</span></a></li><li><a href="#packages"><span>Packages</span></a></li><li><a href="#sockets"><span>Sockets</span></a></li><li><a href="#swapi"><span>SWAPI</span></a></li><li><a href="#telemetry"><span>Telemetry</span></a></li><li><a href="#utils"><span>Utils</span></a></li></ul></li><li><a href="#important-files-and-directories"><span>Important <wbr>Files and <wbr>Directories</span></a></li><li><a href="#command-examples"><span>Command <wbr>Examples</span></a></li><li><a href="#device-examples"><span>Device <wbr>Examples</span></a></li><li><a href="#code-execution-example"><span>Code <wbr>Execution <wbr>Example</span></a></li><li><a href="#scripting"><span>Scripting</span></a></li><li><a href="#startup"><span>Startup</span></a></li><li><a href="#app-development"><span>App <wbr>Development</span></a></li><li><a href="#appkernel-interface-example"><span>App/<wbr>Kernel <wbr>Interface <wbr>Example</span></a></li><li><a href="#early-days"><span>Early <wbr>Days</span></a></li><li><a href="#development"><span>Development</span></a></li><li><a href="#security-vulnerabilities"><span>Security <wbr>Vulnerabilities</span></a></li></ul></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html" class="current">ecmaOS</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a> with the <a href="https://www.npmjs.com/package/@typhonjs-typedoc/typedoc-theme-dmt" target="_blank">Default Modern Theme</a></p></footer></main></body></html>

@@ -50,16 +50,22 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           return 0
         } else if (arg === '-v' || arg === '--starting-line') {
           if (i + 1 < argv.length) {
-            const num = parseInt(argv[++i], 10)
-            if (!isNaN(num)) startLine = num
+            const nextArg = argv[++i]
+            if (nextArg !== undefined) {
+              const num = parseInt(nextArg, 10)
+              if (!isNaN(num)) startLine = num
+            }
           }
         } else if (arg.startsWith('--starting-line=')) {
           const num = parseInt(arg.slice(16), 10)
           if (!isNaN(num)) startLine = num
         } else if (arg === '-i' || arg === '--increment') {
           if (i + 1 < argv.length) {
-            const num = parseInt(argv[++i], 10)
-            if (!isNaN(num)) increment = num
+            const nextArg = argv[++i]
+            if (nextArg !== undefined) {
+              const num = parseInt(nextArg, 10)
+              if (!isNaN(num)) increment = num
+            }
           }
         } else if (arg.startsWith('--increment=')) {
           const num = parseInt(arg.slice(12), 10)
@@ -72,8 +78,11 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           format = arg.slice(9) || 'rn'
         } else if (arg === '-w' || arg === '--width') {
           if (i + 1 < argv.length) {
-            const num = parseInt(argv[++i], 10)
-            if (!isNaN(num)) width = num
+            const nextArg = argv[++i]
+            if (nextArg !== undefined) {
+              const num = parseInt(nextArg, 10)
+              if (!isNaN(num)) width = num
+            }
           }
         } else if (arg.startsWith('--width=')) {
           const num = parseInt(arg.slice(8), 10)

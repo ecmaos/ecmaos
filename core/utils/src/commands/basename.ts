@@ -36,6 +36,10 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       while (i < argv.length) {
         const arg = argv[i]
+        if (!arg) {
+          i++
+          continue
+        }
         if (arg === '-s' || arg === '--suffix') {
           if (i + 1 < argv.length) {
             suffix = argv[++i]

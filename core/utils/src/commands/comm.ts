@@ -61,6 +61,10 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       const file1 = files[0]
       const file2 = files[1]
+      if (!file1 || !file2) {
+        await writelnStderr(process, terminal, 'comm: exactly two files must be specified')
+        return 1
+      }
 
       const writer = process.stdout.getWriter()
 
@@ -103,8 +107,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       }
 
       try {
-        const fullPath1 = path.resolve(shell.cwd, file1)
-        const fullPath2 = path.resolve(shell.cwd, file2)
+        const fullPath1 = path.resolve(shell.cwd || '/', file1)
+        const fullPath2 = path.resolve(shell.cwd || '/', file2)
 
         const lines1 = await readFileLines(fullPath1)
         const lines2 = await readFileLines(fullPath2)
@@ -125,7 +129,12 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             }
             i++
           } else {
-            const cmp = lines1[i].localeCompare(lines2[j])
+            const line1 = lines1[i]
+            const line2 = lines2[j]
+            if (!line1 || !line2) {
+              break
+            }
+            const cmp = line1.localeCompare(line2)
             if (cmp < 0) {
               if (!suppress1) {
                 await writer.write(new TextEncoder().encode(lines1[i] + '\n'))

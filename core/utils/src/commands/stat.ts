@@ -28,7 +28,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 0
       }
 
-      const argPath = argv.length > 0 && !argv[0].startsWith('-') ? argv[0] : shell.cwd
+      const argPath = argv.length > 0 && argv[0] && !argv[0].startsWith('-') ? argv[0] : shell.cwd
       const fullPath = argPath ? path.resolve(shell.cwd, argPath) : shell.cwd
       const stats = await shell.context.fs.promises.stat(fullPath)
       await writelnStdout(process, terminal, JSON.stringify(stats, null, 2))

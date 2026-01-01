@@ -27,7 +27,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 0
       }
 
-      const destination = argv.length > 0 && !argv[0].startsWith('-') ? argv[0] : shell.cwd
+      const destination = argv.length > 0 && argv[0] && !argv[0].startsWith('-') ? argv[0] : shell.cwd
       const fullPath = destination ? path.resolve(shell.cwd, destination) : shell.cwd
       
       try {

@@ -133,7 +133,6 @@ async function showConnection(
     writelnStdout(process, terminal, `BinaryType: ${ws.binaryType}`)
     writelnStdout(process, terminal, `ReadyState: ${ws.readyState} (${connection.state})`)
   } else {
-    const wt = connection.transport
     writelnStdout(process, terminal, `State:     ${connection.state}`)
   }
 

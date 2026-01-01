@@ -12,7 +12,11 @@
         "VITE_APP_SHOW_DEFAULT_LOGIN", 
         "VITE_INITFS",
         "TURBO_TEAM",
-        "SKIP_BUILD_BIOS"
+        "SKIP_BUILD_BIOS",
+        "VITE_BOOT_DISABLE_LOGO_FIGLET",
+        "VITE_BOOT_DISABLE_LOGO_CONSOLE",
+        "VITE_BOOT_DISABLE_ISSUES",
+        "VITE_BOOT_DISABLE_TIPS"
       ]
     },
     "dev": {
