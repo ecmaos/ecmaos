@@ -11,11 +11,14 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
     terminal,
     options: [
       { name: 'help', type: Boolean, description: kernel.i18n.t('Display help') },
+      { name: 'n', type: Boolean, alias: 'n', description: 'Do not output the trailing newline' },
       { name: 'text', type: String, typeLabel: '{underline text}', defaultOption: true, multiple: true, description: 'The text to print' }
     ],
     run: async (argv: CommandLineOptions, process?: Process) => {
+      const noNewline = (argv.n as boolean) || false
       const text = ((argv.text as string[]) || []).join(' ')
-      const data = new TextEncoder().encode(text + '\n')
+      const output = noNewline ? text : text + '\n'
+      const data = new TextEncoder().encode(output)
 
       if (process) {
         const writer = process.stdout.getWriter()
@@ -25,7 +28,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           writer.releaseLock()
         }
       } else {
-        terminal.write(text + '\n')
+        terminal.write(output)
       }
 
       return 0

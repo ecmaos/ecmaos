@@ -21,6 +21,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       // Get a single writer for the entire operation
       const writer = process.stdout.getWriter()
+      const isTTY = process.stdoutIsTTY ?? false
+      let lastByte: number | undefined
 
       try {
         // If no files specified, read from stdin
@@ -31,10 +33,18 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             while (true) {
               const { done, value } = await reader.read()
               if (done) break
+              if (value.length > 0) {
+                lastByte = value[value.length - 1]
+              }
               await writer.write(value)
             }
           } finally {
             reader.releaseLock()
+          }
+
+          // Add newline at end if outputting to terminal and last byte wasn't newline
+          if (isTTY && lastByte !== undefined && lastByte !== 0x0A) {
+            await writer.write(new Uint8Array([0x0A]))
           }
 
           return 0
@@ -63,7 +73,11 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
                 const data = new Uint8Array(chunkSize)
                 const readSize = Math.min(chunkSize, stat.size - bytesRead)
                 await handle.read(data, 0, readSize, bytesRead)
-                await writer.write(data.subarray(0, readSize))
+                const chunk = data.subarray(0, readSize)
+                if (chunk.length > 0) {
+                  lastByte = chunk[chunk.length - 1]
+                }
+                await writer.write(chunk)
                 bytesRead += readSize
               }
             } else {
@@ -81,7 +95,11 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
                 if (bytesRead > 0) {
                   const bytesToWrite = maxBytes ? Math.min(bytesRead, maxBytes - totalBytesRead) : bytesRead
                   if (bytesToWrite > 0) {
-                    await writer.write(data.subarray(0, bytesToWrite))
+                    const chunk = data.subarray(0, bytesToWrite)
+                    if (chunk.length > 0) {
+                      lastByte = chunk[chunk.length - 1]
+                    }
+                    await writer.write(chunk)
                     totalBytesRead += bytesToWrite
                   }
                 }
@@ -90,6 +108,11 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           } finally {
             kernel.terminal.events.off(TerminalEvents.INTERRUPT, interruptHandler)
           }
+        }
+
+        // Add newline at end if outputting to terminal and last byte wasn't newline
+        if (isTTY && lastByte !== undefined && lastByte !== 0x0A) {
+          await writer.write(new Uint8Array([0x0A]))
         }
 
         return 0

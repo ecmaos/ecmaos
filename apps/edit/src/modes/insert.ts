@@ -9,6 +9,7 @@ export function handleInsertMode(
   switch (event.key) {
     case 'Escape':
       state.mode = 'normal'
+      event.preventDefault()
       break
     case 'Enter':
       {
@@ -42,6 +43,7 @@ export function handleInsertMode(
         }
         state.modified = true
       }
+      event.preventDefault()
       break
     case 'Delete':
       {
@@ -58,26 +60,29 @@ export function handleInsertMode(
       break
     case 'ArrowLeft':
       state.cursorX = Math.max(0, state.cursorX - 1)
+      event.preventDefault()
       break
     case 'ArrowUp':
       if (state.cursorY > 0) {
         state.cursorY--
         const lineLength = state.lines[state.cursorY]?.length ?? 0
-        state.cursorX = Math.min(lineLength, state.cursorX)
+        state.cursorX = lineLength === 0 ? 0 : Math.min(lineLength, state.cursorX)
         if (state.cursorY < state.startLine) {
           state.startLine--
         }
       }
+      event.preventDefault()
       break
     case 'ArrowDown':
       if (state.cursorY < state.lines.length - 1) {
         state.cursorY++
         const lineLength = state.lines[state.cursorY]?.length ?? 0
-        state.cursorX = Math.min(lineLength, state.cursorX)
+        state.cursorX = lineLength === 0 ? 0 : Math.min(lineLength, state.cursorX)
         if (state.cursorY >= state.startLine + terminal.rows - 1) {
           state.startLine++
         }
       }
+      event.preventDefault()
       break
     case 'ArrowRight':
       {
@@ -103,8 +108,9 @@ export function handleInsertMode(
           state.startLine = state.cursorY
         }
         const lineLength = state.lines[state.cursorY]?.length ?? 0
-        state.cursorX = Math.min(lineLength, state.cursorX)
+        state.cursorX = lineLength === 0 ? 0 : Math.min(lineLength, state.cursorX)
       }
+      event.preventDefault()
       break
     case 'PageDown':
       if (state.cursorY < state.lines.length - 1) {
@@ -124,6 +130,7 @@ export function handleInsertMode(
         state.lines[state.cursorY] = currentLine.slice(0, state.cursorX) + event.key + currentLine.slice(state.cursorX)
         state.cursorX++
         state.modified = true
+        event.preventDefault()
       }
       break
   }

@@ -980,7 +980,9 @@ export class Kernel implements IKernel {
       terminal: options.terminal || this.terminal,
       entry: async (params: ProcessEntryParams) => await command.run.call(params, params.pid, params.args),
       stdin: options.stdin,
+      stdinIsTTY: options.stdinIsTTY,
       stdout: options.stdout,
+      stdoutIsTTY: options.stdoutIsTTY,
       stderr: options.stderr
     })
 

@@ -70,7 +70,9 @@ export class Process implements IProcess {
   private _status: ProcessStatus = 'stopped'
   private _stderr: WritableStream<Uint8Array>
   private _stdin: ReadableStream<Uint8Array>
+  private _stdinIsTTY?: boolean
   private _stdout: WritableStream<Uint8Array>
+  private _stdoutIsTTY?: boolean
   private _terminal: Terminal
   private _uid: number
   private _keepAlive: boolean = false
@@ -89,7 +91,9 @@ export class Process implements IProcess {
   get status() { return this._status }
   get stderr() { return this._stderr }
   get stdin() { return this._stdin }
+  get stdinIsTTY() { return this._stdinIsTTY }
   get stdout() { return this._stdout }
+  get stdoutIsTTY() { return this._stdoutIsTTY }
   get terminal() { return this._terminal }
   get uid() { return this._uid }
 
@@ -112,7 +116,9 @@ export class Process implements IProcess {
     this._uid = options.uid
 
     this._stdin = options.stdin || this.terminal.getInputStream()
+    this._stdinIsTTY = options.stdinIsTTY ?? (options.stdin ? false : true)
     this._stdout = options.stdout || this.terminal.stdout || new WritableStream()
+    this._stdoutIsTTY = options.stdoutIsTTY ?? (options.stdout ? false : true)
     this._stderr = options.stderr || this.terminal.stderr || new WritableStream()
     this._fdtable = new FDTable(this._stdin, this._stdout, this._stderr)
 
@@ -210,6 +216,8 @@ export class Process implements IProcess {
       shell: this.shell,
       terminal: this.terminal,
       stdin: this._stdin,
+      stdinIsTTY: this._stdinIsTTY,
+      stdoutIsTTY: this._stdoutIsTTY,
       stdout: this._stdout,
       stderr: this._stderr,
       uid: this.uid

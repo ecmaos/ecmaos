@@ -9,9 +9,11 @@ export function handleReplaceMode(
   switch (event.key) {
     case 'Insert':
       state.mode = 'insert'
+      event.preventDefault()
       break
     case 'Escape':
       state.mode = 'normal'
+      event.preventDefault()
       break
     case 'Enter':
       {
@@ -45,6 +47,7 @@ export function handleReplaceMode(
         }
         state.modified = true
       }
+      event.preventDefault()
       break
     case 'Delete':
       {
@@ -61,26 +64,29 @@ export function handleReplaceMode(
       break
     case 'ArrowLeft':
       state.cursorX = Math.max(0, state.cursorX - 1)
+      event.preventDefault()
       break
     case 'ArrowUp':
       if (state.cursorY > 0) {
         state.cursorY--
         const lineLength = state.lines[state.cursorY]?.length ?? 0
-        state.cursorX = Math.min(lineLength, state.cursorX)
+        state.cursorX = lineLength === 0 ? 0 : Math.min(lineLength, state.cursorX)
         if (state.cursorY < state.startLine) {
           state.startLine--
         }
       }
+      event.preventDefault()
       break
     case 'ArrowDown':
       if (state.cursorY < state.lines.length - 1) {
         state.cursorY++
         const lineLength = state.lines[state.cursorY]?.length ?? 0
-        state.cursorX = Math.min(lineLength, state.cursorX)
+        state.cursorX = lineLength === 0 ? 0 : Math.min(lineLength, state.cursorX)
         if (state.cursorY >= state.startLine + terminal.rows - 1) {
           state.startLine++
         }
       }
+      event.preventDefault()
       break
     case 'ArrowRight':
       {
@@ -106,8 +112,9 @@ export function handleReplaceMode(
           state.startLine = state.cursorY
         }
         const lineLength = state.lines[state.cursorY]?.length ?? 0
-        state.cursorX = Math.min(lineLength, state.cursorX)
+        state.cursorX = lineLength === 0 ? 0 : Math.min(lineLength, state.cursorX)
       }
+      event.preventDefault()
       break
     case 'PageDown':
       if (state.cursorY < state.lines.length - 1) {
@@ -133,6 +140,7 @@ export function handleReplaceMode(
         state.cursorX++
         state.modified = true
       }
+      event.preventDefault()
       break
   }
 }

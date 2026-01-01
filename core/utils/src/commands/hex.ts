@@ -29,6 +29,12 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             return 1
           }
 
+          if (process.stdinIsTTY) {
+            await writelnStderr(process, terminal, 'Usage: hex <file>')
+            await writelnStderr(process, terminal, '   or: <command> | hex')
+            return 1
+          }
+
           const reader = process.stdin.getReader()
           const chunks: Uint8Array[] = []
 

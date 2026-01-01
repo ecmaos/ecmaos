@@ -424,8 +424,10 @@ export class Shell implements IShell {
             finalCommand: string
             args: string[]
             inputStream: ReadableStream<Uint8Array>
+            stdinIsTTY: boolean
             outputStream: WritableStream<Uint8Array>
             errorStream: WritableStream<Uint8Array>
+            stdoutIsTTY: boolean
           }> = []
 
           let prevReadable: ReadableStream<Uint8Array> | undefined
@@ -449,6 +451,7 @@ export class Shell implements IShell {
             const isLastCommand = i === commands.length - 1
 
             let inputStream: ReadableStream<Uint8Array>
+            let stdinIsTTY: boolean = false
             if (isFirstCommand) {
               const inputRedirect = redirections.find(r => r.type === '<')
               if (inputRedirect) {
@@ -457,14 +460,17 @@ export class Shell implements IShell {
                   throw new Error(`File not found: ${sourcePath}`)
                 }
                 inputStream = this.createFileReadStream(sourcePath, env, kernel)
+                stdinIsTTY = false
               } else {
                 inputStream = this._terminal.getInputStream()
+                stdinIsTTY = true
               }
             } else {
               if (!prevReadable) {
                 throw new Error('Pipeline error: missing previous stream')
               }
               inputStream = prevReadable
+              stdinIsTTY = false
             }
 
             let outputStream: WritableStream<Uint8Array>
@@ -551,10 +557,11 @@ export class Shell implements IShell {
               }
             }
 
-            pipelineSetup.push({ finalCommand, args, inputStream, outputStream, errorStream })
+            const stdoutIsTTY = !stdoutRedirect && isLastCommand
+            pipelineSetup.push({ finalCommand, args, inputStream, stdinIsTTY, outputStream, errorStream, stdoutIsTTY })
           }
 
-          const commandPromises = pipelineSetup.map(({ finalCommand, args, inputStream, outputStream, errorStream }) =>
+          const commandPromises = pipelineSetup.map(({ finalCommand, args, inputStream, stdinIsTTY, outputStream, errorStream, stdoutIsTTY }) =>
             this._kernel.execute({
               command: finalCommand,
               args,
@@ -562,7 +569,9 @@ export class Shell implements IShell {
               shell: this,
               terminal: this._terminal,
               stdin: inputStream,
+              stdinIsTTY,
               stdout: outputStream,
+              stdoutIsTTY,
               stderr: errorStream
             })
           )

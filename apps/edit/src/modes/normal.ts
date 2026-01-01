@@ -10,31 +10,48 @@ export async function handleNormalMode(
     case 'Insert':
     case 'i':
       state.mode = 'insert'
+      event.preventDefault()
       break
     case 'r':
       state.mode = 'replace'
+      event.preventDefault()
       break
     case 'ArrowLeft':
     case 'h':
       state.cursorX = Math.max(0, state.cursorX - 1)
+      event.preventDefault()
       break
     case 'ArrowDown':
     case 'j':
       if (state.cursorY < state.lines.length - 1) {
         state.cursorY++
+        const lineLength = state.lines[state.cursorY]?.length ?? 0
+        if (lineLength === 0) {
+          state.cursorX = 0
+        } else {
+          state.cursorX = Math.min(lineLength - 1, state.cursorX)
+        }
         if (state.cursorY >= state.startLine + terminal.rows - 1) {
           state.startLine++
         }
       }
+      event.preventDefault()
       break
     case 'ArrowUp':
     case 'k':
       if (state.cursorY > 0) {
         state.cursorY--
+        const lineLength = state.lines[state.cursorY]?.length ?? 0
+        if (lineLength === 0) {
+          state.cursorX = 0
+        } else {
+          state.cursorX = Math.min(lineLength - 1, state.cursorX)
+        }
         if (state.cursorY < state.startLine) {
           state.startLine--
         }
       }
+      event.preventDefault()
       break
     case 'ArrowRight':
     case 'l':
@@ -46,15 +63,18 @@ export async function handleNormalMode(
           state.cursorX = Math.min(lineLength - 1, state.cursorX + 1)
         }
       }
+      event.preventDefault()
       break
     case 'Home':
       state.cursorX = 0
+      event.preventDefault()
       break
     case 'End':
       {
         const lineLength = state.lines[state.cursorY]?.length ?? 0
         state.cursorX = Math.max(0, lineLength - 1)
       }
+      event.preventDefault()
       break
     case 'PageUp':
       if (state.cursorY > 0) {
@@ -91,11 +111,14 @@ export async function handleNormalMode(
           state.modified = true
         }
       }
+      event.preventDefault()
       break
     case ':':
+      event.preventDefault()
       return true
     case 'Escape':
       state.mode = 'normal'
+      event.preventDefault()
       break
   }
   

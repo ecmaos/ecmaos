@@ -95,8 +95,12 @@ export interface ProcessOptions {
   stderr?: WritableStream<Uint8Array>
   /** Standard input stream */
   stdin?: ReadableStream<Uint8Array>
+  /** Whether stdin is a TTY (interactive terminal) vs a pipe */
+  stdinIsTTY?: boolean
   /** Standard output stream */
   stdout?: WritableStream<Uint8Array>
+  /** Whether stdout is a TTY (interactive terminal) vs a file/pipe */
+  stdoutIsTTY?: boolean
   /** Reference to terminal instance */
   terminal?: Terminal
 }
@@ -127,8 +131,12 @@ export interface ProcessEntryParams {
   terminal: Terminal
   /** Standard input stream */
   stdin?: ReadableStream<Uint8Array>
+  /** Whether stdin is a TTY (interactive terminal) vs a pipe */
+  stdinIsTTY?: boolean
   /** Standard output stream */
   stdout?: WritableStream<Uint8Array>
+  /** Whether stdout is a TTY (interactive terminal) vs a file/pipe */
+  stdoutIsTTY?: boolean
   /** Standard error stream */
   stderr?: WritableStream<Uint8Array>
 }
@@ -200,8 +208,12 @@ export interface Process {
   readonly stderr: WritableStream<Uint8Array>
   /** Get standard input stream */
   readonly stdin: ReadableStream<Uint8Array>
+  /** Whether stdin is a TTY (interactive terminal) vs a pipe */
+  readonly stdinIsTTY?: boolean
   /** Get standard output stream */
   readonly stdout: WritableStream<Uint8Array>
+  /** Whether stdout is a TTY (interactive terminal) vs a file/pipe */
+  readonly stdoutIsTTY?: boolean
   /** Get terminal instance */
   readonly terminal: Terminal
   /** Get user ID */

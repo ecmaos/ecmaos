@@ -1,6 +1,7 @@
+import ansi from 'ansi-escape-sequences'
 import type { Shell, Terminal } from '@ecmaos/types'
 import { loadFile } from './file-ops.js'
-import { renderScreen } from './renderer.js'
+import { renderScreen, resetRenderer } from './renderer.js'
 import { handleNormalMode } from './modes/normal.js'
 import { handleInsertMode } from './modes/insert.js'
 import { handleReplaceMode } from './modes/replace.js'
@@ -34,6 +35,7 @@ export class Editor {
         this.state.lines = ['']
       }
       
+      resetRenderer()
       this.terminal.unlisten()
       
       let active = true
@@ -42,9 +44,9 @@ export class Editor {
         renderScreen(this.terminal, this.state)
         
         if (this.state.mode === 'command') {
-          this.terminal.write('\x1b[' + this.terminal.rows + ';0H')
-          this.terminal.write(':')
-          const input = await this.terminal.readline('', false, true)
+          this.terminal.write('\x1b[' + this.terminal.rows + ';1H')
+          this.terminal.write(ansi.erase.inLine(0))
+          const input = await this.terminal.readline(':', false, true)
           const result = await handleCommandMode(input, this.state, this.shell, this.terminal)
           
           if (result.message) {
@@ -52,6 +54,8 @@ export class Editor {
           }
           
           if (result.exit) {
+            this.terminal.write('\x1b[' + this.terminal.rows + ';1H')
+            this.terminal.write(ansi.erase.inLine(0))
             active = false
           } else {
             this.state.mode = 'normal'
@@ -72,7 +76,9 @@ export class Editor {
         }
       }
       
-      this.terminal.write('\x1b[2J\x1b[H')
+      this.terminal.write('\x1b[2J')
+      this.terminal.write(ansi.cursor.position(1, 1))
+      this.terminal.write(this.terminal.prompt())
       this.terminal.listen()
       
       return 0

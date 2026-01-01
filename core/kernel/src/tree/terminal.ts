@@ -347,36 +347,79 @@ export class Terminal extends XTerm implements ITerminal {
   async readline(prompt: string = '', hide: boolean = false, noListen: boolean = false) {
     let input = ''
     let cursor = 0
-    if (!noListen) this.unlisten()
+    const wasListening = this._keyListener !== undefined
+    this.unlisten()
     this.write(prompt)
     this.focus()
 
     const result = await new Promise<string>((resolve) => {
       const disposable = this.onKey(({ domEvent }) => {
+        domEvent.preventDefault()
+        domEvent.stopPropagation()
+        
         switch(domEvent.key) {
-          case 'Enter': disposable.dispose(); this.write('\n'); resolve(input); break
-          case 'ArrowLeft': this.write(ansi.cursor.back()); cursor--; break
-          case 'ArrowRight': this.write(ansi.cursor.forward()); cursor++; break 
-          case 'Home': this.write(ansi.cursor.horizontalAbsolute(0)); break
-          case 'End': this.write(ansi.cursor.horizontalAbsolute(input.length)); break
-          case 'Escape': disposable.dispose(); resolve(''); break
+          case 'Enter': 
+            disposable.dispose()
+            this.write('\n')
+            resolve(input)
+            break
+          case 'ArrowLeft': 
+            if (cursor > 0) {
+              this.write(ansi.cursor.back())
+              cursor--
+            }
+            break
+          case 'ArrowRight': 
+            if (cursor < input.length) {
+              this.write(ansi.cursor.forward())
+              cursor++
+            }
+            break
+          case 'Home': 
+            this.write(ansi.cursor.horizontalAbsolute(prompt.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length + 1))
+            cursor = 0
+            break
+          case 'End': 
+            this.write(ansi.cursor.horizontalAbsolute(prompt.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length + input.length + 1))
+            cursor = input.length
+            break
+          case 'Escape': 
+            disposable.dispose()
+            resolve('')
+            break
 
           case 'Backspace':
             if (cursor > 0) {
               input = input.slice(0, cursor - 1) + input.slice(cursor)
-              this.write(ansi.cursor.horizontalAbsolute(0) + ansi.erase.inLine(2) + ':' + input)
+              const promptLen = prompt.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+              this.write(ansi.cursor.horizontalAbsolute(promptLen + 1) + ansi.erase.inLine(0) + input)
+              if (cursor < input.length + 1) {
+                this.write(`\x1b[${input.length + 1 - cursor}D`)
+              }
               cursor--
             } else this.write('\x07')
             break
           case 'Delete':
-            if (cursor < input.length) input = input.slice(0, cursor) + input.slice(cursor + 1)
+            if (cursor < input.length) {
+              input = input.slice(0, cursor) + input.slice(cursor + 1)
+              this.write(ansi.erase.inLine(0) + input.slice(cursor))
+              if (input.length - cursor > 0) {
+                this.write(`\x1b[${input.length - cursor}D`)
+              }
+            }
             break
           default:
             if (domEvent.key.length === 1 && !domEvent.ctrlKey && !domEvent.metaKey && !domEvent.altKey) {
               const charCode = domEvent.key.charCodeAt(0)
               if (charCode >= 32 && charCode <= 126) {
                 input = input.slice(0, cursor) + domEvent.key + input.slice(cursor)
-                if (!hide) this.write(ansi.cursor.horizontalAbsolute(0) + ansi.erase.inLine(2) + prompt + input)
+                if (!hide) {
+                  const promptLen = prompt.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+                  this.write(ansi.cursor.horizontalAbsolute(promptLen + 1) + ansi.erase.inLine(0) + input)
+                  if (cursor < input.length - 1) {
+                    this.write(`\x1b[${input.length - cursor - 1}D`)
+                  }
+                }
                 cursor++
               }
             }
@@ -387,7 +430,7 @@ export class Terminal extends XTerm implements ITerminal {
       })
     })
 
-    if (!noListen) this.listen()
+    if (wasListening && !noListen) this.listen()
     return result
   }
 
@@ -637,35 +680,23 @@ export class Terminal extends XTerm implements ITerminal {
         break
       case 'Backspace':
         if (this._cursorPosition > 0) {
-          this._cmd = this._cmd.slice(0, this._cursorPosition - 1) + this._cmd.slice(this._cursorPosition)
+          const tail = this._cmd.slice(this._cursorPosition)
+          this._cmd = this._cmd.slice(0, this._cursorPosition - 1) + tail
           this._cursorPosition--
-          this.write('\b')
-          this.write(this._cmd.slice(this._cursorPosition) + ' ')
-          this.write(`\x1b[${this._cmd.length - this._cursorPosition + 1}D`)
+          this.write('\b' + ansi.erase.inLine(0) + tail)
+          if (tail.length > 0) {
+            this.write(`\x1b[${tail.length}D`)
+          }
         } else this.write('\x07')
         break
       case 'Delete':
         if (this._cursorPosition < this._cmd.length) {
-          this._cmd = this._cmd.slice(0, this._cursorPosition) + this._cmd.slice(this._cursorPosition + 1)
-          this.write(ansi.erase.inLine(2) + ansi.cursor.horizontalAbsolute(0))
-
-          if (this._multiLineMode) {
-            const parts = this._cmd.split('#')
-            if (parts.length > 1) {
-              this.write('> ' + parts[0] + chalk.gray('#' + parts.slice(1).join('#')))
-            } else {
-              this.write('> ' + this._cmd)
-            }
-          } else {
-            const parts = this._cmd.split('#')
-            if (parts.length > 1) {
-              this.write(this.prompt() + parts[0] + chalk.gray('#' + parts.slice(1).join('#')))
-            } else {
-              this.write(this.prompt() + this._cmd)
-            }
+          const tail = this._cmd.slice(this._cursorPosition + 1)
+          this._cmd = this._cmd.slice(0, this._cursorPosition) + tail
+          this.write(ansi.erase.inLine(0) + tail)
+          if (tail.length > 0) {
+            this.write(`\x1b[${tail.length}D`)
           }
-          
-          if (this._cursorPosition < this._cmd.length) this.write(`\x1b[${this._cmd.length - this._cursorPosition}D`)
         }
         break
       case 'ArrowUp':
@@ -766,27 +797,19 @@ export class Terminal extends XTerm implements ITerminal {
       default:
         this._isTabCycling = false // Reset cycling state on other keypresses
         if (key.length === 1) {
+          const wasAtEnd = this._cursorPosition === this._cmd.length
           this._cmd = this._cmd.slice(0, this._cursorPosition) + key + this._cmd.slice(this._cursorPosition)
           this._cursorPosition++
-          this.write(ansi.erase.inLine(2) + ansi.cursor.horizontalAbsolute(0))
 
-          if (this._multiLineMode) {
-            const parts = this._cmd.split('#')
-            if (parts.length > 1) {
-              this.write('> ' + parts[0] + chalk.gray('#' + parts.slice(1).join('#')))
-            } else {
-              this.write('> ' + this._cmd)
-            }
+          if (wasAtEnd) {
+            this.write(key)
           } else {
-            const parts = this._cmd.split('#')
-            if (parts.length > 1) {
-              this.write(this.prompt() + parts[0] + chalk.gray('#' + parts.slice(1).join('#')))
-            } else {
-              this.write(this.prompt() + this._cmd)
+            const tail = this._cmd.slice(this._cursorPosition)
+            this.write(key + tail)
+            if (tail.length > 0) {
+              this.write(`\x1b[${tail.length}D`)
             }
           }
-
-          if (this._cursorPosition < this._cmd.length) this.write(`\x1b[${this._cmd.length - this._cursorPosition}D`)
         }
     }
   }

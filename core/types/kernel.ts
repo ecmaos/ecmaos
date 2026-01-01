@@ -253,7 +253,9 @@ export interface KernelExecuteOptions {
   shell: Shell
   terminal?: Terminal
   stdin?: ReadableStream<Uint8Array>
+  stdinIsTTY?: boolean
   stdout?: WritableStream<Uint8Array>
+  stdoutIsTTY?: boolean
   stderr?: WritableStream<Uint8Array>
 }
 
