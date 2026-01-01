@@ -640,14 +640,35 @@ export class Kernel implements IKernel {
       } else {
         if (import.meta.env['VITE_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold('Default Login: root / root\n'))
 
-        this.terminal.writeln(`${Intl.DateTimeFormat(this.memory.config.get('locale') as string || 'en-US', {
+        // TODO: Pretty US/NA-centric, but it's a simple start
+        const holidayEmojis: Record<string, string> = {
+          '1-1': '🎉 ', // New Year's Day
+          '2-14': '💝 ', // Valentine's Day
+          '3-17': '☘️ ', // St. Patrick's Day
+          '4-1': '🎭 ', // April Fool's Day
+          '5-5': '🇲🇽', // Cinco de Mayo
+          '6-19': '✊ ', // Juneteenth (TODO: Dark skin tone doesn't work as it uses a modifier)
+          '7-4': '🇺🇸', // Independence Day
+          '10-31': '🎃 ', // Halloween
+          '11-11': '🪖 ', // Veterans Day
+          '11-24': '🦃 ', // Thanksgiving
+          '12-25': '🎄 ', // Christmas
+          '12-31': '🎇 ', // New Year's Eve
+        }
+
+        const now = new Date()
+        const monthDay = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+        const holidayEmoji = holidayEmojis[monthDay] || '🗓️ '
+        const formattedDate = Intl.DateTimeFormat(this.memory.config.get('locale') as string || 'en-US', {
           year: 'numeric',
           month: '2-digit',
           day: '2-digit',
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit'
-        }).format(new Date())}`)
+        }).format(now)
+
+        this.terminal.writeln(`${holidayEmoji} ${formattedDate}`)
 
         // Display issue file if it exists
         const issue = await this.filesystem.fs.exists('/etc/issue')

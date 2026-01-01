@@ -51,6 +51,7 @@ import { createCommand as createTest } from './commands/test.js'
 import { createCommand as createTr } from './commands/tr.js'
 import { createCommand as createTrue } from './commands/true.js'
 import { createCommand as createUniq } from './commands/uniq.js'
+import { createCommand as createUser } from './commands/user.js'
 import { createCommand as createWc } from './commands/wc.js'
 import { createCommand as createWhich } from './commands/which.js'
 import { createCommand as createWhoami } from './commands/whoami.js'
@@ -86,6 +87,7 @@ export { createCommand as createSort } from './commands/sort.js'
 export { createCommand as createTest } from './commands/test.js'
 export { createCommand as createTr } from './commands/tr.js'
 export { createCommand as createUniq } from './commands/uniq.js'
+export { createCommand as createUser } from './commands/user.js'
 export { createCommand as createWc } from './commands/wc.js'
 export { createCommand as createWhich } from './commands/which.js'
 export { createCommand as createSockets } from './commands/sockets.js'
@@ -140,6 +142,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     tr: createTr(kernel, shell, terminal),
     true: createTrue(kernel, shell, terminal),
     uniq: createUniq(kernel, shell, terminal),
+    user: createUser(kernel, shell, terminal),
     wc: createWc(kernel, shell, terminal),
     which: createWhich(kernel, shell, terminal),
     whoami: createWhoami(kernel, shell, terminal)
