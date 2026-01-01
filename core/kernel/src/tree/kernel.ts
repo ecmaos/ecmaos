@@ -37,6 +37,7 @@ import { Memory } from '#memory.ts'
 import { Process, ProcessManager } from '#processes.ts'
 import { Protocol } from '#protocol.ts'
 import { DefaultServiceOptions, Service } from '#service.ts'
+import { Sockets } from '#sockets.ts'
 import { Shell } from '#shell.ts'
 import { Storage } from '#storage.ts'
 import { Users } from '#users.ts'
@@ -171,6 +172,8 @@ export class Kernel implements IKernel {
   public readonly processes: ProcessManager
   /** Protocol handler service */
   public readonly protocol: Protocol
+  /** Socket connection management service */
+  public readonly sockets: Sockets
   /** Map of available screensavers */
   public readonly screensavers: Map<string, { default: (options: { terminal: ITerminal }) => Promise<void>, exit: () => Promise<void> }>
   /** Service management system */
@@ -219,6 +222,7 @@ export class Kernel implements IKernel {
     this.modules = new Map()
     this.processes = new ProcessManager()
     this.protocol = new Protocol({ kernel: this })
+    this.sockets = new Sockets({ kernel: this })
     this.screensavers = new Map()
     this.service = new Service({ kernel: this, ...this.options.service })
     this.shell = new Shell({ kernel: this, uid: 0, gid: 0 })

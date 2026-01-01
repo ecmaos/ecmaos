@@ -32,6 +32,7 @@ import type {
   Service,
   ServiceOptions,
   Shell,
+  Sockets,
   StorageProvider,
   Terminal,
   Users,
@@ -123,6 +124,9 @@ export interface Kernel {
 
   /** Protocol handler service */
   readonly protocol: Protocol
+
+  /** Socket connection management service */
+  readonly sockets: Sockets
 
   /** Map of available screensavers */
   readonly screensavers: Map<string, {

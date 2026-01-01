@@ -18,7 +18,9 @@ import { createCommand as createLn } from './commands/ln.js'
 import { createCommand as createLs } from './commands/ls.js'
 import { createCommand as createMkdir } from './commands/mkdir.js'
 import { createCommand as createMv } from './commands/mv.js'
+import { createCommand as createNc } from './commands/nc.js'
 import { createCommand as createPwd } from './commands/pwd.js'
+import { createCommand as createSockets } from './commands/sockets.js'
 import { createCommand as createRm } from './commands/rm.js'
 import { createCommand as createRmdir } from './commands/rmdir.js'
 import { createCommand as createStat } from './commands/stat.js'
@@ -86,6 +88,7 @@ export { createCommand as createTr } from './commands/tr.js'
 export { createCommand as createUniq } from './commands/uniq.js'
 export { createCommand as createWc } from './commands/wc.js'
 export { createCommand as createWhich } from './commands/which.js'
+export { createCommand as createSockets } from './commands/sockets.js'
 
 /**
  * Creates all coreutils commands.
@@ -105,6 +108,8 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     mkdir: createMkdir(kernel, shell, terminal),
     mv: createMv(kernel, shell, terminal),
     pwd: createPwd(kernel, shell, terminal),
+    nc: createNc(kernel, shell, terminal),
+    sockets: createSockets(kernel, shell, terminal),
     rm: createRm(kernel, shell, terminal),
     rmdir: createRmdir(kernel, shell, terminal),
     stat: createStat(kernel, shell, terminal),

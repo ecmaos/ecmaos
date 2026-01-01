@@ -133,10 +133,11 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 > [/core/kernel](/core/kernel)
 
 - The kernel ties together the various components of the system into a cohesive whole
-  - Authentication (WebAuthn)
+  - Authentication (Passwords, Passkeys, Credentials)
   - Components (Web Components/Custom Elements)
-  - Devices
-  - DOM
+  - Coreutils (Built-in commands)
+  - Devices (Web Hardware APIs)
+  - DOM (DOM Utilities and Interfaces)
   - Events (CustomEvents)
   - Filesystem (ZenFS)
   - Internationalization (i18next)
@@ -147,13 +148,14 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
   - Protocol Handlers (web+ecmaos://...)
   - Service Worker Manager
   - Shell
+  - Sockets (WebSocket, WebTransport)
   - Storage (IndexedDB, localStorage, sessionStorage, etc.)
   - Terminal (xterm.js)
   - User Manager
   - WASM Loader
-  - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps
+  <!-- - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps -->
   - Window Manager (WinBox)
-  - Workers (Web Workers)
+  - Web Workers
 
 ### Metal
 
