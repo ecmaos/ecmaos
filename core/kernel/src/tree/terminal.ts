@@ -414,10 +414,14 @@ export class Terminal extends XTerm implements ITerminal {
               if (charCode >= 32 && charCode <= 126) {
                 input = input.slice(0, cursor) + domEvent.key + input.slice(cursor)
                 if (!hide) {
-                  const promptLen = prompt.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
-                  this.write(ansi.cursor.horizontalAbsolute(promptLen + 1) + ansi.erase.inLine(0) + input)
-                  if (cursor < input.length - 1) {
-                    this.write(`\x1b[${input.length - cursor - 1}D`)
+                  if (cursor === input.length - 1) {
+                    this.write(domEvent.key)
+                  } else {
+                    const promptLen = prompt.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+                    this.write(ansi.cursor.horizontalAbsolute(promptLen + 1) + ansi.erase.inLine(0) + input)
+                    if (cursor < input.length - 1) {
+                      this.write(`\x1b[${input.length - cursor - 1}D`)
+                    }
                   }
                 }
                 cursor++
