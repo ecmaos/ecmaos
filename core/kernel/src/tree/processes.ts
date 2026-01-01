@@ -148,6 +148,10 @@ export class Process implements IProcess {
   }
 
   async cleanup() {
+    if (this._keepAlive && this.command) {
+      await this.removePidFile()
+    }
+
     this.events.clear()
     this.kernel.processes.remove(this.pid)
 
@@ -199,6 +203,44 @@ export class Process implements IProcess {
 
   keepAlive() {
     this._keepAlive = true
+    this.createPidFile().catch(err => {
+      this.kernel.log.warn(`Failed to create PID file: ${err instanceof Error ? err.message : String(err)}`)
+    })
+  }
+
+  private async createPidFile() {
+    if (!this.command) return
+
+    const pidDir = `/run/${this.command}`
+    const pidFile = `${pidDir}/${this.pid}.pid`
+
+    try {
+      if (!(await this.kernel.filesystem.fs.exists(pidDir))) {
+        await this.kernel.filesystem.fs.mkdir(pidDir, { recursive: true, mode: 0o755 })
+      }
+      await this.kernel.filesystem.fs.writeFile(pidFile, `${this.pid}\n`)
+    } catch (err) {
+      this.kernel.log.warn(`Could not write PID file ${pidFile}: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  private async removePidFile() {
+    if (!this.command) return
+
+    const pidFile = `/run/${this.command}/${this.pid}.pid`
+    try {
+      if (await this.kernel.filesystem.fs.exists(pidFile)) {
+        await this.kernel.filesystem.fs.unlink(pidFile)
+
+        const pidDir = `/run/${this.command}`
+        const entries = await this.kernel.filesystem.fs.readdir(pidDir)
+        if (entries.length === 0) {
+          await this.kernel.filesystem.fs.rmdir(pidDir)
+        }
+      }
+    } catch (err) {
+      this.kernel.log.warn(`Could not remove PID file ${pidFile}: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   async start() {

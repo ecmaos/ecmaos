@@ -500,6 +500,25 @@ export class Kernel implements IKernel {
       filesystemSpan.setAttribute('filesystem.paths_created', requiredPaths.length)
       filesystemSpan.end()
 
+      if (await this.filesystem.fs.exists('/run')) {
+        const entries = await this.filesystem.fs.readdir('/run')
+        for (const entry of entries) {
+          const entryPath = `/run/${entry}`
+          try {
+            const stat = await this.filesystem.fs.stat(entryPath)
+            if (stat.isFile()) {
+              await this.filesystem.fs.unlink(entryPath)
+            } else if (stat.isDirectory()) {
+              const subEntries = await this.filesystem.fs.readdir(entryPath)
+              for (const subEntry of subEntries) {
+                await this.filesystem.fs.unlink(`${entryPath}/${subEntry}`)
+              }
+              await this.filesystem.fs.rmdir(entryPath)
+            }
+          } catch {}
+        }
+      }
+
       // Log to /var/log/kernel.log
       this.log.attachTransport((logObj) => {
         if (!logObj._meta) return

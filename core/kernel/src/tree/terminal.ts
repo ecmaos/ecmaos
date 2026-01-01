@@ -387,7 +387,6 @@ export class Terminal extends XTerm implements ITerminal {
             disposable.dispose()
             resolve('')
             break
-
           case 'Backspace':
             if (cursor > 0) {
               input = input.slice(0, cursor - 1) + input.slice(cursor)
