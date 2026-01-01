@@ -25,7 +25,7 @@ export class TerminalCommand implements ITerminalCommand {
     description: string
     kernel: Kernel
     options: parseUsage.OptionDefinition[]
-    run: (argv: CommandLineOptions, process?: Process) => Promise<number | void>
+    run: (argv: CommandLineOptions, process?: Process, rawArgv?: string[]) => Promise<number | void>
     shell: Shell
     terminal: Terminal
     stdin?: ReadableStream<Uint8Array>
@@ -46,15 +46,19 @@ export class TerminalCommand implements ITerminalCommand {
       if (argv === null) return 1
       const process = this.kernel.processes.get(pid) as Process | undefined
       try {
-        const parsed = parseArgs(this.options, { argv })
+        const parsed = parseArgs(this.options, { argv, stopAtFirstUnknown: true })
         if (parsed.help) {
           await writelnStdout(process, this.terminal, this.usage)
           return 0
         }
 
-        return await run(parsed, process)
+        return await run(parsed, process, argv)
       } catch (error) {
-        await writelnStderr(process, this.terminal, chalk.red(String(error)))
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        if (errorMessage.includes('UNKNOWN_OPTION') || errorMessage.includes('Unknown option')) {
+          return await run({} as CommandLineOptions, process, argv)
+        }
+        await writelnStderr(process, this.terminal, chalk.red(errorMessage))
         return 1
       }
     }

@@ -29,6 +29,18 @@ import { createCommand as createPasskey } from './commands/passkey.js'
 import { createCommand as createSed } from './commands/sed.js'
 import { createCommand as createTee } from './commands/tee.js'
 import { createCommand as createTail } from './commands/tail.js'
+import { createCommand as createBasename } from './commands/basename.js'
+import { createCommand as createCut } from './commands/cut.js'
+import { createCommand as createDate } from './commands/date.js'
+import { createCommand as createDiff } from './commands/diff.js'
+import { createCommand as createDirname } from './commands/dirname.js'
+import { createCommand as createFind } from './commands/find.js'
+import { createCommand as createSort } from './commands/sort.js'
+import { createCommand as createTest } from './commands/test.js'
+import { createCommand as createTr } from './commands/tr.js'
+import { createCommand as createUniq } from './commands/uniq.js'
+import { createCommand as createWc } from './commands/wc.js'
+import { createCommand as createWhich } from './commands/which.js'
 
 // Export individual command factories
 export { createCommand as createCat } from './commands/cat.js'
@@ -51,6 +63,18 @@ export { createCommand as createLess } from './commands/less.js'
 export { createCommand as createSed } from './commands/sed.js'
 export { createCommand as createTee } from './commands/tee.js'
 export { createCommand as createTail } from './commands/tail.js'
+export { createCommand as createBasename } from './commands/basename.js'
+export { createCommand as createCut } from './commands/cut.js'
+export { createCommand as createDate } from './commands/date.js'
+export { createCommand as createDiff } from './commands/diff.js'
+export { createCommand as createDirname } from './commands/dirname.js'
+export { createCommand as createFind } from './commands/find.js'
+export { createCommand as createSort } from './commands/sort.js'
+export { createCommand as createTest } from './commands/test.js'
+export { createCommand as createTr } from './commands/tr.js'
+export { createCommand as createUniq } from './commands/uniq.js'
+export { createCommand as createWc } from './commands/wc.js'
+export { createCommand as createWhich } from './commands/which.js'
 
 /**
  * Creates all coreutils commands.
@@ -79,7 +103,19 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     passkey: createPasskey(kernel, shell, terminal),
     sed: createSed(kernel, shell, terminal),
     tail: createTail(kernel, shell, terminal),
-    tee: createTee(kernel, shell, terminal)
+    tee: createTee(kernel, shell, terminal),
+    basename: createBasename(kernel, shell, terminal),
+    cut: createCut(kernel, shell, terminal),
+    date: createDate(kernel, shell, terminal),
+    diff: createDiff(kernel, shell, terminal),
+    dirname: createDirname(kernel, shell, terminal),
+    find: createFind(kernel, shell, terminal),
+    sort: createSort(kernel, shell, terminal),
+    test: createTest(kernel, shell, terminal),
+    tr: createTr(kernel, shell, terminal),
+    uniq: createUniq(kernel, shell, terminal),
+    wc: createWc(kernel, shell, terminal),
+    which: createWhich(kernel, shell, terminal)
   }
 }
 
