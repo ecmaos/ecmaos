@@ -28,7 +28,7 @@ Options for 'mod':
   -g, --gid GID        Change group ID
   -p, --password       Change password (will prompt)
 
-  --help               display this help and exit`
+  --help               Display this help and exit`
   writelnStdout(process, terminal, usage)
 }
 

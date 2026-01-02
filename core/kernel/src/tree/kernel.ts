@@ -642,13 +642,13 @@ export class Kernel implements IKernel {
 
         // TODO: Pretty US/NA-centric, but it's a simple start
         const holidayEmojis: Record<string, string> = {
-          '1-1': '🎉 ', // New Year's Day
-          '2-14': '💝 ', // Valentine's Day
-          '3-17': '☘️ ', // St. Patrick's Day
-          '4-1': '🎭 ', // April Fool's Day
-          '5-5': '🇲🇽', // Cinco de Mayo
-          '6-19': '✊ ', // Juneteenth (TODO: Dark skin tone doesn't work as it uses a modifier)
-          '7-4': '🇺🇸', // Independence Day
+          '01-01': '🎉 ', // New Year's Day
+          '02-14': '💝 ', // Valentine's Day
+          '03-17': '☘️ ', // St. Patrick's Day
+          '04-01': '🎭 ', // April Fool's Day
+          '05-05': '🇲🇽', // Cinco de Mayo
+          '06-19': '✊ ', // Juneteenth (TODO: Dark skin tone doesn't work as it uses a modifier)
+          '07-04': '🇺🇸', // Independence Day
           '10-31': '🎃 ', // Halloween
           '11-11': '🪖 ', // Veterans Day
           '11-24': '🦃 ', // Thanksgiving
