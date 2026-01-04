@@ -638,7 +638,7 @@ export class Kernel implements IKernel {
         authSpan.setAttribute('auth.username', this.options.credentials.username)
         authSpan.end()
       } else {
-        if (import.meta.env['VITE_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold('Default Login: root / root\n'))
+        if (import.meta.env['VITE_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold(`⚠️  ${this.i18n.t('kernel.defaultLogin', 'Default Login')}: root / root\n`))
 
         // TODO: Pretty US/NA-centric, but it's a simple start
         const holidayEmojis: Record<string, string> = {
@@ -646,9 +646,9 @@ export class Kernel implements IKernel {
           '02-14': '💝 ', // Valentine's Day
           '03-17': '☘️ ', // St. Patrick's Day
           '04-01': '🎭 ', // April Fool's Day
-          '05-05': '🇲🇽', // Cinco de Mayo
+          '05-05': '🇲🇽',  // Cinco de Mayo
           '06-19': '✊ ', // Juneteenth (TODO: Dark skin tone doesn't work as it uses a modifier)
-          '07-04': '🇺🇸', // Independence Day
+          '07-04': '🇺🇸',  // Independence Day
           '10-31': '🎃 ', // Halloween
           '11-11': '🪖 ', // Veterans Day
           '11-24': '🦃 ', // Thanksgiving
