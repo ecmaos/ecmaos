@@ -254,15 +254,13 @@ export class Shell implements IShell {
     // Execute the command
     try {
       // Parse the command to get command name and args
-      const [commandName, ...args] = shellQuote.parse(command, this.envObject) as string[]
-      if (!commandName) {
-        return ''
-      }
+      const parsedArgs = shellQuote.parse(command, this.envObject)
+      const [commandName, ...rawArgs] = parsedArgs
+      if (!commandName || typeof commandName !== 'string') return ''
       
+      const args = await this.expandGlobArgs(rawArgs)
       const finalCommand = await this.resolveCommand(commandName)
-      if (!finalCommand) {
-        return ''
-      }
+      if (!finalCommand) return ''
       
       // Execute the command
       await this._kernel.execute({
@@ -363,6 +361,96 @@ export class Shell implements IShell {
     return result
   }
 
+  /**
+   * Expands a glob pattern to matching file paths
+   * @param pattern - Glob pattern (e.g., "bin/*", "*.js")
+   * @returns Array of matching file paths
+   */
+  private async expandGlob(pattern: string): Promise<string[]> {
+    if (!pattern.includes('*') && !pattern.includes('?')) {
+      return [pattern]
+    }
+
+    const lastSlashIndex = pattern.lastIndexOf('/')
+    const searchDir = lastSlashIndex !== -1
+      ? path.resolve(this.cwd, pattern.substring(0, lastSlashIndex + 1))
+      : this.cwd
+    const globPattern = lastSlashIndex !== -1
+      ? pattern.substring(lastSlashIndex + 1)
+      : pattern
+
+    try {
+      const entries = await this.context.fs.promises.readdir(searchDir)
+      const regexPattern = globPattern
+        .replace(/\./g, '\\.')
+        .replace(/\*/g, '.*')
+        .replace(/\?/g, '.')
+      const regex = new RegExp(`^${regexPattern}$`)
+      
+      const matches = entries.filter(entry => regex.test(entry))
+      
+      if (lastSlashIndex !== -1) {
+        const dirPart = pattern.substring(0, lastSlashIndex + 1)
+        return matches.map(match => dirPart + match)
+      }
+      return matches
+    } catch {
+      // If directory doesn't exist or can't be read, return empty array
+      // This matches standard shell behavior where non-matching globs are passed as-is
+      return []
+    }
+  }
+
+  /**
+   * Expands glob objects from shell-quote.parse() to actual file paths
+   * @param args - Array of arguments from shell-quote.parse() that may contain glob objects, strings, or comments
+   * @returns Array of strings with glob patterns expanded
+   */
+  private async expandGlobArgs(args: Array<unknown>): Promise<string[]> {
+    const expandedArgs: string[] = []
+    
+    for (const arg of args) {
+      // Skip comments and other non-string/non-glob entries
+      if (typeof arg === 'object' && arg !== null) {
+        // Check if this is a glob object from shell-quote
+        if ('op' in arg && (arg as { op: string }).op === 'glob' && 'pattern' in arg && typeof (arg as { pattern?: string }).pattern === 'string') {
+          const pattern = (arg as { pattern: string }).pattern
+          const expanded = await this.expandGlob(pattern)
+          if (expanded.length === 0) {
+            // If no matches, pass the pattern as-is (standard shell behavior)
+            expandedArgs.push(pattern)
+          } else {
+            expandedArgs.push(...expanded)
+          }
+        } else if ('comment' in arg) {
+          // Skip comment entries
+          continue
+        } else {
+          // Other object types - convert to string
+          expandedArgs.push(String(arg))
+        }
+      } else if (typeof arg === 'string') {
+        // Regular string argument - check if it contains glob characters
+        // Only expand if it's not quoted (shell-quote handles quoted strings differently)
+        if (arg.includes('*') || arg.includes('?')) {
+          const expanded = await this.expandGlob(arg)
+          if (expanded.length === 0) {
+            expandedArgs.push(arg)
+          } else {
+            expandedArgs.push(...expanded)
+          }
+        } else {
+          expandedArgs.push(arg)
+        }
+      } else {
+        // Other types - convert to string
+        expandedArgs.push(String(arg))
+      }
+    }
+    
+    return expandedArgs
+  }
+
   private parseRedirection(commandLine: string): { 
     command: string, 
     redirections: { type: '>' | '>>' | '<' | '2>' | '2>>' | '2>&1' | '&>' | '&>>', target: string }[] 
@@ -441,8 +529,12 @@ export class Shell implements IShell {
             commandLine = this.expandTilde(commandLine)
 
             const { command, redirections } = this.parseRedirection(commandLine)
-            const [commandName, ...args] = shellQuote.parse(command, this.envObject) as string[]
-            if (!commandName) return Infinity
+            const parsedArgs = shellQuote.parse(command, this.envObject)
+            const [commandName, ...rawArgs] = parsedArgs
+            if (!commandName || typeof commandName !== 'string') return Infinity
+
+            // Expand glob patterns in arguments
+            const args = await this.expandGlobArgs(rawArgs)
 
             const finalCommand = await this.resolveCommand(commandName)
             if (!finalCommand) return Infinity

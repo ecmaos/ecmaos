@@ -7,7 +7,9 @@ function printUsage(process: Process | undefined, terminal: Terminal): void {
   const usage = `Usage: rm [OPTION]... FILE...
 Remove (unlink) the FILE(s).
 
-  --help  display this help and exit`
+  -f, --force     ignore nonexistent files and arguments, never prompt
+  -r, -R, --recursive   remove directories and their contents recursively
+  --help          display this help and exit`
   writelnStderr(process, terminal, usage)
 }
 
@@ -32,10 +34,32 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 0
       }
 
+      let recursive = false
+      let force = false
       const pathArray: string[] = []
+      
       for (const arg of argv) {
         if (arg.startsWith('-') && arg !== '--') {
-          if (arg !== '-f' && arg !== '-r' && arg !== '-rf' && arg !== '-fr') {
+          // Handle combined flags like -rf, -fr, -rR, etc.
+          if (arg === '--recursive' || arg === '-R') {
+            recursive = true
+          } else if (arg === '--force') {
+            force = true
+          } else if (arg.length > 1) {
+            // Parse individual flags in combined options like -rf
+            for (let i = 1; i < arg.length; i++) {
+              const flag = arg[i]
+              if (flag === 'r' || flag === 'R') {
+                recursive = true
+              } else if (flag === 'f') {
+                force = true
+              } else {
+                await writelnStderr(process, terminal, `rm: invalid option -- '${flag}'`)
+                await writelnStderr(process, terminal, "Try 'rm --help' for more information.")
+                return 1
+              }
+            }
+          } else {
             await writelnStderr(process, terminal, `rm: invalid option -- '${arg.slice(1)}'`)
             await writelnStderr(process, terminal, "Try 'rm --help' for more information.")
             return 1
@@ -104,24 +128,42 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       for (const target of expandedPaths) {
         if (!target || typeof target !== 'string') {
-          await writelnStderr(process, terminal, `rm: ${String(target)}: No such file or directory`)
-          hasError = true
+          if (!force) {
+            await writelnStderr(process, terminal, `rm: ${String(target)}: No such file or directory`)
+            hasError = true
+          }
           continue
         }
 
         const fullPath = path.resolve(shell.cwd, target)
 
         try {
-          const stat = await shell.context.fs.promises.stat(fullPath)
-          if (stat.isDirectory()) {
-            await shell.context.fs.promises.rmdir(fullPath)
-          } else {
-            await shell.context.fs.promises.unlink(fullPath)
+          // Check if it's a directory to validate recursive flag requirement
+          try {
+            const stat = await shell.context.fs.promises.stat(fullPath)
+            if (stat.isDirectory() && !recursive) {
+              await writelnStderr(process, terminal, `rm: ${target}: is a directory`)
+              hasError = true
+              continue
+            }
+          } catch (statError) {
+            // If stat fails, the file might not exist
+            // If force is enabled, we'll try to remove it anyway (rm will handle it)
+            // If force is not enabled, we'll let rm handle the error
           }
+
+          // Use fs.promises.rm with appropriate options
+          await shell.context.fs.promises.rm(fullPath, {
+            recursive: recursive,
+            force: force
+          })
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error)
-          await writelnStderr(process, terminal, `rm: ${target}: ${errorMessage}`)
-          hasError = true
+          // If force is enabled, ignore errors
+          if (!force) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            await writelnStderr(process, terminal, `rm: ${target}: ${errorMessage}`)
+            hasError = true
+          }
         }
       }
 

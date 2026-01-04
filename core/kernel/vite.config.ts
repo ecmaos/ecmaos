@@ -4,6 +4,7 @@ import path from 'path'
 import { defineConfig, ViteUserConfig } from 'vitest/config'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import dts from 'vite-plugin-dts'
+import type { ViteDevServer } from 'vite'
 
 import pkg from './package.json'
 
@@ -12,8 +13,28 @@ const xtermVersion = xterm.replace('^', '').replace('~', '')
 const zenfs = pkg.dependencies['@zenfs/core']
 const zenfsVersion = zenfs.replace('^', '').replace('~', '')
 
+const gzipFixPlugin = () => {
+  const fixHeader = (server: ViteDevServer) => {
+    server.middlewares.use((req, res, next) => {
+      if (req.url?.includes(".gz")) {
+        res.setHeader("Content-Type", "application/x-gzip")
+        // `res.removeHeader("Content-Encoding")` does not work
+        res.setHeader("Content-Encoding", "invalid-value")
+      }
+      next()
+    })
+  }
+
+  return {
+    name: "gzip-fix-plugin",
+    configureServer: fixHeader,
+    configurePreviewServer: fixHeader
+  }
+}
+
 export default defineConfig({
   plugins: [
+    gzipFixPlugin(),
     nodePolyfills({
       protocolImports: true,
       globals: { Buffer: true, global: true, process: true },

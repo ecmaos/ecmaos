@@ -347,36 +347,6 @@ function convertHtmlToText(
   return result
 }
 
-
-function resolveManLink(
-  link: string,
-  currentPackage: PackagePath,
-  currentManpath: string
-): string | null {
-  if (link.startsWith('http://') || link.startsWith('https://') || link.startsWith('mailto:')) return null
-
-  if (link.startsWith('#')) return null
-
-  if (link.startsWith('./') || link.startsWith('../')) {
-    const currentDir = currentPackage.scope
-      ? `@${currentPackage.scope}/${currentPackage.package}`
-      : currentPackage.package
-    
-    const resolved = path.resolve(currentManpath, currentDir, link)
-    const relative = path.relative(currentManpath, resolved)
-    
-    if (relative && !relative.startsWith('..')) return relative
-  }
-
-  if (link.includes('/')) return link
-
-  const currentDir = currentPackage.scope
-    ? `@${currentPackage.scope}/${currentPackage.package}`
-    : currentPackage.package
-  
-  return `${currentDir}/${link}`
-}
-
 async function displayManPage(
   terminal: Terminal,
   content: string,

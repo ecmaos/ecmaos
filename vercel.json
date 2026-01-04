@@ -2,5 +2,20 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "[ -f ~/emsdk/emsdk_env.sh ] && source ~/emsdk/emsdk_env.sh ; pnpm build --filter @ecmaos/coreutils --filter @ecmaos/kernel",
   "installCommand": "yum -y install gcc-c++ cairo-devel pango-devel libjpeg-turbo-devel giflib-devel && pnpm install && ./utils/install-emsdk.sh",
-  "outputDirectory": "core/kernel/dist"
+  "outputDirectory": "core/kernel/dist",
+  "headers": [
+    {
+      "source": "/(.*).gz",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/octet-stream"
+        },
+        {
+          "key": "Content-Encoding",
+          "value": "invalid-value"
+        }
+      ]
+    }
+  ]
 }

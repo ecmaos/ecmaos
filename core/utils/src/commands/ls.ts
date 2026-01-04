@@ -29,11 +29,36 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 0
       }
 
-      const target = argv.length > 0 && argv[0] !== undefined && !argv[0].startsWith('-') ? argv[0] : shell.cwd
-      const fullPath = target ? path.resolve(shell.cwd, target === '' ? '.' : target) : shell.cwd
-      const stats = await shell.context.fs.promises.stat(fullPath)
-      const entries: string[] = stats.isDirectory() ? await shell.context.fs.promises.readdir(fullPath) : [fullPath]
+      // Filter out options/flags and get target paths
+      const targets = argv.length > 0 
+        ? argv.filter(arg => !arg.startsWith('-'))
+        : [shell.cwd]
+
+      if (targets.length === 0) targets.push(shell.cwd)
+
       const descriptions = kernel.filesystem.descriptions(kernel.i18n.t)
+
+      // Process each target and collect all entries
+      // We'll determine if each entry is a directory when we stat it later
+      const allEntries: Array<{ fullPath: string, entry: string }> = []
+      
+      for (const target of targets) {
+        const fullPath = path.resolve(shell.cwd, target === '' ? '.' : target)
+        try {
+          const stats = await shell.context.fs.promises.stat(fullPath)
+          if (stats.isDirectory()) {
+            // For directories, list all contents
+            const dirEntries = await shell.context.fs.promises.readdir(fullPath)
+            for (const entry of dirEntries) allEntries.push({ fullPath, entry })
+          } else {
+            // For files, add the file itself
+            allEntries.push({ fullPath: path.dirname(fullPath), entry: path.basename(fullPath) })
+          }
+        } catch {
+          // If target doesn't exist, skip it (standard ls behavior)
+          continue
+        }
+      }
 
       const getModeType = (stats: Awaited<ReturnType<typeof shell.context.fs.promises.stat>>) => {
         let type = '-'
@@ -85,9 +110,9 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return ''
       }
 
-      const filesMap = await Promise.all(entries
-        .map(async entry => {
-          const target = path.resolve(fullPath, entry)
+      const filesMap = await Promise.all(allEntries
+        .map(async ({ fullPath: entryFullPath, entry }) => {
+          const target = path.resolve(entryFullPath, entry)
           try {
             let linkTarget: string | null = null
             let linkStats = null
@@ -119,9 +144,9 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         .filter(entry => entry && entry.stats && !entry.stats.isDirectory())
         .filter((entry): entry is NonNullable<typeof entry> => entry !== null && entry !== undefined)
 
-      const directoryMap = await Promise.all(entries
-        .map(async entry => {
-          const target = path.resolve(fullPath, entry)
+      const directoryMap = await Promise.all(allEntries
+        .map(async ({ fullPath: entryFullPath, entry }) => {
+          const target = path.resolve(entryFullPath, entry)
           try {
             let linkTarget: string | null = null
             let linkStats = null
@@ -154,7 +179,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         .filter((entry, index, self) => self.findIndex(e => e?.name === entry?.name) === index)
         .filter((entry): entry is NonNullable<typeof entry> => entry !== null && entry !== undefined)
 
-      const isDevDirectory = fullPath.startsWith('/dev')
+      // Check if any entry is in /dev directory
+      const isDevDirectory = allEntries.some(e => e.fullPath.startsWith('/dev'))
       const columns = isDevDirectory ? ['Name', 'Mode', 'Owner', 'Info'] : ['Name', 'Size', 'Modified', 'Mode', 'Owner', 'Info']
 
       const directoryRows = directories.sort((a, b) => a.name.localeCompare(b.name)).map(directory => {
@@ -209,7 +235,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           const linkInfo = getLinkInfo(file.linkTarget, file.linkStats, file.stats)
           if (linkInfo) return linkInfo
           
-          if (descriptions.has(path.resolve(fullPath, file.name))) return descriptions.get(path.resolve(fullPath, file.name)) || ''
+          if (descriptions.has(file.target)) return descriptions.get(file.target) || ''
           if (file.name.includes('.')) {
             const ext = file.name.split('.').pop()
             if (ext && descriptions.has('.' + ext)) return descriptions.get('.' + ext) || ''

@@ -12,7 +12,9 @@ import { createCommand as createCd } from './commands/cd.js'
 import { createCommand as createChmod } from './commands/chmod.js'
 import { createCommand as createCp } from './commands/cp.js'
 import { createCommand as createEcho } from './commands/echo.js'
+import { createCommand as createFetch } from './commands/fetch.js'
 import { createCommand as createGrep } from './commands/grep.js'
+import { createCommand as createHash } from './commands/hash.js'
 import { createCommand as createHead } from './commands/head.js'
 import { createCommand as createLn } from './commands/ln.js'
 import { createCommand as createLs } from './commands/ls.js'
@@ -58,6 +60,8 @@ import { createCommand as createUser } from './commands/user.js'
 import { createCommand as createWc } from './commands/wc.js'
 import { createCommand as createWhich } from './commands/which.js'
 import { createCommand as createWhoami } from './commands/whoami.js'
+import { createCommand as createZip } from './commands/zip.js'
+import { createCommand as createUnzip } from './commands/unzip.js'
 
 // Export individual command factories
 export { createCommand as createCat } from './commands/cat.js'
@@ -65,7 +69,9 @@ export { createCommand as createCd } from './commands/cd.js'
 export { createCommand as createChmod } from './commands/chmod.js'
 export { createCommand as createCp } from './commands/cp.js'
 export { createCommand as createEcho } from './commands/echo.js'
+export { createCommand as createFetch } from './commands/fetch.js'
 export { createCommand as createGrep } from './commands/grep.js'
+export { createCommand as createHash } from './commands/hash.js'
 export { createCommand as createLn } from './commands/ln.js'
 export { createCommand as createLs } from './commands/ls.js'
 export { createCommand as createMkdir } from './commands/mkdir.js'
@@ -97,6 +103,8 @@ export { createCommand as createUser } from './commands/user.js'
 export { createCommand as createWc } from './commands/wc.js'
 export { createCommand as createWhich } from './commands/which.js'
 export { createCommand as createSockets } from './commands/sockets.js'
+export { createCommand as createZip } from './commands/zip.js'
+export { createCommand as createUnzip } from './commands/unzip.js'
 
 /**
  * Creates all coreutils commands.
@@ -109,7 +117,9 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     chmod: createChmod(kernel, shell, terminal),
     cp: createCp(kernel, shell, terminal),
     echo: createEcho(kernel, shell, terminal),
+    fetch: createFetch(kernel, shell, terminal),
     grep: createGrep(kernel, shell, terminal),
+    hash: createHash(kernel, shell, terminal),
     head: createHead(kernel, shell, terminal),
     ln: createLn(kernel, shell, terminal),
     ls: createLs(kernel, shell, terminal),
@@ -154,7 +164,9 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     user: createUser(kernel, shell, terminal),
     wc: createWc(kernel, shell, terminal),
     which: createWhich(kernel, shell, terminal),
-    whoami: createWhoami(kernel, shell, terminal)
+    whoami: createWhoami(kernel, shell, terminal),
+    zip: createZip(kernel, shell, terminal),
+    unzip: createUnzip(kernel, shell, terminal)
   }
 }
 

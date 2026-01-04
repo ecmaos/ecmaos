@@ -30,7 +30,7 @@ interface TarOptions {
   directory: string | null
 }
 
-function parseArgs(argv: (string | { op: string; pattern?: string })[]): { options: TarOptions; files: Array<string | { op: string; pattern?: string }> } {
+function parseArgs(argv: string[]): { options: TarOptions; files: string[] } {
   const options: TarOptions = {
     create: false,
     extract: false,
@@ -41,24 +41,12 @@ function parseArgs(argv: (string | { op: string; pattern?: string })[]): { optio
     directory: null
   }
 
-  const files: Array<string | { op: string; pattern?: string }> = []
+  const files: string[] = []
   let i = 0
 
   while (i < argv.length) {
     const arg = argv[i]
-    if (!arg) {
-      i++
-      continue
-    }
-
-    // Handle glob objects from shell expansion
-    if (typeof arg === 'object' && 'op' in arg && arg.op === 'glob' && arg.pattern) {
-      files.push(arg)
-      i++
-      continue
-    }
-
-    if (typeof arg !== 'string') {
+    if (!arg || typeof arg !== 'string') {
       i++
       continue
     }
@@ -80,6 +68,8 @@ function parseArgs(argv: (string | { op: string; pattern?: string })[]): { optio
         i++
         const nextArg = argv[i]
         options.file = (typeof nextArg === 'string' ? nextArg : null) || null
+      } else {
+        options.file = null
       }
       i++
     } else if (arg === '-z') {
@@ -93,6 +83,8 @@ function parseArgs(argv: (string | { op: string; pattern?: string })[]): { optio
         i++
         const nextArg = argv[i]
         options.directory = (typeof nextArg === 'string' ? nextArg : null) || null
+      } else {
+        options.directory = null
       }
       i++
     } else if (arg.startsWith('-')) {
@@ -121,10 +113,8 @@ function parseArgs(argv: (string | { op: string; pattern?: string })[]): { optio
         }
       }
       i++
-    } else if (typeof arg === 'string') {
-      files.push(arg)
-      i++
     } else {
+      files.push(arg)
       i++
     }
   }
@@ -710,25 +700,21 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         }
       }
 
+      // Expand glob patterns in file list (shell should have already expanded them, but keep as fallback)
       const expandedFiles: string[] = []
       for (const filePattern of files) {
-        // Handle glob objects from shell
-        if (typeof filePattern === 'object' && 'op' in filePattern && filePattern.op === 'glob' && filePattern.pattern) {
-          const expanded = await expandGlob(filePattern.pattern)
-          if (expanded.length === 0) {
-            // If glob doesn't match anything, include the pattern as-is (might be a literal path)
-            expandedFiles.push(filePattern.pattern)
-          } else {
-            expandedFiles.push(...expanded)
-          }
-        } else if (typeof filePattern === 'string') {
-          const expanded = await expandGlob(filePattern)
-          if (expanded.length === 0) {
-            // If glob doesn't match anything, include the pattern as-is (might be a literal path)
-            expandedFiles.push(filePattern)
-          } else {
-            expandedFiles.push(...expanded)
-          }
+        if (typeof filePattern !== 'string') {
+          // Skip non-string entries (shouldn't happen, but handle gracefully)
+          continue
+        }
+        
+        // Check if this looks like a glob pattern (shell should have expanded it, but handle as fallback)
+        const expanded = await expandGlob(filePattern)
+        if (expanded.length === 0) {
+          // If glob doesn't match anything, include the pattern as-is (might be a literal path)
+          expandedFiles.push(filePattern)
+        } else {
+          expandedFiles.push(...expanded)
         }
       }
 

@@ -40,22 +40,30 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 1
       }
 
-      const [mode, target] = args
-      if (!mode || !target) {
+      const mode = args[0]
+      const targets = args.slice(1)
+
+      if (!mode || targets.length === 0) {
         await writelnStderr(process, terminal, chalk.red('chmod: missing operand'))
+        await writelnStderr(process, terminal, 'Try \'chmod --help\' for more information.')
         return 1
       }
 
-      const fullPath = path.resolve(shell.cwd, target)
-      
-      try {
-        await shell.context.fs.promises.chmod(fullPath, mode)
-        return 0
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        await writelnStderr(process, terminal, `chmod: ${target}: ${errorMessage}`)
-        return 1
+      let hasError = false
+
+      for (const target of targets) {
+        const fullPath = path.resolve(shell.cwd, target)
+        
+        try {
+          await shell.context.fs.promises.chmod(fullPath, mode)
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          await writelnStderr(process, terminal, `chmod: ${target}: ${errorMessage}`)
+          hasError = true
+        }
       }
+
+      return hasError ? 1 : 0
     }
   })
 }

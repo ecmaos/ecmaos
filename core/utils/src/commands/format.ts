@@ -19,7 +19,7 @@ Requires root privileges and interactive confirmation.`
 
 async function emptyIndexedDBDatabases(
   keepDatabases: string[],
-  kernel: Kernel,
+  _kernel: Kernel,
   process: Process | undefined,
   terminal: Terminal
 ): Promise<boolean> {

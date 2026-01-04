@@ -12,7 +12,6 @@ import chalk from 'chalk'
 import humanFormat from 'human-format'
 import type { CommandLineOptions } from 'command-line-args'
 import path from 'path'
-import * as zipjs from '@zip.js/zip.js'
 
 import { bindContext, createCredentials, Fetch, InMemory, resolveMountConfig } from '@zenfs/core'
 import { IndexedDB } from '@zenfs/dom'
@@ -108,23 +107,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       ],
       run: async (argv: CommandLineOptions, process?: Process) => {
         return await env({ kernel, shell, terminal, process, args: [argv.variables, argv.set] })
-      }
-    }),
-    fetch: new TerminalCommand({
-      command: 'fetch',
-      description: 'Fetch a resource from the network',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'url', type: String, typeLabel: '{underline url}', defaultOption: true, description: 'The URL to fetch' },
-        { name: 'filename', type: String, description: 'Output the response to a file' },
-        { name: 'method', type: String, description: 'The HTTP method to use', defaultValue: 'GET' },
-        { name: 'body', type: String, description: 'The body to send with the request' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await fetch({ kernel, shell, terminal, process, args: [argv.url, argv.filename, argv.method, argv.body] })
       }
     }),
     install: new TerminalCommand({
@@ -318,20 +300,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         return await umount({ kernel, shell, terminal, process, args: [argv.path] })
       }
     }),
-    unzip: new TerminalCommand({
-      command: 'unzip',
-      description: 'Unzip a file',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file to unzip' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await unzip({ kernel, shell, terminal, process, args: [argv.path] })
-      }
-    }),
     upload: new TerminalCommand({
       command: 'upload',
       description: 'Upload a file to the filesystem',
@@ -358,21 +326,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       ],
       run: async (argv: CommandLineOptions) => {
         return await video({ kernel, shell, terminal, args: [argv.file] })
-      }
-    }),
-    zip: new TerminalCommand({
-      command: 'zip',
-      description: 'Zip a directory',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'output', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the zip file to create' },
-        { name: 'path', type: String, typeLabel: '{underline path}', multiple: true, description: 'The paths to the files or directories to zip' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await zip({ kernel, shell, terminal, process, args: [argv.output, argv.path] })
       }
     }),
   }
@@ -455,55 +408,6 @@ export const env = async ({ shell, terminal, process, args }: CommandArgs) => {
         globalThis.process.env[variable] = value
       }
     }
-  }
-}
-
-export const fetch = async ({ shell, terminal, process, args }: CommandArgs) => {
-  const [url, filename, method, body] = (args as string[])
-  if (!url) {
-    await shell.execute('fetch --help')
-    return 1
-  }
-
-  try {
-    const fetchOptions: RequestInit = { method: method || 'GET' }
-    if (body) fetchOptions.body = body
-
-    const response = await globalThis.fetch(url, fetchOptions)
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-
-    const reader = response.body?.getReader()
-    if (!reader) throw new Error('No response body')
-
-    let writer
-    if (filename) {
-      const fullPath = path.resolve(shell.cwd, filename)
-      const fileHandle = await shell.context.fs.promises.open(fullPath, 'w')
-      writer = {
-        write: async (chunk: Uint8Array) => {
-          await fileHandle.write(chunk)
-        },
-        releaseLock: async () => {
-          await fileHandle.close()
-        }
-      }
-    } else writer = process?.stdout?.getWriter()
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        await writer?.write(value)
-      }
-    } finally {
-      reader.releaseLock()
-      writer?.releaseLock()
-    }
-
-    return 0
-  } catch (error) {
-    await writelnStderr(process, terminal, chalk.red(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`))
-    return 1
   }
 }
 
@@ -822,30 +726,6 @@ export const umount = async ({ kernel, shell, terminal, process, args }: Command
   kernel.filesystem.fsSync.umount(fullPath)
 }
 
-export const unzip = async ({ shell, terminal, process, args }: CommandArgs) => {
-  const target = (args as string[])[0]
-  const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
-  const zipReader = new zipjs.ZipReader(new zipjs.BlobReader(blob))
-
-  for (const entry of await zipReader.getEntries()) {
-    const entryPath = path.resolve(shell.cwd, entry.filename)
-    if (entry.directory) {
-      await shell.context.fs.promises.mkdir(entryPath)
-    } else {
-      const writer = new zipjs.Uint8ArrayWriter()
-      const data = await entry.getData?.(writer)
-      if (!data) {
-        await writelnStderr(process, terminal, chalk.red(`Failed to read ${entryPath}`))
-        return 1
-      }
-      await shell.context.fs.promises.writeFile(entryPath, data)
-    }
-  }
-
-  return 0
-}
-
 export const upload = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
   const destination = path.resolve((args as string[])[0] || shell.cwd)
   if (!destination) {
@@ -911,76 +791,3 @@ export const video = async ({ kernel, shell, args }: CommandArgs) => {
   })
 }
 
-export const zip = async ({ shell, terminal, process, args }: CommandArgs) => {
-  const [output, paths = []] = args as [string, string[]]
-  if (!output || paths.length === 0) {
-    await writelnStdout(process, terminal, 'Usage: zip <output> <paths...>')
-    return 1
-  }
-
-  const outputPath = path.resolve(shell.cwd, output)
-  let zipWriter: zipjs.ZipWriter<Blob> | null = null
-
-  try {
-    zipWriter = new zipjs.ZipWriter(new zipjs.BlobWriter())
-
-    for (const inputPath of paths) {
-      const fullPath = path.resolve(shell.cwd, inputPath)
-      
-      try {
-        const fileStat = await shell.context.fs.promises.stat(fullPath)
-
-        if (fileStat.isFile()) {
-          // Add single file
-          const relativePath = path.relative(shell.cwd, fullPath)
-          const fileData = await shell.context.fs.promises.readFile(fullPath)
-          const reader = new zipjs.Uint8ArrayReader(fileData)
-          await zipWriter.add(relativePath, reader)
-          await writelnStdout(process, terminal, `Added file: ${relativePath}`)
-        } else if (fileStat.isDirectory()) {
-          // Add directory and contents recursively
-          async function addDirectory(dirPath: string) {
-            const entries = await shell.context.fs.promises.readdir(dirPath)
-            
-            for (const entry of entries) {
-              const entryPath = path.join(dirPath, entry)
-              const relativePath = path.relative(shell.cwd, entryPath)
-              const entryStat = await shell.context.fs.promises.stat(entryPath)
-              
-              if (entryStat.isFile()) {
-                const fileData = await shell.context.fs.promises.readFile(entryPath)
-                const reader = new zipjs.Uint8ArrayReader(fileData)
-                await zipWriter?.add(relativePath, reader)
-                await writelnStdout(process, terminal, `Added file: ${relativePath}`)
-              } else if (entryStat.isDirectory()) {
-                await addDirectory(entryPath)
-              }
-            }
-          }
-
-          await addDirectory(fullPath)
-          await writelnStdout(process, terminal, `Added directory: ${path.relative(shell.cwd, fullPath)}`)
-        } else {
-          await writelnStdout(process, terminal, `Skipping ${inputPath}: Not a file or directory`)
-        }
-      } catch (err: unknown) {
-        await writelnStderr(process, terminal, `Error processing ${inputPath}: ${err instanceof Error ? err.message : 'Unknown error'}`)
-      }
-    }
-
-    // Write the zip file
-    const blob = await zipWriter.close()
-    zipWriter = null // Clear reference after closing
-    await shell.context.fs.promises.writeFile(outputPath, new Uint8Array(await blob.arrayBuffer()))
-    await writelnStdout(process, terminal, `Created zip file: ${output}`)
-
-    return 0
-  } catch (err: unknown) {
-    await writelnStderr(process, terminal, `Failed to create zip file: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    return 1
-  } finally {
-    if (zipWriter) {
-      await zipWriter.close()
-    }
-  }
-}

@@ -28,22 +28,50 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 0
       }
 
-      const argPath = argv.length > 0 && argv[0] && !argv[0].startsWith('-') ? argv[0] : shell.cwd
-      const fullPath = argPath ? path.resolve(shell.cwd, argPath) : shell.cwd
-      const stats = await shell.context.fs.promises.stat(fullPath)
-      await writelnStdout(process, terminal, JSON.stringify(stats, null, 2))
+      // Filter out options/flags and get target paths
+      const targets = argv.length > 0 
+        ? argv.filter(arg => !arg.startsWith('-'))
+        : [shell.cwd]
 
-      const extension = path.extname(fullPath)
-      if (extension === '.zip') {
-        const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
-        const zipReader = new zipjs.ZipReader(new zipjs.BlobReader(blob))
-        const entries = await zipReader.getEntries()
-        await writelnStdout(process, terminal, chalk.bold('\nZIP Entries:'))
-        for (const entry of entries) {
-          await writelnStdout(process, terminal, `${chalk.blue(entry.filename)} (${entry.uncompressedSize} bytes)`)
+      if (targets.length === 0) {
+        targets.push(shell.cwd)
+      }
+
+      let hasError = false
+
+      for (const target of targets) {
+        const fullPath = path.resolve(shell.cwd, target)
+        
+        try {
+          const stats = await shell.context.fs.promises.stat(fullPath)
+          
+          if (targets.length > 1) {
+            await writelnStdout(process, terminal, `${target}:`)
+          }
+          await writelnStdout(process, terminal, JSON.stringify(stats, null, 2))
+
+          const extension = path.extname(fullPath)
+          if (extension === '.zip') {
+            const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
+            const zipReader = new zipjs.ZipReader(new zipjs.BlobReader(blob))
+            const entries = await zipReader.getEntries()
+            await writelnStdout(process, terminal, chalk.bold('\nZIP Entries:'))
+            for (const entry of entries) {
+              await writelnStdout(process, terminal, `${chalk.blue(entry.filename)} (${entry.uncompressedSize} bytes)`)
+            }
+          }
+          
+          if (targets.length > 1) {
+            await writelnStdout(process, terminal, '')
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          await writelnStderr(process, terminal, `stat: ${target}: ${errorMessage}`)
+          hasError = true
         }
       }
-      return 0
+
+      return hasError ? 1 : 0
     }
   })
 }
