@@ -26,7 +26,7 @@ Examples:
   sockets create https://example.com:443 -t webtransport
   sockets close abc-123-def-456
   sockets show abc-123-def-456`
-  writelnStdout(process, terminal, usage)
+  writelnStderr(process, terminal, usage)
 }
 
 function findConnectionById(kernel: Kernel, id: string): SocketConnection | undefined {

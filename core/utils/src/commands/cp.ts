@@ -8,7 +8,7 @@ function printUsage(process: Process | undefined, terminal: Terminal): void {
 Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
 
   --help  display this help and exit`
-  writelnStdout(process, terminal, usage)
+  writelnStderr(process, terminal, usage)
 }
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {

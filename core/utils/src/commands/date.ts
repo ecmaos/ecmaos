@@ -1,6 +1,6 @@
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
-import { writelnStdout } from '../shared/helpers.js'
+import { writelnStdout, writelnStderr } from '../shared/helpers.js'
 
 function printUsage(process: Process | undefined, terminal: Terminal): void {
   const usage = `Usage: date [OPTION]... [+FORMAT]
@@ -10,7 +10,7 @@ Print or set the system date and time.
   -R, --rfc-2822              output date and time in RFC 2822 format
   -f, --format=FORMAT         output date/time in specified format (strftime-like)
   --help                      display this help and exit`
-  writelnStdout(process, terminal, usage)
+  writelnStderr(process, terminal, usage)
 }
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {

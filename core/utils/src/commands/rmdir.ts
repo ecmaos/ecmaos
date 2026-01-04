@@ -8,7 +8,7 @@ function printUsage(process: Process | undefined, terminal: Terminal): void {
 Remove the DIRECTORY(ies), if they are empty.
 
   --help  display this help and exit`
-  writelnStdout(process, terminal, usage)
+  writelnStderr(process, terminal, usage)
 }
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {

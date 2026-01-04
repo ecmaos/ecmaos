@@ -8,7 +8,7 @@ function printUsage(process: Process | undefined, terminal: Terminal): void {
 Create the DIRECTORY(ies), if they do not already exist.
 
   --help  display this help and exit`
-  writelnStdout(process, terminal, usage)
+  writelnStderr(process, terminal, usage)
 }
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {

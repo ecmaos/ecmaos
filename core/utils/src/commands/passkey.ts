@@ -13,7 +13,7 @@ Subcommands:
   remove-all                  Remove all passkeys
 
   --help  display this help and exit`
-  writelnStdout(process, terminal, usage)
+  writelnStderr(process, terminal, usage)
 }
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
@@ -186,7 +186,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           case 'remove': {
             if (!id) {
               await writelnStderr(process, terminal, chalk.red('Error: --id is required for remove command'))
-              await writelnStdout(process, terminal, 'Usage: passkey remove --id <id>')
+              await writelnStderr(process, terminal, 'Usage: passkey remove --id <id>')
               return 1
             }
 
@@ -223,7 +223,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
           default:
             await writelnStderr(process, terminal, chalk.red(`Error: Unknown subcommand: ${subcommand}`))
-            await writelnStdout(process, terminal, 'Run "passkey help" for usage information')
+            await writelnStderr(process, terminal, 'Run "passkey help" for usage information')
             return 1
         }
       } catch (error) {

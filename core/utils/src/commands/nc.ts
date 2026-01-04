@@ -19,7 +19,7 @@ Examples:
   nc -p 443 echo.websocket.org
   nc -u wss://echo.websocket.org
   nc -u https://example.com:443`
-  writelnStdout(process, terminal, usage)
+  writelnStderr(process, terminal, usage)
 }
 
 interface ConnectionOptions {

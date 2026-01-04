@@ -33,7 +33,8 @@
     "columnify": "^1.6.0",
     "command-line-args": "^6.0.0",
     "command-line-usage": "^7.0.3",
-    "human-format": "^1.2.1"
+    "human-format": "^1.2.1",
+    "modern-tar": "^0.7.3"
   },
   "devDependencies": {
     "@types/ansi-escape-sequences": "^4.0.4",

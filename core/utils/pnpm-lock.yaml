@@ -40,6 +40,9 @@ importers:
       human-format:
         specifier: ^1.2.1
         version: 1.2.1
+      modern-tar:
+        specifier: ^0.7.3
+        version: 0.7.3
     devDependencies:
       '@types/ansi-escape-sequences':
         specifier: ^4.0.4
@@ -196,6 +199,10 @@ packages:
 
   memium@0.3.11:
     resolution: {integrity: sha512-CwmIpLVSG7UToDj2sYAZFDkpco30OPsXpaCnt+7Z7JQaulCjH5UvwJIctTIHmgQdFqk8pliBsPLnH5OZcDLZyQ==}
+
+  modern-tar@0.7.3:
+    resolution: {integrity: sha512-4W79zekKGyYU4JXVmB78DOscMFaJth2gGhgfTl2alWE4rNe3nf4N2pqenQ0rEtIewrnD79M687Ouba3YGTLOvg==}
+    engines: {node: '>=18.0.0'}
 
   process@0.11.10:
     resolution: {integrity: sha512-cdGef/drWFoydD1JsMzuFf8100nZl+GT+yacc2bEced5f9Rjk4z+WtFUTBu9PhOi9j/jfmBPu0mMEY4wIdAF8A==}
@@ -360,6 +367,8 @@ snapshots:
     dependencies:
       kerium: 1.3.8
       utilium: 2.5.8
+
+  modern-tar@0.7.3: {}
 
   process@0.11.10: {}
 

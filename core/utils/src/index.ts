@@ -32,6 +32,7 @@ import { createCommand as createPasskey } from './commands/passkey.js'
 import { createCommand as createSed } from './commands/sed.js'
 import { createCommand as createTee } from './commands/tee.js'
 import { createCommand as createTail } from './commands/tail.js'
+import { createCommand as createTar } from './commands/tar.js'
 import { createCommand as createBasename } from './commands/basename.js'
 import { createCommand as createCal } from './commands/cal.js'
 import { createCommand as createComm } from './commands/comm.js'
@@ -80,6 +81,7 @@ export { createCommand as createMan } from './commands/man.js'
 export { createCommand as createSed } from './commands/sed.js'
 export { createCommand as createTee } from './commands/tee.js'
 export { createCommand as createTail } from './commands/tail.js'
+export { createCommand as createTar } from './commands/tar.js'
 export { createCommand as createBasename } from './commands/basename.js'
 export { createCommand as createCut } from './commands/cut.js'
 export { createCommand as createDate } from './commands/date.js'
@@ -144,6 +146,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     seq: createSeq(kernel, shell, terminal),
     sort: createSort(kernel, shell, terminal),
     split: createSplit(kernel, shell, terminal),
+    tar: createTar(kernel, shell, terminal),
     test: createTest(kernel, shell, terminal),
     tr: createTr(kernel, shell, terminal),
     true: createTrue(kernel, shell, terminal),

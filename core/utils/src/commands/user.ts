@@ -29,7 +29,7 @@ Options for 'mod':
   -p, --password       Change password (will prompt)
 
   --help               Display this help and exit`
-  writelnStdout(process, terminal, usage)
+  writelnStderr(process, terminal, usage)
 }
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {

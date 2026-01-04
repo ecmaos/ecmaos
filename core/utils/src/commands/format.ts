@@ -14,7 +14,7 @@ Delete all IndexedDB and localStorage data.
 
 By default, deletes all IndexedDB databases and localStorage.
 Requires root privileges and interactive confirmation.`
-  writelnStdout(process, terminal, usage)
+  writelnStderr(process, terminal, usage)
 }
 
 async function emptyIndexedDBDatabases(
