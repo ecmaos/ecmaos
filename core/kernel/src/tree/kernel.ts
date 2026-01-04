@@ -723,17 +723,17 @@ export class Kernel implements IKernel {
                     timeout: 60000
                   }
 
-                  this.terminal.writeln(chalk.yellow('🔐  Please use your passkey to authenticate...'))
+                  this.terminal.writeln(chalk.yellow(t('kernel.passkeyAuthenticate', '🔐  Please use your passkey to authenticate...')))
                   const credential = await this.auth.passkey.get(requestOptions)
                   
                   if (credential && credential instanceof PublicKeyCredential) {
                     userCred = await this.users.login(username, undefined, credential)
                     loginSuccess = true
                   } else {
-                    this.terminal.writeln(chalk.yellow('Passkey authentication cancelled or failed. Falling back to password...'))
+                    this.terminal.writeln(chalk.yellow(t('kernel.passkeyCancelled', 'Passkey authentication cancelled or failed. Falling back to password...')))
                   }
                 } catch (err) {
-                  this.terminal.writeln(chalk.yellow(`Passkey authentication error: ${(err as Error).message}. Falling back to password...`))
+                  this.terminal.writeln(chalk.yellow(t('kernel.passkeyError', 'Passkey authentication error: {{error}}. Falling back to password...', { error: (err as Error).message })))
                 }
               }
             }
@@ -743,9 +743,11 @@ export class Kernel implements IKernel {
               userCred = await this.users.login(username, password)
             }
 
-            if (!userCred) {
-              throw new Error('Login failed')
-            }
+            if (!userCred) throw new Error(t('kernel.loginFailed', 'Login failed'))
+
+            authSpan.setAttribute('auth.method', loginSuccess ? 'passkey' : 'password')
+            authSpan.setAttribute('auth.username', username)
+            authSpan.end()
 
             this.shell.credentials = userCred.cred
             this.shell.context = bindContext({ root: '/', pwd: '/', credentials: userCred.cred })
@@ -1404,7 +1406,7 @@ export class Kernel implements IKernel {
         const { downlink, effectiveType, rtt, saveData } = navigator.connection as { downlink: number; effectiveType: string; rtt: number; saveData: boolean }
         contents.connection = JSON.stringify({ downlink, effectiveType, rtt, saveData }, null, 2)
       } catch {
-        this.log.warn('Failed to get connection data')
+        this.log.warn(this.i18n.t('kernel.connectionDataFailed', 'Failed to get connection data'))
       }
     }
 

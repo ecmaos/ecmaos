@@ -3,6 +3,11 @@
     "madeBy": "Made with ❤️  by",
     "panic": "Uh oh, kernel panic! Check the logs for more details.",
     "permissionNotificationDenied": "Notification permission denied",
+    "passkeyAuthenticate": "🔐  Please use your passkey to authenticate...",
+    "passkeyCancelled": "Passkey authentication cancelled or failed. Falling back to password...",
+    "passkeyError": "Passkey authentication error: {{error}}. Falling back to password...",
+    "loginFailed": "Login failed",
+    "connectionDataFailed": "Failed to get connection data",
     "modules": {
       "blacklisted": "Skipping blacklisted module {{module}}"
     }
