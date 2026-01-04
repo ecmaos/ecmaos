@@ -1,5 +1,16 @@
 # @ecmaos/coreutils
 
+## 0.3.0
+
+### Minor Changes
+
+- 0da04b1: fix: refactor shell glob expansion; many new coreutils; dev scripts
+
+### Patch Changes
+
+- Updated dependencies [0da04b1]
+  - @ecmaos/types@0.6.0
+
 ## 0.2.1
 
 ### Patch Changes

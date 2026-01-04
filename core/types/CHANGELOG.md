@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.6.0
+
+### Minor Changes
+
+- 0da04b1: fix: refactor shell glob expansion; many new coreutils; dev scripts
+
 ## 0.5.1
 
 ### Patch Changes
