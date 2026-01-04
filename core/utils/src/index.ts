@@ -19,6 +19,7 @@ import { createCommand as createHead } from './commands/head.js'
 import { createCommand as createLn } from './commands/ln.js'
 import { createCommand as createLs } from './commands/ls.js'
 import { createCommand as createMkdir } from './commands/mkdir.js'
+import { createCommand as createMktemp } from './commands/mktemp.js'
 import { createCommand as createMv } from './commands/mv.js'
 import { createCommand as createNc } from './commands/nc.js'
 import { createCommand as createPwd } from './commands/pwd.js'
@@ -75,6 +76,7 @@ export { createCommand as createHash } from './commands/hash.js'
 export { createCommand as createLn } from './commands/ln.js'
 export { createCommand as createLs } from './commands/ls.js'
 export { createCommand as createMkdir } from './commands/mkdir.js'
+export { createCommand as createMktemp } from './commands/mktemp.js'
 export { createCommand as createMv } from './commands/mv.js'
 export { createCommand as createPwd } from './commands/pwd.js'
 export { createCommand as createRm } from './commands/rm.js'
@@ -124,6 +126,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     ln: createLn(kernel, shell, terminal),
     ls: createLs(kernel, shell, terminal),
     mkdir: createMkdir(kernel, shell, terminal),
+    mktemp: createMktemp(kernel, shell, terminal),
     mv: createMv(kernel, shell, terminal),
     pwd: createPwd(kernel, shell, terminal),
     nc: createNc(kernel, shell, terminal),
