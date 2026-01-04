@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"],
+      "env": [
+        "EMSDK",
+        "VITE_RECOMMENDED_APPS",
+        "VITE_APP_SHOW_DEFAULT_LOGIN", 
+        "VITE_INITFS",
+        "TURBO_TEAM",
+        "SKIP_BUILD_BIOS",
+        "VITE_BOOT_DISABLE_LOGO_FIGLET",
+        "VITE_BOOT_DISABLE_LOGO_CONSOLE",
+        "VITE_BOOT_DISABLE_ISSUES",
+        "VITE_BOOT_DISABLE_TIPS"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["EMSDK"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "test": {
+      "dependsOn": ["^test"]
+    },
+    "test:watch": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

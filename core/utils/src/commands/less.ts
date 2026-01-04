@@ -33,6 +33,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
       let lines: string[] = []
       let currentLine = 0
+      let horizontalOffset = 0
       let keyListener: IDisposable | null = null
       let linesRendered = 0
 
@@ -94,6 +95,40 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         const displayRows = rows - 1
 
         const render = () => {
+          const cols = terminal.cols
+          const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+          
+          const getVisibleSlice = (line: string, offset: number): string => {
+            const visibleLen = stripAnsi(line).length
+            
+            if (offset < 0) offset = 0
+            if (offset > visibleLen) offset = visibleLen
+            
+            let visible = 0
+            let result = ''
+            let inEscape = false
+            let charsSkipped = 0
+            
+            for (const char of line) {
+              if (char === '\x1b') inEscape = true
+              if (inEscape) {
+                if (charsSkipped >= offset) {
+                  result += char
+                }
+                if (/[a-zA-Z]/.test(char)) inEscape = false
+              } else {
+                if (charsSkipped < offset) {
+                  charsSkipped++
+                } else {
+                  if (visible >= cols) break
+                  result += char
+                  visible++
+                }
+              }
+            }
+            return result
+          }
+
           const maxLine = Math.max(0, lines.length - displayRows)
           if (currentLine > maxLine) {
             currentLine = maxLine
@@ -101,6 +136,11 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           if (currentLine < 0) {
             currentLine = 0
           }
+
+          const maxLineLength = Math.max(...lines.map(l => stripAnsi(l).length), 0)
+          const maxHorizontalOffset = Math.max(0, maxLineLength - cols)
+          if (horizontalOffset > maxHorizontalOffset) horizontalOffset = maxHorizontalOffset
+          if (horizontalOffset < 0) horizontalOffset = 0
 
           if (linesRendered > 0) {
             terminal.write(ansi.cursor.up(linesRendered))
@@ -111,7 +151,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           
           for (let i = currentLine; i < endLine; i++) {
             terminal.write(ansi.erase.inLine(2))
-            const line = lines[i] || ''
+            const line = getVisibleSlice(lines[i] || '', horizontalOffset)
             terminal.write(line)
             linesRendered++
             if (i < endLine - 1) {
@@ -129,7 +169,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           const statusLine = `-- ${currentLine + 1}-${endLine} / ${lines.length} (${percentage}%)`
           terminal.write('\n')
           terminal.write(ansi.erase.inLine(2))
-          terminal.write(statusLine)
+          terminal.write(getVisibleSlice(statusLine, 0))
           linesRendered++
         }
 
@@ -161,6 +201,14 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               case 'ArrowDown':
               case 'Enter':
                 currentLine++
+                render()
+                break
+              case 'ArrowLeft':
+                horizontalOffset = Math.max(0, horizontalOffset - Math.floor(terminal.cols / 2))
+                render()
+                break
+              case 'ArrowRight':
+                horizontalOffset += Math.floor(terminal.cols / 2)
                 render()
                 break
               case 'PageDown':

@@ -17,7 +17,7 @@ importers:
         specifier: workspace:^
         version: link:../types
       '@zenfs/core':
-        specifier: ^2.4.2
+        specifier: ^2.4.4
         version: 2.4.4
       '@zip.js/zip.js':
         specifier: ^2.7.52

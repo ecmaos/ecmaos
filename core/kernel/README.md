@@ -42,7 +42,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 
 ## Features
 
-- TypeScript, WebAssembly, AssemblyScript, Rust, C++
+- TypeScript, WebAssembly, AssemblyScript, C++
 - Filesystem supporting multiple backends powered by [zenfs](https://github.com/zen-fs/core)
 - Terminal interface powered by [xterm.js](https://xtermjs.org)
 - Pseudo-streams, allowing redirection and piping

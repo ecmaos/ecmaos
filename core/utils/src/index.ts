@@ -27,6 +27,7 @@ import { createCommand as createStat } from './commands/stat.js'
 import { createCommand as createTouch } from './commands/touch.js'
 import { createCommand as createHex } from './commands/hex.js'
 import { createCommand as createLess } from './commands/less.js'
+import { createCommand as createMan } from './commands/man.js'
 import { createCommand as createPasskey } from './commands/passkey.js'
 import { createCommand as createSed } from './commands/sed.js'
 import { createCommand as createTee } from './commands/tee.js'
@@ -40,6 +41,7 @@ import { createCommand as createDiff } from './commands/diff.js'
 import { createCommand as createDirname } from './commands/dirname.js'
 import { createCommand as createFalse } from './commands/false.js'
 import { createCommand as createFind } from './commands/find.js'
+import { createCommand as createFormat } from './commands/format.js'
 import { createCommand as createId } from './commands/id.js'
 import { createCommand as createJoin } from './commands/join.js'
 import { createCommand as createNl } from './commands/nl.js'
@@ -74,6 +76,7 @@ export { createCommand as createStat } from './commands/stat.js'
 export { createCommand as createTouch } from './commands/touch.js'
 export { createCommand as createHex } from './commands/hex.js'
 export { createCommand as createLess } from './commands/less.js'
+export { createCommand as createMan } from './commands/man.js'
 export { createCommand as createSed } from './commands/sed.js'
 export { createCommand as createTee } from './commands/tee.js'
 export { createCommand as createTail } from './commands/tail.js'
@@ -83,6 +86,7 @@ export { createCommand as createDate } from './commands/date.js'
 export { createCommand as createDiff } from './commands/diff.js'
 export { createCommand as createDirname } from './commands/dirname.js'
 export { createCommand as createFind } from './commands/find.js'
+export { createCommand as createFormat } from './commands/format.js'
 export { createCommand as createSort } from './commands/sort.js'
 export { createCommand as createTest } from './commands/test.js'
 export { createCommand as createTr } from './commands/tr.js'
@@ -118,6 +122,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     touch: createTouch(kernel, shell, terminal),
     hex: createHex(kernel, shell, terminal),
     less: createLess(kernel, shell, terminal),
+    man: createMan(kernel, shell, terminal),
     passkey: createPasskey(kernel, shell, terminal),
     sed: createSed(kernel, shell, terminal),
     tail: createTail(kernel, shell, terminal),
@@ -131,6 +136,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     dirname: createDirname(kernel, shell, terminal),
     false: createFalse(kernel, shell, terminal),
     find: createFind(kernel, shell, terminal),
+    format: createFormat(kernel, shell, terminal),
     id: createId(kernel, shell, terminal),
     join: createJoin(kernel, shell, terminal),
     nl: createNl(kernel, shell, terminal),

@@ -183,7 +183,7 @@
     "@xterm/addon-serialize": "^0.13.0",
     "@xterm/xterm": "^5.5.0",
     "@zenfs/archives": "^1.3.1",
-    "@zenfs/core": "^2.4.2",
+    "@zenfs/core": "^2.4.4",
     "@zenfs/dom": "^1.2.5",
     "@zenfs/emscripten": "^1.0.5",
     "@zip.js/zip.js": "^2.7.52",
