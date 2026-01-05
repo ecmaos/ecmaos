@@ -60,6 +60,7 @@ import { createCommand as createTrue } from './commands/true.js'
 import { createCommand as createUniq } from './commands/uniq.js'
 import { createCommand as createUser } from './commands/user.js'
 import { createCommand as createWc } from './commands/wc.js'
+import { createCommand as createWeb } from './commands/web.js'
 import { createCommand as createWhich } from './commands/which.js'
 import { createCommand as createWhoami } from './commands/whoami.js'
 import { createCommand as createZip } from './commands/zip.js'
@@ -105,6 +106,7 @@ export { createCommand as createTr } from './commands/tr.js'
 export { createCommand as createUniq } from './commands/uniq.js'
 export { createCommand as createUser } from './commands/user.js'
 export { createCommand as createWc } from './commands/wc.js'
+export { createCommand as createWeb } from './commands/web.js'
 export { createCommand as createWhich } from './commands/which.js'
 export { createCommand as createSockets } from './commands/sockets.js'
 export { createCommand as createZip } from './commands/zip.js'
@@ -169,6 +171,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     uniq: createUniq(kernel, shell, terminal),
     user: createUser(kernel, shell, terminal),
     wc: createWc(kernel, shell, terminal),
+    web: createWeb(kernel, shell, terminal),
     which: createWhich(kernel, shell, terminal),
     whoami: createWhoami(kernel, shell, terminal),
     zip: createZip(kernel, shell, terminal),
