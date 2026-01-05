@@ -44,7 +44,7 @@
     "sync:readme": "cp README.md core/kernel/README.md && cp README.md core/kernel/public/initfs/usr/share/docs/@ecmaos/kernel/index.md",
     "sync:zenfs": "./utils/sync-zenfs.sh",
     "sync:version": "pnpm version $(node -e \"console.log(require('./core/kernel/package.json').version)\") --no-git-tag-version || true",
-    "sync:version:tag": "pnpm sync:version && git tag v$(node -e \"console.log(require('./core/kernel/package.json').version)\")",
+    "sync:version:tag": "pnpm version $(node -e \"console.log(require('./core/kernel/package.json').version)\")",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
     "test:bench": "turbo run test:bench",
