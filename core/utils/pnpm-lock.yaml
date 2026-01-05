@@ -13,9 +13,6 @@ importers:
 
   .:
     dependencies:
-      '@ecmaos/kernel':
-        specifier: workspace:^
-        version: link:../kernel
       '@ecmaos/types':
         specifier: workspace:^
         version: link:../types
