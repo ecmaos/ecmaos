@@ -29,7 +29,7 @@
     "build:kernel": "turbo run build --filter=@ecmaos/* --filter=@ecmaos-devices/*",
     "dev": "turbo run dev --filter=@ecmaos/* --concurrency=20",
     "dev:kernel": "turbo run dev --filter=@ecmaos/kernel",
-    "dev:docs": "pnpm sync:readme && concurrently nodemon \"pnpx serve -l 30444 ./docs\"",
+    "dev:docs": "pnpm sync:readme && concurrently nodemon \"pnpx serve --cors -l 30444 ./docs\"",
     "fix": "prettier --write \"**/*.{ts,tsx,md}\"",
     "fix:repo": "sherif --fix",
     "lint": "turbo run lint",

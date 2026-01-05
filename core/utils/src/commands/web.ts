@@ -6,7 +6,7 @@ import { writelnStderr } from '../shared/helpers.js'
 function printUsage(process: Process | undefined, terminal: Terminal): void {
   const usage = `Usage: web [OPTIONS] [URL]
 Open a URL in a new contained window.
-Most sites will block the COR, so this is mostly useful for local/bespoke resources.
+Many sites will block the COR, so this is mostly useful for local/bespoke/credentialless resources.
 To open in a new tab/browser window, use the 'open' command instead.
 
   --help                               display this help and exit
@@ -198,25 +198,22 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       navBar.appendChild(urlInput)
       navBar.appendChild(refreshButton)
 
-      // Create iframe container
       const iframeContainer = document.createElement('div')
       iframeContainer.style.flex = '1'
       iframeContainer.style.position = 'relative'
       iframeContainer.style.overflow = 'hidden'
 
-      // Create iframe
       const iframe = document.createElement('iframe')
       iframe.style.width = '100%'
       iframe.style.height = '100%'
       iframe.style.border = 'none'
+      iframe.setAttribute('credentialless', '')
       iframe.src = url
 
       iframeContainer.appendChild(iframe)
       
       // Only append navbar if not hidden
-      if (!hideNavbar) {
-        container.appendChild(navBar)
-      }
+      if (!hideNavbar) container.appendChild(navBar)
       container.appendChild(iframeContainer)
 
       // Navigation history
@@ -241,9 +238,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
           if (addToHistory) {
             // Remove forward history if we're navigating to a new URL
-            if (historyIndex < history.length - 1) {
-              history.splice(historyIndex + 1)
-            }
+            if (historyIndex < history.length - 1) history.splice(historyIndex + 1)
+
             history.push(normalizedUrl)
             historyIndex = history.length - 1
           }
@@ -334,9 +330,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             if (iframeUrl && iframeUrl !== urlInput.value) {
               urlInput.value = iframeUrl
               // Only add to history if it's a different URL
-              if (iframeUrl !== history[historyIndex]) {
-                navigateTo(iframeUrl)
-              }
+              if (iframeUrl !== history[historyIndex]) navigateTo(iframeUrl)
             }
           } catch (e) {
             // CORS: Can't access iframe location, that's okay
