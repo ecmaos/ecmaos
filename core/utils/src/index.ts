@@ -67,6 +67,7 @@ import { createCommand as createWhoami } from './commands/whoami.js'
 import { createCommand as createZip } from './commands/zip.js'
 import { createCommand as createUnzip } from './commands/unzip.js'
 import { createCommand as createVideo } from './commands/video.js'
+import { createCommand as createView } from './commands/view.js'
 
 // Export individual command factories
 export { createCommand as createCat } from './commands/cat.js'
@@ -115,6 +116,7 @@ export { createCommand as createSockets } from './commands/sockets.js'
 export { createCommand as createZip } from './commands/zip.js'
 export { createCommand as createUnzip } from './commands/unzip.js'
 export { createCommand as createVideo } from './commands/video.js'
+export { createCommand as createView } from './commands/view.js'
 
 /**
  * Creates all coreutils commands.
@@ -181,7 +183,8 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     whoami: createWhoami(kernel, shell, terminal),
     zip: createZip(kernel, shell, terminal),
     unzip: createUnzip(kernel, shell, terminal),
-    video: createVideo(kernel, shell, terminal)
+    video: createVideo(kernel, shell, terminal),
+    view: createView(kernel, shell, terminal)
   }
 }
 
