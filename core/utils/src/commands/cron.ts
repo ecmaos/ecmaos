@@ -3,6 +3,7 @@ import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
 import { parseCronExpression } from 'cron-schedule'
+import cronstrue from 'cronstrue'
 
 interface CrontabEntry {
   expression: string
@@ -37,19 +38,29 @@ function parseCrontabLine(line: string): { expression: string, command: string }
   let expression: string
   let command: string
 
-  // If we have exactly 6 parts, it must be 5-field format (5 cron fields + 1 command word)
+  // If we have exactly 6 parts, assume 5-field format (5 cron fields + 1 command word)
+  // This is the most common case
   if (parts.length === 6) {
     // 5-field format: minute hour day month weekday command
     expression = parts.slice(0, 5).join(' ')
     command = parts[5] || ''
   } else {
     // 7+ parts: could be 5-field with multi-word command or 6-field format
-    // Try parsing as 5-field first (more common), then 6-field if that fails
+    // Try 6-field format FIRST (if user wrote 6 fields, they probably meant 6 fields)
+    // Then fall back to 5-field if 6-field is invalid
     const potential5Field = parts.slice(0, 5).join(' ')
     const potential6Field = parts.slice(0, 6).join(' ')
     
     let valid5Field = false
     let valid6Field = false
+    
+    // Try to validate 6-field format first
+    try {
+      parseCronExpression(potential6Field)
+      valid6Field = true
+    } catch {
+      // Not a valid 6-field expression
+    }
     
     // Try to validate 5-field format
     try {
@@ -59,22 +70,14 @@ function parseCrontabLine(line: string): { expression: string, command: string }
       // Not a valid 5-field expression
     }
     
-    // Try to validate 6-field format
-    try {
-      parseCronExpression(potential6Field)
-      valid6Field = true
-    } catch {
-      // Not a valid 6-field expression
-    }
-    
-    // Prefer 5-field format if both are valid (more common)
-    // Only use 6-field if 5-field is invalid but 6-field is valid
-    if (valid5Field) {
-      expression = potential5Field
-      command = parts.slice(5).join(' ')
-    } else if (valid6Field) {
+    // Prefer 6-field format if valid (user wrote 6 fields, so use them)
+    // Only use 5-field if 6-field is invalid
+    if (valid6Field) {
       expression = potential6Field
       command = parts.slice(6).join(' ')
+    } else if (valid5Field) {
+      expression = potential5Field
+      command = parts.slice(5).join(' ')
     } else {
       // Neither format is valid, return null
       return null
@@ -118,10 +121,29 @@ function parseCrontabFile(content: string): CrontabEntry[] {
   return entries
 }
 
+/**
+ * Get human-readable description of a cron expression
+ * @param expression - The cron expression
+ * @returns Human-readable description or null if parsing fails
+ */
+function getHumanReadableDescription(expression: string): string | null {
+  try {
+    return cronstrue.toString(expression, {
+      throwExceptionOnParseError: false,
+      verbose: false
+    })
+  } catch {
+    return null
+    }
+}
+
 function printUsage(process: Process | undefined, terminal: Terminal): void {
   const usage = `Usage: cron [COMMAND] [OPTIONS]
-
+  
 Manage scheduled tasks (crontabs).
+
+Options:
+  --help  display this help and exit
 
 Commands:
   list                    List all active cron jobs
@@ -136,6 +158,7 @@ Commands:
 Examples:
   cron list                                    List all cron jobs
   cron add "*/5 * * * *" "echo hello"          Add job to run every 5 minutes
+  cron add "* * * * * *" "echo hello"          Add job to run every second (6-field)
   cron add "0 0 * * *" "echo daily"            Add daily job at midnight
   cron remove cron:user:1                      Remove user cron job #1
   cron validate "*/5 * * * *"                  Validate cron expression
@@ -143,10 +166,14 @@ Examples:
   cron test "*/5 * * * *"                      Test if expression matches now
 
 Crontab format:
-  Standard: minute hour day month weekday command
-  Extended: second minute hour day month weekday command
-
-  --help  display this help and exit`
+  Both 5-field and 6-field cron expressions are supported:
+  
+  5-field (standard): minute hour day month weekday command
+    Example: "*/5 * * * *" runs every 5 minutes
+  
+  6-field (extended): second minute hour day month weekday command
+    Example: "* * * * * *" runs every second
+    Example: "0 */5 * * * *" runs every 5 minutes at :00 seconds`
   writelnStderr(process, terminal, usage)
 }
 
@@ -176,9 +203,57 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               return 0
             }
 
+            // Build a map of job names to expressions by parsing crontab files
+            const jobExpressions = new Map<string, { expression: string, command: string }>()
+
+            // Load system crontab entries
+            try {
+              const systemCrontabPath = '/etc/crontab'
+              if (await kernel.filesystem.fs.exists(systemCrontabPath)) {
+                const content = await kernel.filesystem.fs.readFile(systemCrontabPath, 'utf-8')
+                const entries = parseCrontabFile(content)
+                for (const entry of entries) {
+                  const jobName = `cron:system:${entry.lineNumber}`
+                  jobExpressions.set(jobName, { expression: entry.expression, command: entry.command })
+                }
+              }
+            } catch {
+              // Ignore errors loading system crontab
+            }
+
+            // Load user crontab entries
+            try {
+              const home = shell.env.get('HOME') ?? '/root'
+              const userCrontabPath = path.join(home, '.config', 'crontab')
+              if (await shell.context.fs.promises.exists(userCrontabPath)) {
+                const content = await shell.context.fs.promises.readFile(userCrontabPath, 'utf-8')
+                const entries = parseCrontabFile(content)
+                for (const entry of entries) {
+                  const jobName = `cron:user:${entry.lineNumber}`
+                  jobExpressions.set(jobName, { expression: entry.expression, command: entry.command })
+                }
+              }
+            } catch {
+              // Ignore errors loading user crontab
+            }
+
             await writelnStdout(process, terminal, 'Active cron jobs:')
             for (const jobName of cronJobs) {
-              await writelnStdout(process, terminal, `  ${jobName}`)
+              const jobInfo = jobExpressions.get(jobName)
+              if (jobInfo) {
+                const description = getHumanReadableDescription(jobInfo.expression)
+                if (description) {
+                  await writelnStdout(process, terminal, `  ${jobName}`)
+                  await writelnStdout(process, terminal, `    Schedule: ${jobInfo.expression} (${description})`)
+                  await writelnStdout(process, terminal, `    Command: ${jobInfo.command}`)
+                } else {
+                  await writelnStdout(process, terminal, `  ${jobName}`)
+                  await writelnStdout(process, terminal, `    Schedule: ${jobInfo.expression}`)
+                  await writelnStdout(process, terminal, `    Command: ${jobInfo.command}`)
+                }
+              } else {
+                await writelnStdout(process, terminal, `  ${jobName}`)
+              }
             }
             return 0
           }
@@ -199,8 +274,10 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             const command = argv.slice(2).join(' ')
 
             // Validate the cron expression
+            let humanReadable: string | null = null
             try {
               parseCronExpression(schedule)
+              humanReadable = getHumanReadableDescription(schedule)
             } catch (error) {
               await writelnStderr(process, terminal, `cron add: invalid cron expression: ${schedule}`)
               return 1
@@ -247,6 +324,9 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             }
 
             await writelnStdout(process, terminal, `Added cron job: ${schedule} ${command}`)
+            if (humanReadable) {
+              await writelnStdout(process, terminal, `  Schedule: ${humanReadable}`)
+            }
             await writelnStdout(process, terminal, 'Run "cron reload" to activate the new job.')
             return 0
           }
@@ -311,7 +391,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
             // Use view command to edit (or create if doesn't exist)
             const result = await kernel.execute({
-              command: '/bin/view',
+              command: '/usr/bin/edit',
               args: [crontabPath],
               shell,
               terminal
@@ -338,7 +418,11 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             }
             try {
               parseCronExpression(expression)
+              const description = getHumanReadableDescription(expression)
               await writelnStdout(process, terminal, `Valid cron expression: ${expression}`)
+              if (description) {
+                await writelnStdout(process, terminal, `  Description: ${description}`)
+              }
               return 0
             } catch (error) {
               await writelnStderr(process, terminal, `Invalid cron expression: ${expression}`)
@@ -370,8 +454,12 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               const cron = parseCronExpression(expression)
               const now = new Date()
               const dates = cron.getNextDates(count, now)
+              const description = getHumanReadableDescription(expression)
 
               await writelnStdout(process, terminal, `Next ${count} execution time(s) for "${expression}":`)
+              if (description) {
+                await writelnStdout(process, terminal, `  Schedule: ${description}`)
+              }
               for (let i = 0; i < dates.length; i++) {
                 const date = dates[i]
                 if (date) {
@@ -402,11 +490,15 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               const cron = parseCronExpression(expression)
               const now = new Date()
               const matches = cron.matchDate(now)
+              const description = getHumanReadableDescription(expression)
 
               if (matches) {
                 await writelnStdout(process, terminal, `Expression "${expression}" matches current time: ${now.toISOString()}`)
               } else {
                 await writelnStdout(process, terminal, `Expression "${expression}" does not match current time: ${now.toISOString()}`)
+              }
+              if (description) {
+                await writelnStdout(process, terminal, `  Schedule: ${description}`)
               }
               return 0
             } catch (error) {

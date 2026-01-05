@@ -35,6 +35,7 @@
     "command-line-args": "^6.0.0",
     "command-line-usage": "^7.0.3",
     "cron-schedule": "^6.0.0",
+    "cronstrue": "^3.9.0",
     "human-format": "^1.2.1",
     "modern-tar": "^0.7.3"
   },
