@@ -68,6 +68,18 @@ export class Shell implements IShell {
   }
 
   async loadEnvFile() {
+    // Load global /etc/env first
+    try {
+      if (await this.context.fs.promises.exists('/etc/env')) {
+        const globalContent = await this.context.fs.promises.readFile('/etc/env', 'utf-8')
+        const globalEnvVars = this.parseEnvFile(globalContent)
+        for (const [key, value] of Object.entries(globalEnvVars)) {
+          this._env.set(key, value)
+        }
+      }
+    } catch {}
+
+    // Load user ~/.env second (overwrites global values)
     const home = this._env.get('HOME')
     if (!home) return
 
