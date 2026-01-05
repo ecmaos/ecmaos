@@ -389,13 +389,12 @@ export class Terminal extends XTerm implements ITerminal {
             break
           case 'Backspace':
             if (cursor > 0) {
-              input = input.slice(0, cursor - 1) + input.slice(cursor)
-              const promptLen = prompt.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
-              this.write(ansi.cursor.horizontalAbsolute(promptLen + 1) + ansi.erase.inLine(0) + input)
-              if (cursor < input.length + 1) {
-                this.write(`\x1b[${input.length + 1 - cursor}D`)
-              }
               cursor--
+              input = input.slice(0, cursor) + input.slice(cursor + 1)
+              this.write(ansi.cursor.back() + ansi.erase.inLine(0) + input.slice(cursor))
+              if (input.length - cursor > 0) {
+                this.write(`\x1b[${input.length - cursor}D`)
+              }
             } else this.write('\x07')
             break
           case 'Delete':
