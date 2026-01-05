@@ -11,6 +11,7 @@ import { createCommand as createCat } from './commands/cat.js'
 import { createCommand as createCd } from './commands/cd.js'
 import { createCommand as createChmod } from './commands/chmod.js'
 import { createCommand as createCp } from './commands/cp.js'
+import { createCommand as createCron } from './commands/cron.js'
 import { createCommand as createEcho } from './commands/echo.js'
 import { createCommand as createFetch } from './commands/fetch.js'
 import { createCommand as createGrep } from './commands/grep.js'
@@ -74,6 +75,7 @@ export { createCommand as createCat } from './commands/cat.js'
 export { createCommand as createCd } from './commands/cd.js'
 export { createCommand as createChmod } from './commands/chmod.js'
 export { createCommand as createCp } from './commands/cp.js'
+export { createCommand as createCron } from './commands/cron.js'
 export { createCommand as createEcho } from './commands/echo.js'
 export { createCommand as createFetch } from './commands/fetch.js'
 export { createCommand as createGrep } from './commands/grep.js'
@@ -128,6 +130,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     cd: createCd(kernel, shell, terminal),
     chmod: createChmod(kernel, shell, terminal),
     cp: createCp(kernel, shell, terminal),
+    cron: createCron(kernel, shell, terminal),
     echo: createEcho(kernel, shell, terminal),
     fetch: createFetch(kernel, shell, terminal),
     grep: createGrep(kernel, shell, terminal),

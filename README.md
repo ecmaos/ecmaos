@@ -51,7 +51,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - Install any client-side npm package (this doesn't mean it will work out of the box as expected)
 - Event manager for dispatching and subscribing to events
 - Process manager for running applications and daemons
-- Interval manager for scheduling recurring operations
+- Interval manager for scheduling recurring operations with support for cron expressions via the `cron` command
 - Memory manager for managing pseudo-memory: Collections, Config, Heap, and Stack
 - Storage manager for managing Storage API capabilities: IndexedDB, localStorage, etc.
 - Internationalization framework for translating text powered by [i18next](https://www.i18next.com)
@@ -141,7 +141,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
   - Events (CustomEvents)
   - Filesystem (ZenFS)
   - Internationalization (i18next)
-  - Interval Manager (setInterval)
+  - Interval Manager (setInterval and cron scheduling)
   - Log Manager (tslog)
   - Memory Manager (Abstractions)
   - Process Manager
@@ -224,8 +224,10 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - `/bios/`: The BIOS filesystem
 - `/boot/init`: A script that runs on boot
 - `/dev/`: All devices are here
+- `/etc/crontab`: System-wide crontab file (loaded on boot)
 - `/etc/packages`: A list of installed packages to load on boot
 - `/home/`: Contains user home directories
+- `~/.config/crontab`: User-specific crontab file (loaded on login)
 - `/proc/`: Contains various dynamic system information
 - `/root/`: The home directory for the root user
 - `/usr/bin/`: Executable packages get linked here
@@ -243,6 +245,9 @@ chmod 700 hello.txt
 chown user hello.txt
 clear
 cp /tmp/hello.txt /tmp/hi.txt
+cron add "* * * * *" "echo hello" # add a cron job
+cron reload # reload crontabs from files
+cron list # list all cron jobs
 download hello.txt
 edit hello.txt
 env hello --set world ; env
@@ -316,6 +321,8 @@ install jquery
 ## Startup
 
 - `/boot/init` is a script that runs on boot inside the init process (PID 0)
+- `/etc/crontab` is loaded on boot and contains system-wide scheduled tasks
+- `~/.config/crontab` is loaded on user login and contains user-specific scheduled tasks
 - `/etc/packages` is a list of already installed packages to load on boot; one per line
 - The env var `VITE_KERNEL_MODULES` is a list of modules to load on boot; CSV with pinned versions
 - The env var `VITE_RECOMMENDED_APPS` is a list of apps to suggest to new users

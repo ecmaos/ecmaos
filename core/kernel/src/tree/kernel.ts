@@ -49,6 +49,7 @@ import { Workers } from '#workers.ts'
 
 // import createBIOS, { BIOSModule } from '@ecmaos/bios'
 import { TerminalCommands } from '#lib/commands/index.js'
+import { parseCrontabFile } from '#lib/crontab.ts'
 
 import {
   KernelEvents,
@@ -549,6 +550,9 @@ export class Kernel implements IKernel {
 
       this.intervals.set('/proc', this.registerProc.bind(this), import.meta.env['VITE_KERNEL_INTERVALS_PROC'] ?? 1000)
 
+      // Load system crontab
+      await this.loadCrontab('/etc/crontab', 'system')
+
       // Load kernel modules
       const modulesSpan = tracer.startSpan('kernel.boot.modules', {}, trace.setSpan(context.active(), bootSpan))
       const modules = import.meta.env['VITE_KERNEL_MODULES']
@@ -795,6 +799,10 @@ export class Kernel implements IKernel {
       this.shell.cwd = localStorage.getItem(`cwd:${this.shell.credentials.uid}`) ?? (
         user.uid === 0 ? '/' : (user.home || '/')
       )
+
+      // Load user crontab
+      const userCrontabPath = path.join(user.home || '/root', '.config', 'crontab')
+      await this.loadCrontab(userCrontabPath, 'user')
 
       // Setup screensavers
       // TODO: This shouldn't really be a part of the kernel
@@ -1375,6 +1383,68 @@ export class Kernel implements IKernel {
         }
       }
     } catch {}
+  }
+
+  /**
+   * Loads and registers crontab entries from a file.
+   * @param filePath - Path to the crontab file
+   * @param scope - Scope of the crontab ('system' or 'user')
+   * @returns {Promise<void>} A promise that resolves when the crontab is loaded.
+   */
+  async loadCrontab(filePath: string, scope: 'system' | 'user'): Promise<void> {
+    try {
+      let content: string
+      
+      if (scope === 'system') {
+        // System crontab uses kernel filesystem
+        if (!await this.filesystem.fs.exists(filePath)) {
+          return
+        }
+        content = await this.filesystem.fs.readFile(filePath, 'utf-8')
+      } else {
+        // User crontab uses shell context filesystem
+        if (!await this.shell.context.fs.promises.exists(filePath)) {
+          return
+        }
+        content = await this.shell.context.fs.promises.readFile(filePath, 'utf-8')
+      }
+
+      const entries = parseCrontabFile(content)
+
+      for (const entry of entries) {
+        const jobName = `cron:${scope}:${entry.lineNumber}`
+        
+        // Clear existing job if it exists
+        const existingHandle = this.intervals.getCron(jobName)
+        if (existingHandle) {
+          this.intervals.clearCron(jobName)
+        }
+
+        // Register new cron job
+        this.intervals.setCron(
+          jobName,
+          entry.expression,
+          async () => {
+            try {
+              await this.shell.execute(entry.command)
+            } catch (error) {
+              this.log.error(`Cron job ${jobName} execution failed: ${error instanceof Error ? error.message : String(error)}`)
+            }
+          },
+          {
+            errorHandler: (err) => {
+              this.log.error(`Cron job ${jobName} failed: ${err instanceof Error ? err.message : String(err)}`)
+            }
+          }
+        )
+      }
+
+      if (entries.length > 0) {
+        this.log.info(`Loaded ${entries.length} cron job(s) from ${filePath}`)
+      }
+    } catch (error) {
+      this.log.warn(`Failed to load crontab from ${filePath}: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   /**
