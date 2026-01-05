@@ -89,27 +89,70 @@ function parseArgs(argv: string[]): { options: TarOptions; files: string[] } {
       i++
     } else if (arg.startsWith('-')) {
       // Handle combined flags like -czf
-      const flags = arg.slice(1).split('')
-      for (const flag of flags) {
-        if (flag === 'c') options.create = true
-        else if (flag === 'x') options.extract = true
-        else if (flag === 't') options.list = true
-        else if (flag === 'f') {
-          // -f needs to be followed by filename, check if next arg exists
-          const nextArg = argv[i + 1]
-          if (i + 1 < argv.length && typeof nextArg === 'string' && !nextArg.startsWith('-')) {
-            i++
-            options.file = nextArg
+      const flagString = arg.slice(1)
+      let flagIndex = 0
+      while (flagIndex < flagString.length) {
+        const flag = flagString[flagIndex]
+        if (flag === 'c') {
+          options.create = true
+          flagIndex++
+        } else if (flag === 'x') {
+          options.extract = true
+          flagIndex++
+        } else if (flag === 't') {
+          options.list = true
+          flagIndex++
+        } else if (flag === 'f') {
+          // -f needs to be followed by filename
+          // Check if there's a path in the same string after 'f'
+          const remaining = flagString.slice(flagIndex + 1)
+          if (remaining.length > 0 && !remaining.startsWith('-')) {
+            // Path is in the same string
+            options.file = remaining
+            flagIndex = flagString.length // Done processing this arg
+          } else if (i + 1 < argv.length) {
+            // Check next argument
+            const nextArg = argv[i + 1]
+            if (typeof nextArg === 'string' && !nextArg.startsWith('-')) {
+              i++
+              options.file = nextArg
+              flagIndex++
+            } else {
+              flagIndex++
+            }
+          } else {
+            flagIndex++
           }
-        } else if (flag === 'z') options.gzip = true
-        else if (flag === 'v') options.verbose = true
-        else if (flag === 'C') {
-          // -C needs to be followed by directory, check if next arg exists
-          const nextArg = argv[i + 1]
-          if (i + 1 < argv.length && typeof nextArg === 'string' && !nextArg.startsWith('-')) {
-            i++
-            options.directory = nextArg
+        } else if (flag === 'z') {
+          options.gzip = true
+          flagIndex++
+        } else if (flag === 'v') {
+          options.verbose = true
+          flagIndex++
+        } else if (flag === 'C') {
+          // -C needs to be followed by directory
+          // Check if there's a path in the same string after 'C'
+          const remaining = flagString.slice(flagIndex + 1)
+          if (remaining.length > 0 && !remaining.startsWith('-')) {
+            // Path is in the same string (e.g., -xz-C/tmp/dir)
+            options.directory = remaining
+            flagIndex = flagString.length // Done processing this arg
+          } else if (i + 1 < argv.length) {
+            // Check next argument
+            const nextArg = argv[i + 1]
+            if (typeof nextArg === 'string' && !nextArg.startsWith('-')) {
+              i++
+              options.directory = nextArg
+              flagIndex++
+            } else {
+              flagIndex++
+            }
+          } else {
+            flagIndex++
           }
+        } else {
+          // Unknown flag, skip it
+          flagIndex++
         }
       }
       i++

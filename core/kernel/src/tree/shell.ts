@@ -225,7 +225,14 @@ export class Shell implements IShell {
         const output = await this.executeCommandSubstitution(command)
         
         // Replace the substitution with the output
-        result = result.slice(0, start) + output + result.slice(end)
+        // Ensure the output is treated as a separate word by checking boundaries
+        const beforeChar = start > 0 ? result[start - 1] : ' '
+        const afterChar = end < result.length ? result[end] : ' '
+        const needsSpaceBefore = beforeChar !== ' ' && beforeChar !== '\t' && beforeChar !== '\n'
+        const needsSpaceAfter = afterChar !== ' ' && afterChar !== '\t' && afterChar !== '\n' && afterChar !== ''
+        
+        const replacement = (needsSpaceBefore ? ' ' : '') + output + (needsSpaceAfter ? ' ' : '')
+        result = result.slice(0, start) + replacement + result.slice(end)
       }
     }
     
@@ -454,39 +461,53 @@ export class Shell implements IShell {
           expandedArgs.push(...expanded)
         }
       } else {
-        // Reconstruct the argument by joining all parts
-        const reconstructed = group.map(item => {
-          if (typeof item === 'string') {
-            return item
-          } else if (typeof item === 'object' && item !== null) {
-            // Try to extract meaningful string from object
-            if ('pattern' in item && typeof (item as { pattern?: string }).pattern === 'string') {
-              return (item as { pattern: string }).pattern
-            }
-            // For other objects, try to find string properties
-            for (const key in item) {
-              const value = (item as Record<string, unknown>)[key]
-              if (typeof value === 'string' && value.length > 0 && key !== 'op') {
-                return value
-              }
-            }
-            // Fallback: return empty string (object represents a special character we can't reconstruct)
-            return ''
-          }
-          return String(item)
-        }).join('')
+        // Check if all items in the group are plain strings (not objects representing special chars)
+        // If so, they were originally separate arguments and should remain separate
+        const allStrings = group.every(item => typeof item === 'string')
         
-        if (reconstructed) {
-          // Check if it contains glob characters
-          if (reconstructed.includes('*') || reconstructed.includes('?')) {
-            const expanded = await this.expandGlob(reconstructed)
-            if (expanded.length === 0) {
-              expandedArgs.push(reconstructed)
-            } else {
-              expandedArgs.push(...expanded)
+        if (allStrings && group.length > 1) {
+          // These were separate arguments, push them individually
+          for (const item of group) {
+            if (typeof item === 'string' && item) {
+              expandedArgs.push(item)
             }
-          } else {
-            expandedArgs.push(reconstructed)
+          }
+        } else {
+          // Reconstruct the argument by joining all parts
+          // This handles cases where shell-quote split on special characters
+          const reconstructed = group.map(item => {
+            if (typeof item === 'string') {
+              return item
+            } else if (typeof item === 'object' && item !== null) {
+              // Try to extract meaningful string from object
+              if ('pattern' in item && typeof (item as { pattern?: string }).pattern === 'string') {
+                return (item as { pattern: string }).pattern
+              }
+              // For other objects, try to find string properties
+              for (const key in item) {
+                const value = (item as Record<string, unknown>)[key]
+                if (typeof value === 'string' && value.length > 0 && key !== 'op') {
+                  return value
+                }
+              }
+              // Fallback: return empty string (object represents a special character we can't reconstruct)
+              return ''
+            }
+            return String(item)
+          }).join('')
+          
+          if (reconstructed) {
+            // Check if it contains glob characters
+            if (reconstructed.includes('*') || reconstructed.includes('?')) {
+              const expanded = await this.expandGlob(reconstructed)
+              if (expanded.length === 0) {
+                expandedArgs.push(reconstructed)
+              } else {
+                expandedArgs.push(...expanded)
+              }
+            } else {
+              expandedArgs.push(reconstructed)
+            }
           }
         }
       }
