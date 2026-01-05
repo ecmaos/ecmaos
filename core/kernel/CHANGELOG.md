@@ -1,5 +1,44 @@
 # @ecmaos/kernel
 
+## 0.8.1
+
+### Patch Changes
+
+- d43d304: New Features:
+
+  - Cron/crontab system: Added scheduling system with crontab parsing and execution
+  - Web browser coreutil: New 'web' command for browsing functionality
+  - View coreutil: New 'view' command for multimedia viewing
+  - Coreutils migration: Migrated 'play' and 'video' commands from kernel to coreutils
+
+  Fixes:
+
+  - Shell command substitution parsing improvements
+  - Tar parsing improvements
+  - Web coreutil now loads credentialless
+
+  Maintenance:
+
+  - Updated documentation and types across various kernel components
+  - Enhanced coreutils and shell scripts
+  - Added 'open' and 'man' commands to coreutils
+
+- Updated dependencies [d43d304]
+  - @ecmaos/coreutils@0.3.1
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.8.0
 
 ### Minor Changes
