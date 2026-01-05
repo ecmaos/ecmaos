@@ -185,20 +185,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         return await passwd({ kernel, shell, terminal, process, args: argv.password })
       }
     }),
-    play: new TerminalCommand({
-      command: 'play',
-      description: 'Play a media file',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'file', type: String, typeLabel: '{underline file}', defaultOption: true, description: 'The path to the media file to play' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await play({ kernel, shell, terminal, process, args: [argv.file] })
-      }
-    }),
     ps: new TerminalCommand({
       command: 'ps',
       description: 'List all running processes',
@@ -287,20 +273,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       ],
       run: async (argv: CommandLineOptions, process?: Process) => {
         return await upload({ kernel, shell, terminal, process, args: [argv.path] })
-      }
-    }),
-    video: new TerminalCommand({
-      command: 'video',
-      description: 'Play a video file',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'file', type: String, typeLabel: '{underline file}', defaultOption: true, description: 'The path to the video file to play' }
-      ],
-      run: async (argv: CommandLineOptions) => {
-        return await video({ kernel, shell, terminal, args: [argv.file] })
       }
     }),
   }
@@ -477,20 +449,6 @@ export const passwd = async ({ kernel, terminal, process, args }: CommandArgs) =
     await writelnStderr(process, terminal, chalk.red(`Failed to update password: ${error instanceof Error ? error.message : 'Unknown error'}`))
     return 1
   }
-}
-
-export const play = async ({ shell, terminal, process, args }: CommandArgs) => {
-  const [file] = (args as string[])
-  if (!file || file === '') {
-    await writelnStderr(process, terminal, chalk.red('Usage: play <file>'))
-    return 1
-  }
-
-  const fullPath = path.resolve(shell.cwd, file)
-  const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
-  const url = URL.createObjectURL(blob)
-  const audio = new Audio(url)
-  audio.play()
 }
 
 export const ps = async ({ kernel, terminal, process }: CommandArgs) => {
@@ -684,29 +642,3 @@ export const upload = async ({ kernel, shell, terminal, process, args }: Command
   input.click()
   return 0
 }
-
-export const video = async ({ kernel, shell, args }: CommandArgs) => {
-  const file = (args as string[])[0]
-  const fullPath = file ? path.resolve(shell.cwd, file) : shell.cwd
-
-  const blob = new Blob([new Uint8Array(await shell.context.fs.promises.readFile(fullPath))])
-  const url = URL.createObjectURL(blob)
-
-  // Load video metadata to get dimensions
-  const video = document.createElement('video')
-  video.src = url
-  await new Promise(resolve => { video.onloadedmetadata = resolve })
-
-  const { videoWidth, videoHeight } = video
-  const { innerWidth, innerHeight } = window
-  const shouldMaximize = videoWidth > innerWidth || videoHeight > innerHeight
-
-  kernel.windows.create({
-    title: file,
-    html: `<video src="${url}" autoplay controls style="width:100%;height:100%"></video>`,
-    width: shouldMaximize ? innerWidth : videoWidth,
-    height: shouldMaximize ? innerHeight : videoHeight,
-    max: shouldMaximize
-  })
-}
-

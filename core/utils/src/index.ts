@@ -23,6 +23,7 @@ import { createCommand as createMktemp } from './commands/mktemp.js'
 import { createCommand as createMv } from './commands/mv.js'
 import { createCommand as createNc } from './commands/nc.js'
 import { createCommand as createOpen } from './commands/open.js'
+import { createCommand as createPlay } from './commands/play.js'
 import { createCommand as createPwd } from './commands/pwd.js'
 import { createCommand as createSockets } from './commands/sockets.js'
 import { createCommand as createRm } from './commands/rm.js'
@@ -65,6 +66,7 @@ import { createCommand as createWhich } from './commands/which.js'
 import { createCommand as createWhoami } from './commands/whoami.js'
 import { createCommand as createZip } from './commands/zip.js'
 import { createCommand as createUnzip } from './commands/unzip.js'
+import { createCommand as createVideo } from './commands/video.js'
 
 // Export individual command factories
 export { createCommand as createCat } from './commands/cat.js'
@@ -81,6 +83,7 @@ export { createCommand as createMkdir } from './commands/mkdir.js'
 export { createCommand as createMktemp } from './commands/mktemp.js'
 export { createCommand as createMv } from './commands/mv.js'
 export { createCommand as createOpen } from './commands/open.js'
+export { createCommand as createPlay } from './commands/play.js'
 export { createCommand as createPwd } from './commands/pwd.js'
 export { createCommand as createRm } from './commands/rm.js'
 export { createCommand as createRmdir } from './commands/rmdir.js'
@@ -111,6 +114,7 @@ export { createCommand as createWhich } from './commands/which.js'
 export { createCommand as createSockets } from './commands/sockets.js'
 export { createCommand as createZip } from './commands/zip.js'
 export { createCommand as createUnzip } from './commands/unzip.js'
+export { createCommand as createVideo } from './commands/video.js'
 
 /**
  * Creates all coreutils commands.
@@ -134,6 +138,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     mv: createMv(kernel, shell, terminal),
     nc: createNc(kernel, shell, terminal),
     open: createOpen(kernel, shell, terminal),
+    play: createPlay(kernel, shell, terminal),
     pwd: createPwd(kernel, shell, terminal),
     sockets: createSockets(kernel, shell, terminal),
     rm: createRm(kernel, shell, terminal),
@@ -175,7 +180,8 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     which: createWhich(kernel, shell, terminal),
     whoami: createWhoami(kernel, shell, terminal),
     zip: createZip(kernel, shell, terminal),
-    unzip: createUnzip(kernel, shell, terminal)
+    unzip: createUnzip(kernel, shell, terminal),
+    video: createVideo(kernel, shell, terminal)
   }
 }
 
