@@ -144,6 +144,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
           if (linesRendered > 0) {
             terminal.write(ansi.cursor.up(linesRendered))
+            terminal.write('\r')
           }
 
           const endLine = Math.min(currentLine + displayRows, lines.length)

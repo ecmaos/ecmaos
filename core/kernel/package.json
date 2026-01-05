@@ -38,6 +38,7 @@
     "Use the 'news' command to see the latest news about ecmaOS",
     "Type 'ls /bin' to see all built-in commands",
     "Type 'ls /usr/bin' to see all installed commands",
+    "Type 'ls /dev' to see all available devices",
     "You can set your environment variables in ~/.env (try setting PROMPT to a PS1-like format)",
     "You can register and login with a passkey: 'passkey register' and 'passkey list'",
     "The 'man' command can be used to view the manual pages for commands: 'man @ecmaos/kernel'",

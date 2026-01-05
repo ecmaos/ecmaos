@@ -409,7 +409,10 @@ async function displayManPage(
     if (horizontalOffset > maxHorizontalOffset) horizontalOffset = maxHorizontalOffset
     if (horizontalOffset < 0) horizontalOffset = 0
 
-    if (linesRendered > 0) terminal.write(ansi.cursor.up(linesRendered))
+    if (linesRendered > 0) {
+      terminal.write(ansi.cursor.up(linesRendered))
+      terminal.write('\r')
+    }
 
     const endLine = Math.min(currentLine + displayRows, lines.length)
     linesRendered = 0
