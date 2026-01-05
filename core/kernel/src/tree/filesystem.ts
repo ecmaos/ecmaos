@@ -145,6 +145,8 @@ export class Filesystem {
 
   /**
    * Extracts a tarball to the given path.
+   * TODO: Just use the tar coreutil
+   * 
    * @param {string} tarballPath - The path to the tarball.
    * @param {string} extractPath - The path to extract the tarball to.
    * @param {number} fileMode - The mode to set for files. Defaults to 0o644.
@@ -208,6 +210,10 @@ export class Filesystem {
     }
 
     for (const file of tar.fileInfos) {
+      // Skip GNU tar @LongLink entries (used for paths > 100 characters)
+      // These are metadata entries, not actual files
+      if (file.name === '@LongLink' || file.name === './@LongLink' || file.name.endsWith('/@LongLink')) continue
+
       if (hasPackageDir && !file.name.startsWith(stripPrefix)) continue
 
       const relativePath = hasPackageDir ? file.name.slice(stripPrefix.length) : file.name

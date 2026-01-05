@@ -409,42 +409,86 @@ export class Shell implements IShell {
   private async expandGlobArgs(args: Array<unknown>): Promise<string[]> {
     const expandedArgs: string[] = []
     
+    // Group adjacent non-glob, non-comment items to reconstruct arguments that were split
+    // This handles cases where shell-quote splits on special characters like parentheses
+    const groups: Array<Array<unknown>> = []
+    let currentGroup: Array<unknown> = []
+    
     for (const arg of args) {
-      // Skip comments and other non-string/non-glob entries
-      if (typeof arg === 'object' && arg !== null) {
-        // Check if this is a glob object from shell-quote
-        if ('op' in arg && (arg as { op: string }).op === 'glob' && 'pattern' in arg && typeof (arg as { pattern?: string }).pattern === 'string') {
-          const pattern = (arg as { pattern: string }).pattern
-          const expanded = await this.expandGlob(pattern)
-          if (expanded.length === 0) {
-            // If no matches, pass the pattern as-is (standard shell behavior)
-            expandedArgs.push(pattern)
-          } else {
-            expandedArgs.push(...expanded)
-          }
-        } else if ('comment' in arg) {
-          // Skip comment entries
-          continue
-        } else {
-          // Other object types - convert to string
-          expandedArgs.push(String(arg))
+      // Skip comments
+      if (typeof arg === 'object' && arg !== null && 'comment' in arg) {
+        continue
+      }
+      
+      // Check if this is a glob object - globs should be separate
+      if (typeof arg === 'object' && arg !== null && 'op' in arg && (arg as { op: string }).op === 'glob' && 'pattern' in arg) {
+        // Push current group if it has items
+        if (currentGroup.length > 0) {
+          groups.push(currentGroup)
+          currentGroup = []
         }
-      } else if (typeof arg === 'string') {
-        // Regular string argument - check if it contains glob characters
-        // Only expand if it's not quoted (shell-quote handles quoted strings differently)
-        if (arg.includes('*') || arg.includes('?')) {
-          const expanded = await this.expandGlob(arg)
-          if (expanded.length === 0) {
-            expandedArgs.push(arg)
-          } else {
-            expandedArgs.push(...expanded)
-          }
+        // Push glob as its own group
+        groups.push([arg])
+      } else {
+        // Add to current group
+        currentGroup.push(arg)
+      }
+    }
+    
+    // Push final group if it has items
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup)
+    }
+    
+    // Process each group
+    for (const group of groups) {
+      if (group.length === 0) continue
+      
+      // If group has a single glob, expand it
+      if (group.length === 1 && typeof group[0] === 'object' && group[0] !== null && 'op' in group[0] && (group[0] as { op: string }).op === 'glob' && 'pattern' in group[0] && typeof (group[0] as { pattern?: string }).pattern === 'string') {
+        const pattern = (group[0] as { pattern: string }).pattern
+        const expanded = await this.expandGlob(pattern)
+        if (expanded.length === 0) {
+          expandedArgs.push(pattern)
         } else {
-          expandedArgs.push(arg)
+          expandedArgs.push(...expanded)
         }
       } else {
-        // Other types - convert to string
-        expandedArgs.push(String(arg))
+        // Reconstruct the argument by joining all parts
+        const reconstructed = group.map(item => {
+          if (typeof item === 'string') {
+            return item
+          } else if (typeof item === 'object' && item !== null) {
+            // Try to extract meaningful string from object
+            if ('pattern' in item && typeof (item as { pattern?: string }).pattern === 'string') {
+              return (item as { pattern: string }).pattern
+            }
+            // For other objects, try to find string properties
+            for (const key in item) {
+              const value = (item as Record<string, unknown>)[key]
+              if (typeof value === 'string' && value.length > 0 && key !== 'op') {
+                return value
+              }
+            }
+            // Fallback: return empty string (object represents a special character we can't reconstruct)
+            return ''
+          }
+          return String(item)
+        }).join('')
+        
+        if (reconstructed) {
+          // Check if it contains glob characters
+          if (reconstructed.includes('*') || reconstructed.includes('?')) {
+            const expanded = await this.expandGlob(reconstructed)
+            if (expanded.length === 0) {
+              expandedArgs.push(reconstructed)
+            } else {
+              expandedArgs.push(...expanded)
+            }
+          } else {
+            expandedArgs.push(reconstructed)
+          }
+        }
       }
     }
     

@@ -535,6 +535,14 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           }
         } else if (arg === '--list' || arg === '-l') {
           listTopicsFlag = true
+        } else if (arg.startsWith('--list') && arg.length > 6) {
+          // Handle case where --list is concatenated with package name
+          listTopicsFlag = true
+          topicPath = arg.slice(6) // Extract everything after "--list"
+        } else if (arg.startsWith('-l') && arg.length > 2) {
+          // Handle case where -l is concatenated with package name (e.g., "-l@zenfs/core")
+          listTopicsFlag = true
+          topicPath = arg.slice(2) // Extract everything after "-l"
         } else if (!arg.startsWith('-')) {
           topicPath = arg
         }

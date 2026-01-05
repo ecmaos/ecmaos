@@ -46,6 +46,10 @@ cd "$TEMP_DIR"
 git sparse-checkout init --cone
 git sparse-checkout set "$DOCS_PATH"
 
+# Fetch README.md separately
+echo "Fetching README.md..."
+git show HEAD:README.md > README.md 2>/dev/null || echo "Warning: Could not fetch README.md from repository"
+
 # Copy documentation files to target directory
 echo "Copying documentation files..."
 if [ ! -d "$DOCS_PATH" ]; then
@@ -81,5 +85,14 @@ rm -rf "$PROJECT_ROOT/$TARGET_DIR"/*
 
 # Copy all files from documentation folder
 cp -r "$DOCS_PATH"/* "$PROJECT_ROOT/$TARGET_DIR/"
+
+# Copy README.md from zen-fs repository to index.md in target directory
+echo "Copying README.md from zen-fs repository to index.md..."
+if [ -f "$TEMP_DIR/README.md" ]; then
+    cp "$TEMP_DIR/README.md" "$PROJECT_ROOT/$TARGET_DIR/index.md"
+    echo "README.md copied to index.md successfully"
+else
+    echo "Warning: README.md not found in zen-fs repository"
+fi
 
 echo "ZenFS documentation sync completed!"

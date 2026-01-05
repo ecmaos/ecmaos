@@ -954,7 +954,7 @@ export class Terminal extends XTerm implements ITerminal {
       const matchesMap = await Promise.all(matches.map(async (match: string) => {
         const fullPath = path.join(searchDir, match)
         const isDirectory = (await this._kernel.filesystem.fs.stat(fullPath)).isDirectory()
-        const escapedMatch = match.includes(' ') ? match.replace(/ /g, '\\ ') : match
+        const escapedMatch = match.replace(/([ ()[\]{}|&;<>`$"'\\])/g, '\\$1')
         const matchWithSlash = isDirectory ? escapedMatch + '/' : escapedMatch
         
         // If the original had tilde and the path is within HOME, convert back to tilde notation

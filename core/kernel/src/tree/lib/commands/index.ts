@@ -171,31 +171,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         return await mount({ kernel, shell, terminal, process, args: [argv.args, argv.type, argv.options] })
       }
     }),
-    observe: new TerminalCommand({
-      command: 'observe',
-      description: 'Observe piped streams',
-      kernel,
-      shell,
-      terminal,
-      options: [HelpOption],
-      run: async (_: CommandLineOptions, process?: Process) => {
-        return await observe({ kernel, shell, terminal, process, args: [] })
-      }
-    }),
-    open: new TerminalCommand({
-      command: 'open',
-      description: 'Open a file or URL',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the file or URL to open' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await open({ kernel, shell, terminal, process, args: [argv.path] })
-      }
-    }),
     passwd: new TerminalCommand({
       command: 'passwd',
       description: 'Change user password',
@@ -466,62 +441,6 @@ export const mount = async ({ kernel, shell, terminal, process, args }: CommandA
   }
 
   return 0
-}
-
-export const observe = async ({ process, terminal }: CommandArgs) => {
-  if (!process) throw new Error('Missing process')
-  const { stdin, stdout, stderr } = process
-
-  if (!stdin) {
-    await writelnStderr(process, terminal, chalk.red('No stdin available'))
-    return 1
-  }
-
-  const reader = stdin.getReader()
-  const decoder = new TextDecoder()
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      // Log the incoming data to stderr (observation log)
-      const text = decoder.decode(value)
-      if (stderr) {
-        const errWriter = stderr.getWriter()
-        try {
-          await errWriter.write(new TextEncoder().encode(chalk.green(`[stdin] ${text.trim()}\n`)))
-        } finally {
-          errWriter.releaseLock()
-        }
-      }
-
-      // Pass through to stdout if available
-      if (stdout) {
-        const writer = stdout.getWriter()
-        try {
-          await writer.write(value)
-        } finally {
-          writer.releaseLock()
-        }
-      }
-    }
-  } finally {
-    reader.releaseLock()
-  }
-
-  return 0
-}
-
-export const open = async ({ terminal, process, args }: CommandArgs) => {
-  const [filePath] = (args as string[])
-  if (!filePath) return 1
-  const isURL = !filePath.startsWith('/') || !filePath.startsWith('.')
-  if (isURL) window.open(filePath, '_blank')
-  else {
-    // TODO: handle files
-    await writelnStderr(process, terminal, chalk.red('Unsupported path'))
-  }
 }
 
 export const passwd = async ({ kernel, terminal, process, args }: CommandArgs) => {

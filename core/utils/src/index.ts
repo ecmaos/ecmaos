@@ -22,6 +22,7 @@ import { createCommand as createMkdir } from './commands/mkdir.js'
 import { createCommand as createMktemp } from './commands/mktemp.js'
 import { createCommand as createMv } from './commands/mv.js'
 import { createCommand as createNc } from './commands/nc.js'
+import { createCommand as createOpen } from './commands/open.js'
 import { createCommand as createPwd } from './commands/pwd.js'
 import { createCommand as createSockets } from './commands/sockets.js'
 import { createCommand as createRm } from './commands/rm.js'
@@ -78,6 +79,7 @@ export { createCommand as createLs } from './commands/ls.js'
 export { createCommand as createMkdir } from './commands/mkdir.js'
 export { createCommand as createMktemp } from './commands/mktemp.js'
 export { createCommand as createMv } from './commands/mv.js'
+export { createCommand as createOpen } from './commands/open.js'
 export { createCommand as createPwd } from './commands/pwd.js'
 export { createCommand as createRm } from './commands/rm.js'
 export { createCommand as createRmdir } from './commands/rmdir.js'
@@ -128,8 +130,9 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     mkdir: createMkdir(kernel, shell, terminal),
     mktemp: createMktemp(kernel, shell, terminal),
     mv: createMv(kernel, shell, terminal),
-    pwd: createPwd(kernel, shell, terminal),
     nc: createNc(kernel, shell, terminal),
+    open: createOpen(kernel, shell, terminal),
+    pwd: createPwd(kernel, shell, terminal),
     sockets: createSockets(kernel, shell, terminal),
     rm: createRm(kernel, shell, terminal),
     rmdir: createRmdir(kernel, shell, terminal),
