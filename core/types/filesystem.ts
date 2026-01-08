@@ -43,6 +43,36 @@ export interface FilesystemDescriptions {
 }
 
 /**
+ * Represents an entry in the fstab (filesystem table).
+ * Analogous to /etc/fstab in Linux, but simplified for our use.
+ */
+export interface FstabEntry {
+  /**
+   * The source of the mount, e.g., device, URL, database name, etc.
+   * For memory/webstorage/dropbox/googledrive, this may be empty/ignored.
+   */
+  source: string
+  /**
+   * The target mount point (absolute path in the virtual FS)
+   */
+  target: string
+  /**
+   * Filesystem type (e.g., 'memory', 'fetch', 'indexeddb', 'webstorage', 'zip', 'iso', 'dropbox', 'googledrive', etc.)
+   */
+  type: string
+  /**
+   * Optional comma-separated mount options (e.g., "size=1048576,storage=localStorage")
+   */
+  options?: string
+}
+
+/**
+ * fstab table: a list of fstab entries.
+ */
+export type Fstab = FstabEntry[]
+
+
+/**
  * Interface for filesystem functionality
  */
 export interface Filesystem {

@@ -8,10 +8,10 @@ export default defineConfig({
     cssInjectedByJs()
   ],
   define: {
-    "import.meta.env.VITE_KERNEL_MODULES": ''
+    "import.meta.env.ECMAOS_KERNEL_MODULES": ''
   },
   server: {
-    port: Number(process.env['VITE_PORT']) || 30448
+    port: Number(process.env['ECMAOS_PORT']) || 30448
   },
   build: {
     outDir: './dist',

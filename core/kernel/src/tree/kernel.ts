@@ -50,6 +50,7 @@ import { Workers } from '#workers.ts'
 // import createBIOS, { BIOSModule } from '@ecmaos/bios'
 import { TerminalCommands } from '#lib/commands/index.js'
 import { parseCrontabFile } from '#lib/crontab.ts'
+import { parseFstabFile } from '#lib/fstab.ts'
 
 import {
   KernelEvents,
@@ -445,12 +446,12 @@ export class Kernel implements IKernel {
 
         this.terminal.writeln(import.meta.env['REPOSITORY'] + '\n')
 
-        if (import.meta.env['KNOWN_ISSUES'] && import.meta.env['VITE_BOOT_DISABLE_ISSUES'] !== 'true') {
+        if (import.meta.env['KNOWN_ISSUES'] && import.meta.env['ECMAOS_BOOT_DISABLE_ISSUES'] !== 'true') {
           this.terminal.writeln(chalk.yellow.bold(t('kernel.knownIssues', 'Known Issues')))
           this.terminal.writeln(chalk.yellow(import.meta.env['KNOWN_ISSUES'].map((issue: string) => `- ${issue}`).join('\n')) + '\n')
         }
 
-        if (import.meta.env['TIPS'] && import.meta.env['VITE_BOOT_DISABLE_TIPS'] !== 'true') {
+        if (import.meta.env['TIPS'] && import.meta.env['ECMAOS_BOOT_DISABLE_TIPS'] !== 'true') {
           this.terminal.writeln(chalk.green.bold(t('kernel.tips', 'Tips')))
           this.terminal.writeln(chalk.green(import.meta.env['TIPS'].map((tip: string) => `- ${tip}`).join('\n')) + '\n')
         }
@@ -458,7 +459,7 @@ export class Kernel implements IKernel {
         spinner = this.terminal.spinner('arrow3', chalk.yellow(this.i18n.t('Booting')))
         spinner.start()
 
-        if (logoFiglet && import.meta.env['VITE_BOOT_DISABLE_LOGO_CONSOLE'] !== 'true') {
+        if (logoFiglet && import.meta.env['ECMAOS_BOOT_DISABLE_LOGO_CONSOLE'] !== 'true') {
           console.log(`%c${logoFiglet}`, 'color: green')
           console.log(`%c${import.meta.env['REPOSITORY'] || 'https://github.com/ecmaos/ecmaos'}`, 'color: blue; text-decoration: underline; font-size: 16px')
           this.log.info(`${import.meta.env['NAME'] || 'ecmaOS'} v${import.meta.env['VERSION']}`)
@@ -548,14 +549,19 @@ export class Kernel implements IKernel {
       await this.registerProc() // TODO: This will be revamped elsewhere or implemented as a procfs backend
       await this.registerPackages()
 
-      this.intervals.set('/proc', this.registerProc.bind(this), import.meta.env['VITE_KERNEL_INTERVALS_PROC'] ?? 1000)
+      this.intervals.set('/proc', this.registerProc.bind(this), import.meta.env['ECMAOS_KERNEL_INTERVALS_PROC'] ?? 1000)
 
       // Load system crontab
       await this.loadCrontab('/etc/crontab', 'system')
 
+      // Load and process fstab
+      const fstabSpan = tracer.startSpan('kernel.boot.fstab', {}, trace.setSpan(context.active(), bootSpan))
+      await this.loadFstab()
+      fstabSpan.end()
+
       // Load kernel modules
       const modulesSpan = tracer.startSpan('kernel.boot.modules', {}, trace.setSpan(context.active(), bootSpan))
-      const modules = import.meta.env['VITE_KERNEL_MODULES']
+      const modules = import.meta.env['ECMAOS_KERNEL_MODULES']
       if (modules) {
         const mods = modules.split(',')
         modulesSpan.setAttribute('modules.count', mods.length)
@@ -642,7 +648,7 @@ export class Kernel implements IKernel {
         authSpan.setAttribute('auth.username', this.options.credentials.username)
         authSpan.end()
       } else {
-        if (import.meta.env['VITE_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold(`⚠️  ${this.i18n.t('kernel.defaultLogin', 'Default Login')}: root / root\n`))
+        if (import.meta.env['ECMAOS_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold(`⚠️  ${this.i18n.t('kernel.defaultLogin', 'Default Login')}: root / root\n`))
 
         // TODO: Pretty US/NA-centric, but it's a simple start
         const holidayEmojis: Record<string, string> = {
@@ -861,7 +867,7 @@ export class Kernel implements IKernel {
 
       // Install recommended apps if desired by user on first boot
       if (!this.storage.local.getItem('ecmaos:first-boot')) {
-        const recommendedApps = import.meta.env['VITE_RECOMMENDED_APPS']
+        const recommendedApps = import.meta.env['ECMAOS_RECOMMENDED_APPS']
         if (recommendedApps) {
           const apps = recommendedApps.split(',')
           this.terminal.writeln('\n' + chalk.yellow.bold(this.i18n.t('kernel.recommendedApps', 'Recommended apps:')))
@@ -1218,9 +1224,16 @@ export class Kernel implements IKernel {
 
     const script = await this.filesystem.fs.readFile(options.command, 'utf-8')
     if (script) {
+      const terminalCmdBefore = options.terminal?.cmd || ''
+      
       for (const line of script.split('\n')) {
         if (line.startsWith('#') || line.trim() === '') continue
         await options.shell.execute(line)
+      }
+
+      if (options.terminal && terminalCmdBefore && options.terminal.cmd === terminalCmdBefore) {
+        options.terminal.clearCommand()
+        options.terminal.write(options.terminal.prompt())
       }
 
       return 0
@@ -1444,6 +1457,104 @@ export class Kernel implements IKernel {
       }
     } catch (error) {
       this.log.warn(`Failed to load crontab from ${filePath}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  /**
+   * Loads and processes fstab entries from /etc/fstab.
+   * @returns {Promise<void>} A promise that resolves when fstab is processed.
+   */
+  async loadFstab(): Promise<void> {
+    try {
+      const fstabPath = '/etc/fstab'
+      if (!await this.filesystem.fs.exists(fstabPath)) {
+        return
+      }
+
+      const content = await this.filesystem.fs.readFile(fstabPath, 'utf-8')
+      const entries = parseFstabFile(content)
+
+      if (entries.length === 0) {
+        return
+      }
+
+      this.log.info(`Processing ${entries.length} fstab entry/entries...`)
+
+      // Create dummy streams and terminal mock to avoid WritableStream locking issues during boot
+      // These streams discard all output since we're mounting programmatically
+      const createDummyStreams = () => {
+        const stdout = new WritableStream<Uint8Array>({ write() {} })
+        const stderr = new WritableStream<Uint8Array>({ write() {} })
+        const stdin = new ReadableStream<Uint8Array>({ start() {} })
+        
+        const dummyTerminal = {
+          stdin,
+          stdout,
+          stderr,
+          getInputStream: () => stdin,
+          write: () => {},
+          writeln: () => {}
+        } as unknown as ITerminal
+        
+        return { stdin, stdout, stderr, terminal: dummyTerminal }
+      }
+
+      for (const entry of entries) {
+        try {
+          await this.sudo(async () => {
+            const target = path.resolve('/', entry.target)
+            const source = entry.source || ''
+            const type = entry.type
+            const options = entry.options
+
+            // Build mount command arguments
+            const mountArgs: string[] = ['-t', type]
+            
+            if (options) {
+              mountArgs.push('-o', options)
+            }
+            
+            // Filesystem types that don't require a source
+            const noSourceTypes = ['memory', 'singlebuffer', 'webstorage', 'webaccess', 'xml', 'dropbox', 'googledrive']
+            
+            // Add source only if provided AND filesystem type requires it
+            if (source && !noSourceTypes.includes(type.toLowerCase())) {
+              mountArgs.push(source)
+            }
+            
+            // Add target
+            mountArgs.push(target)
+
+            // Create fresh streams and terminal mock for each mount to avoid locking issues
+            const streams = createDummyStreams()
+            
+            // Execute mount command programmatically
+            const exitCode = await this.execute({
+              command: '/bin/mount',
+              args: mountArgs,
+              shell: this.shell,
+              terminal: streams.terminal,
+              stdin: streams.stdin,
+              stdout: streams.stdout,
+              stderr: streams.stderr,
+              stdinIsTTY: false,
+              stdoutIsTTY: false
+            })
+            
+            if (exitCode === 0) {
+              this.log.info(`Mounted ${type} filesystem at ${target}`)
+            } else {
+              throw new Error(`mount command exited with code ${exitCode} while mounting ${type} filesystem at ${target}`)
+            }
+          })
+        } catch (error) {
+          this.log.warn(`Failed to mount filesystem ${entry.target} (type: ${entry.type}): ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+
+      this.log.info(`Processed ${entries.length} fstab entry/entries`)
+    } catch (error) {
+      this.log.warn(`Failed to load fstab: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 

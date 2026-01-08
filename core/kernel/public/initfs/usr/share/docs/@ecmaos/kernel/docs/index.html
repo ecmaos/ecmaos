@@ -165,9 +165,9 @@
 <li>Refer to the full list of <a href="https://www.npmjs.com/org/ecmaos-modules" target="_blank" class="external">official modules on npm</a></li>
 <li>See the <a href="/MODULES.md">MODULES.md</a> file for a list of community modules; submit a PR to add your module!</li>
 <li>Modules are dynamically loaded into the kernel at boot and can be enabled or disabled</li>
-<li>They are specified during build via the <code>VITE_KERNEL_MODULES</code> environment variable
+<li>They are specified during build via the <code>ECMAOS_KERNEL_MODULES</code> environment variable
 <ul>
-<li>e.g. <code>VITE_KERNEL_MODULES=@ecmaos-modules/boilerplate@0.1.0,@your/package@1.2.3</code></li>
+<li>e.g. <code>ECMAOS_KERNEL_MODULES=@ecmaos-modules/boilerplate@0.1.0,@your/package@1.2.3</code></li>
 </ul>
 </li>
 <li>Versions must be pinned and are mandatory - you cannot use NPM version specifiers</li>
@@ -208,7 +208,7 @@
 </ul>
 <a id="telemetry" class="tsd-anchor"></a><h3 class="tsd-anchor-link">Telemetry<a href="#telemetry" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><ul>
 <li><a href="https://opentelemetry.io" target="_blank" class="external">OpenTelemetry</a> is used for collecting and analyzing telemetry data from the kernel and applications</li>
-<li>It is only active if the VITE_OPENTELEMETRY_ENDPOINT environment variable is set when building the kernel</li>
+<li>It is only active if the ECMAOS_OPENTELEMETRY_ENDPOINT environment variable is set when building the kernel</li>
 <li>There is a simple test server included in the <code>utils/opentelemetry</code> directory that can be used to test the telemetry system: <code>python3 utils/opentelemetry/otlp-server.py</code></li>
 </ul>
 <a id="utils" class="tsd-anchor"></a><h3 class="tsd-anchor-link">Utils<a href="#utils" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3><blockquote>
@@ -252,8 +252,8 @@ install jquery
 <li><code>/etc/crontab</code> is loaded on boot and contains system-wide scheduled tasks</li>
 <li><code>~/.config/crontab</code> is loaded on user login and contains user-specific scheduled tasks</li>
 <li><code>/etc/packages</code> is a list of already installed packages to load on boot; one per line</li>
-<li>The env var <code>VITE_KERNEL_MODULES</code> is a list of modules to load on boot; CSV with pinned versions</li>
-<li>The env var <code>VITE_RECOMMENDED_APPS</code> is a list of apps to suggest to new users</li>
+<li>The env var <code>ECMAOS_KERNEL_MODULES</code> is a list of modules to load on boot; CSV with pinned versions</li>
+<li>The env var <code>ECMAOS_RECOMMENDED_APPS</code> is a list of apps to suggest to new users</li>
 </ul>
 <a id="app-development" class="tsd-anchor"></a><h2 class="tsd-anchor-link">App Development<a href="#app-development" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2><p>The <a href="/apps">apps</a> directory in the repository contains some examples of how to develop apps, but there are many approaches you could take.</p>
 <ul>

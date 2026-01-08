@@ -31,6 +31,7 @@
     "Lots of unfinished work; watch your step"
   ],
   "tips": [
+    "ecmaos.sh has no backend server; all data is stored and processed entirely in your browser",
     "If it ever fails to boot, check your logs, try clearing all data, try incognito mode, or try another browser",
     "You can run some devices that offer a CLI - e.g. '/dev/battery --help'",
     "Use the 'install' command to install packages - e.g. 'install @ecmaos-apps/news'",

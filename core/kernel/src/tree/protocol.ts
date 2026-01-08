@@ -9,8 +9,8 @@ export class Protocol {
     this._kernel = options.kernel
 
     globalThis.navigator?.registerProtocolHandler?.(
-      import.meta.env.VITE_APP_PROTOCOL || options.schema || 'web+ecmaos',
-      `${import.meta.env.VITE_APP_URL || window.location.origin}?protocol=%s`
+      import.meta.env.ECMAOS_APP_PROTOCOL || options.schema || 'web+ecmaos',
+      `${import.meta.env.ECMAOS_APP_URL || window.location.origin}?protocol=%s`
     )
   }
 

@@ -172,8 +172,8 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - Refer to the full list of [official modules on npm](https://www.npmjs.com/org/ecmaos-modules)
 - See the [MODULES.md](/MODULES.md) file for a list of community modules; submit a PR to add your module!
 - Modules are dynamically loaded into the kernel at boot and can be enabled or disabled
-- They are specified during build via the `VITE_KERNEL_MODULES` environment variable
-  - e.g. `VITE_KERNEL_MODULES=@ecmaos-modules/boilerplate@0.1.0,@your/package@1.2.3`
+- They are specified during build via the `ECMAOS_KERNEL_MODULES` environment variable
+  - e.g. `ECMAOS_KERNEL_MODULES=@ecmaos-modules/boilerplate@0.1.0,@your/package@1.2.3`
 - Versions must be pinned and are mandatory - you cannot use NPM version specifiers
 - They can provide additional functionality, devices, commands, etc.
 - They offer a [common interface](./core/types/modules.ts) for interacting with the kernel
@@ -209,7 +209,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 ### Telemetry
 
 - [OpenTelemetry](https://opentelemetry.io) is used for collecting and analyzing telemetry data from the kernel and applications
-- It is only active if the VITE_OPENTELEMETRY_ENDPOINT environment variable is set when building the kernel
+- It is only active if the ECMAOS_OPENTELEMETRY_ENDPOINT environment variable is set when building the kernel
 - There is a simple test server included in the `utils/opentelemetry` directory that can be used to test the telemetry system: `python3 utils/opentelemetry/otlp-server.py`
 
 ### Utils
@@ -324,8 +324,8 @@ install jquery
 - `/etc/crontab` is loaded on boot and contains system-wide scheduled tasks
 - `~/.config/crontab` is loaded on user login and contains user-specific scheduled tasks
 - `/etc/packages` is a list of already installed packages to load on boot; one per line
-- The env var `VITE_KERNEL_MODULES` is a list of modules to load on boot; CSV with pinned versions
-- The env var `VITE_RECOMMENDED_APPS` is a list of apps to suggest to new users
+- The env var `ECMAOS_KERNEL_MODULES` is a list of modules to load on boot; CSV with pinned versions
+- The env var `ECMAOS_RECOMMENDED_APPS` is a list of apps to suggest to new users
 
 ## App Development
 

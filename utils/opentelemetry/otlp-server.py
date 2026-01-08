@@ -13,7 +13,7 @@ The server will listen on http://localhost:4318 by default.
 You can configure the port with the --port argument.
 
 Example use from browser:
-  Set VITE_OPENTELEMETRY_ENDPOINT=http://localhost:4318/v1/traces
+  Set ECMAOS_OPENTELEMETRY_ENDPOINT=http://localhost:4318/v1/traces
 """
 
 import argparse

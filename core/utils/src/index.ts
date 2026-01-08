@@ -13,6 +13,7 @@ import { createCommand as createChmod } from './commands/chmod.js'
 import { createCommand as createCp } from './commands/cp.js'
 import { createCommand as createCron } from './commands/cron.js'
 import { createCommand as createEcho } from './commands/echo.js'
+import { createCommand as createEnv } from './commands/env.js'
 import { createCommand as createFetch } from './commands/fetch.js'
 import { createCommand as createGrep } from './commands/grep.js'
 import { createCommand as createHash } from './commands/hash.js'
@@ -21,6 +22,7 @@ import { createCommand as createLn } from './commands/ln.js'
 import { createCommand as createLs } from './commands/ls.js'
 import { createCommand as createMkdir } from './commands/mkdir.js'
 import { createCommand as createMktemp } from './commands/mktemp.js'
+import { createCommand as createMount } from './commands/mount.js'
 import { createCommand as createMv } from './commands/mv.js'
 import { createCommand as createNc } from './commands/nc.js'
 import { createCommand as createOpen } from './commands/open.js'
@@ -59,6 +61,7 @@ import { createCommand as createSplit } from './commands/split.js'
 import { createCommand as createTest } from './commands/test.js'
 import { createCommand as createTr } from './commands/tr.js'
 import { createCommand as createTrue } from './commands/true.js'
+import { createCommand as createUmount } from './commands/umount.js'
 import { createCommand as createUniq } from './commands/uniq.js'
 import { createCommand as createUser } from './commands/user.js'
 import { createCommand as createWc } from './commands/wc.js'
@@ -77,6 +80,7 @@ export { createCommand as createChmod } from './commands/chmod.js'
 export { createCommand as createCp } from './commands/cp.js'
 export { createCommand as createCron } from './commands/cron.js'
 export { createCommand as createEcho } from './commands/echo.js'
+export { createCommand as createEnv } from './commands/env.js'
 export { createCommand as createFetch } from './commands/fetch.js'
 export { createCommand as createGrep } from './commands/grep.js'
 export { createCommand as createHash } from './commands/hash.js'
@@ -84,6 +88,7 @@ export { createCommand as createLn } from './commands/ln.js'
 export { createCommand as createLs } from './commands/ls.js'
 export { createCommand as createMkdir } from './commands/mkdir.js'
 export { createCommand as createMktemp } from './commands/mktemp.js'
+export { createCommand as createMount } from './commands/mount.js'
 export { createCommand as createMv } from './commands/mv.js'
 export { createCommand as createOpen } from './commands/open.js'
 export { createCommand as createPlay } from './commands/play.js'
@@ -109,6 +114,7 @@ export { createCommand as createFormat } from './commands/format.js'
 export { createCommand as createSort } from './commands/sort.js'
 export { createCommand as createTest } from './commands/test.js'
 export { createCommand as createTr } from './commands/tr.js'
+export { createCommand as createUmount } from './commands/umount.js'
 export { createCommand as createUniq } from './commands/uniq.js'
 export { createCommand as createUser } from './commands/user.js'
 export { createCommand as createWc } from './commands/wc.js'
@@ -132,6 +138,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     cp: createCp(kernel, shell, terminal),
     cron: createCron(kernel, shell, terminal),
     echo: createEcho(kernel, shell, terminal),
+    env: createEnv(kernel, shell, terminal),
     fetch: createFetch(kernel, shell, terminal),
     grep: createGrep(kernel, shell, terminal),
     hash: createHash(kernel, shell, terminal),
@@ -140,6 +147,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     ls: createLs(kernel, shell, terminal),
     mkdir: createMkdir(kernel, shell, terminal),
     mktemp: createMktemp(kernel, shell, terminal),
+    mount: createMount(kernel, shell, terminal),
     mv: createMv(kernel, shell, terminal),
     nc: createNc(kernel, shell, terminal),
     open: createOpen(kernel, shell, terminal),
@@ -178,6 +186,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     test: createTest(kernel, shell, terminal),
     tr: createTr(kernel, shell, terminal),
     true: createTrue(kernel, shell, terminal),
+    umount: createUmount(kernel, shell, terminal),
     uniq: createUniq(kernel, shell, terminal),
     user: createUser(kernel, shell, terminal),
     wc: createWc(kernel, shell, terminal),

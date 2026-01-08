@@ -777,7 +777,7 @@ export class Shell implements IShell {
         const fileHandle = await kernel.filesystem.fs.open(sourcePath, 'r')
         const chunkSize = parseInt(
           env.get('SHELL_INPUT_REDIRECTION_CHUNK_SIZE') || 
-          import.meta.env.VITE_APP_SHELL_INPUT_REDIRECTION_CHUNK_SIZE || 
+          import.meta.env.ECMAOS_APP_SHELL_INPUT_REDIRECTION_CHUNK_SIZE || 
           '8192'
         )
         const buffer = new Uint8Array(chunkSize)

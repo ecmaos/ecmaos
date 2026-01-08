@@ -13,8 +13,7 @@ import humanFormat from 'human-format'
 import type { CommandLineOptions } from 'command-line-args'
 import path from 'path'
 
-import { bindContext, createCredentials, Fetch, InMemory, resolveMountConfig } from '@zenfs/core'
-import { IndexedDB } from '@zenfs/dom'
+import { bindContext, createCredentials } from '@zenfs/core'
 
 import {
   KernelEvents
@@ -94,21 +93,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         return await download({ kernel, shell, terminal, process, args: argv.path })
       }
     }),
-    env: new TerminalCommand({
-      command: 'env',
-      description: 'Print or set an environment variable',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'variables', type: String, multiple: true, defaultOption: true, typeLabel: '{underline variables}', description: 'The environment variable(s) to print' },
-        { name: 'set', type: String, description: 'Set the environment variable' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await env({ kernel, shell, terminal, process, args: [argv.variables, argv.set] })
-      }
-    }),
     install: new TerminalCommand({
       command: 'install',
       description: 'Install a package',
@@ -153,22 +137,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       ],
       run: async (argv: CommandLineOptions) => {
         return await load({ kernel, shell, terminal, args: [argv.path] })
-      }
-    }),
-    mount: new TerminalCommand({
-      command: 'mount',
-      description: 'Mount a filesystem',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'args', type: String, multiple: true, defaultOption: true, description: 'The source and target of the filesystem to mount' },
-        { name: 'type', type: String, description: 'The filesystem type', alias: 't' },
-        { name: 'options', type: String, description: 'The options to pass to the filesystem type', alias: 'o' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await mount({ kernel, shell, terminal, process, args: [argv.args, argv.type, argv.options] })
       }
     }),
     passwd: new TerminalCommand({
@@ -245,20 +213,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
       ],
       run: async (argv: CommandLineOptions, process?: Process) => {
         return await su({ kernel, shell, terminal, process, args: [argv.user] })
-      }
-    }),
-    umount: new TerminalCommand({
-      command: 'umount',
-      description: 'Unmount a filesystem',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to the directory to unmount' }
-      ],
-      run: async (argv: CommandLineOptions, process?: Process) => {
-        return await umount({ kernel, shell, terminal, process, args: [argv.path] })
       }
     }),
     upload: new TerminalCommand({
@@ -340,24 +294,6 @@ export const download = async ({ shell, terminal, process, args }: CommandArgs) 
   }
 }
 
-export const env = async ({ shell, terminal, process, args }: CommandArgs) => {
-  const [variables, value] = (args as string[])
-  if (!variables) {
-    for (const [key, value] of shell.env.entries()) {
-      await writelnStdout(process, terminal, `${chalk.bold(key)}=${chalk.green(value)}`)
-    }
-  } else {
-    for (const variable of variables) {
-      if (!value) {
-        await writelnStdout(process, terminal, `${chalk.bold(variable)}=${chalk.green(shell.env.get(variable) || '')}`)
-      } else {
-        shell.env.set(variable, value)
-        globalThis.process.env[variable] = value
-      }
-    }
-  }
-}
-
 export const load = async ({ shell, args }: CommandArgs) => {
   const [target] = (args as string[])
   if (!target) {
@@ -369,50 +305,6 @@ export const load = async ({ shell, args }: CommandArgs) => {
   const code = await shell.context.fs.promises.readFile(fullPath, 'utf-8')
   const script = new Function(code)
   script()
-}
-
-export const mount = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
-  const [points, type, config] = (args as string[])
-  if (!points || !type || points.length !== 2) {
-    await writelnStderr(process, terminal, chalk.red('Usage: mount -t <type> <source> <target>'))
-
-    // TODO: store does not exist on FileSystem (but we can access it here)
-    // @ts-ignore
-    const currentMounts: string[] = Array.from(kernel.filesystem.fsSync.mounts.entries()).map(([target, mount]) => `${chalk.blue(target)} (${mount.store?.constructor.name || mount.constructor.name}/${mount.metadata().name})`)
-    const maxTargetLength = Math.max(...currentMounts.map(mount => mount.split(' ')[0]?.length ?? 0))
-    for (const mount of currentMounts) {
-      const [target, name] = mount.split(' ')
-      if (!target || !name) continue
-      await writelnStdout(process, terminal, chalk.gray(`${target.padEnd(maxTargetLength + 2)}${name}`))
-    }
-
-    return 1
-  }
-
-  const options = config?.split(',').map(option => option.split('='))
-    .reduce((acc, [key, value]) => ({ ...acc, [key!]: value }), {})
-
-  const [source, target] = points
-  if (!source || !target) {
-    await writelnStderr(process, terminal, chalk.red('Usage: mount -t <type> <source> <target>'))
-    return 1
-  }
-
-  const fullSourcePath = path.resolve(shell.cwd, source)
-  const fullTargetPath = path.resolve(shell.cwd, target)
-
-  switch (type.toLowerCase()) {
-    case 'fetch':
-      kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: Fetch, index: fullSourcePath, baseUrl: (options as { baseUrl?: string })?.baseUrl || '' })); break
-    case 'indexeddb':
-      kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: IndexedDB, storeName: fullSourcePath })); break
-    case 'memory':
-      kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: InMemory })); break
-    // case 'zip': // TODO: fix issue with @zenfs/archives (bundler renaming Function.name?)
-    //   kernel.filesystem.fsSync.mount(fullTargetPath, await resolveMountConfig({ backend: Zip, name: fullSourcePath, data: new Uint8Array(await shell.context.fs.promises.readFile(fullSourcePath)).buffer })); break
-  }
-
-  return 0
 }
 
 export const passwd = async ({ kernel, terminal, process, args }: CommandArgs) => {
@@ -594,13 +486,6 @@ export const su = async ({ kernel, shell, terminal, process, args }: CommandArgs
   shell.context = bindContext({ root: '/', pwd: '/', credentials: user })
   shell.credentials = createCredentials({ uid: user.uid, gid: user.gid, suid: currentUser.uid, sgid: currentUser.gid, euid: user.uid, egid: user.gid, groups: user.groups })
   terminal.promptTemplate = `{user}:{cwd}${user.uid === 0 ? '#' : '$'} `
-}
-
-export const umount = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
-  const target = (args as string[])[0]
-  const fullPath = target ? path.resolve(shell.cwd, target) : shell.cwd
-  await writelnStdout(process, terminal, `umount ${fullPath}`)
-  kernel.filesystem.fsSync.umount(fullPath)
 }
 
 export const upload = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {

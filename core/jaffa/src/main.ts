@@ -17,9 +17,9 @@ declare global {
   }
 }
 
-const username = import.meta.env.VITE_AUTOLOGIN_USERNAME
-const password = import.meta.env.VITE_AUTOLOGIN_PASSWORD
-const socket = import.meta.env.VITE_METAL_SOCKET
+const username = import.meta.env.ECMAOS_AUTOLOGIN_USERNAME
+const password = import.meta.env.ECMAOS_AUTOLOGIN_PASSWORD
+const socket = import.meta.env.ECMAOS_METAL_SOCKET
 
 const kernel = new Kernel({
   credentials: (username && password) ? { username, password } : undefined,

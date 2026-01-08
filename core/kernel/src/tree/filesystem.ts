@@ -115,9 +115,9 @@ export class Filesystem {
     await configureZenFS(options)
     const fsInitialized = await this.kernel.storage.local.getItem('ecmaos:filesystem:initialized')
 
-    if (import.meta.env['VITE_INITFS'] && !fsInitialized) {
+    if (import.meta.env['ECMAOS_INITFS'] && !fsInitialized) {
       try {
-        const response = await fetch(import.meta.env['VITE_INITFS'])
+        const response = await fetch(import.meta.env['ECMAOS_INITFS'])
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
         const arrayBuffer = await response.arrayBuffer()
         // The browser will likely automatically decompress the tarball; either way, extractTarball will handle it
@@ -126,7 +126,7 @@ export class Filesystem {
         await this.fs.unlink('/tmp/initfs.tar')
         await this.kernel.storage.local.setItem('ecmaos:filesystem:initialized', 'true')
       } catch (error) {
-        globalThis.kernel?.log.error(`Failed to fetch ${import.meta.env['VITE_INITFS']}: ${error}`)
+        globalThis.kernel?.log.error(`Failed to fetch ${import.meta.env['ECMAOS_INITFS']}: ${error}`)
         console.error(error)
       }
     }

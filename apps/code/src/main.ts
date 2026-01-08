@@ -31,9 +31,9 @@ const createMenuBar = (
   win: WinBox,
   editor: monaco.editor.IStandaloneCodeEditor,
   params: ProcessEntryParams,
-  fileHandle: Awaited<ReturnType<typeof params.instance.open>>
+  filePath: string
 ) => {
-  const { kernel } = params
+  const { kernel, shell } = params
   const menuBar = document.createElement('div')
   menuBar.style.cssText = `
     width: 100%;
@@ -136,7 +136,7 @@ const createMenuBar = (
     {
       label: 'Save',
       action: async () => {
-        await fileHandle.writeFile(editor.getValue())
+        await shell.context.fs.promises.writeFile(filePath, editor.getValue(), 'utf-8')
         kernel.toast.success('File saved')
       }
     },
@@ -185,8 +185,8 @@ const main = async (params: ProcessEntryParams) => {
   const file = args?.[0] ? path.resolve(shell.cwd, args[0]) : path.resolve(shell.cwd, 'Untitled.txt')
   if (!file) { terminal.writeln('Usage: code <file>'); return 1 }
 
-  try { await kernel.filesystem.fs.mkdir(path.dirname(file), { recursive: true }) } catch {}
-  try { await kernel.filesystem.fs.access(file) } catch { await kernel.filesystem.fs.writeFile(file, '') }
+  try { await shell.context.fs.promises.mkdir(path.dirname(file), { recursive: true }) } catch {}
+  try { await shell.context.fs.promises.access(file) } catch { await shell.context.fs.promises.writeFile(file, '') }
 
   const fileHandle = await instance.open(file, 'r+')
   const value = await fileHandle.readFile('utf-8') as string
@@ -239,7 +239,7 @@ const main = async (params: ProcessEntryParams) => {
     automaticLayout: true
   })
 
-  const menuBar = createMenuBar(win, editor, params, fileHandle)
+  const menuBar = createMenuBar(win, editor, params, file)
   container.appendChild(menuBar)
   container.appendChild(editorContainer)
 
@@ -251,7 +251,7 @@ const main = async (params: ProcessEntryParams) => {
   container.addEventListener('keydown', async (e) => {
     if (e.ctrlKey && e.key === 's') {
       e.preventDefault()
-      await fileHandle.writeFile(editor.getValue())
+      await shell.context.fs.promises.writeFile(file, editor.getValue(), 'utf-8')
       kernel.toast.success('File saved')
     }
   })

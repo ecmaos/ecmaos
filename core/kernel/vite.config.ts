@@ -33,6 +33,7 @@ const gzipFixPlugin = () => {
 }
 
 export default defineConfig({
+  envPrefix: 'ECMAOS_',
   plugins: [
     gzipFixPlugin(),
     nodePolyfills({
@@ -73,7 +74,7 @@ export default defineConfig({
     include: ['vite-plugin-node-polyfills/shims/buffer', 'vite-plugin-node-polyfills/shims/global', 'vite-plugin-node-polyfills/shims/process']
   },
   server: {
-    port: Number(process.env['VITE_PORT']) || 30443,
+    port: Number(process.env['ECMAOS_PORT']) || 30443,
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp'

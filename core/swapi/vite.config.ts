@@ -12,6 +12,6 @@ export default defineConfig({
     }
   },
   server: {
-    port: Number(process.env['VITE_PORT']) || 30447
+    port: Number(process.env['ECMAOS_PORT']) || 30447
   }
 })

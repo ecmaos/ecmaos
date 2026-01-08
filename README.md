@@ -111,6 +111,92 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - Devices may also be directly read/written using `fs` methods, and will behave accordingly (or have no effect if not supported)
 - An individual device module can provide multiple device drivers, e.g. `/dev/usb` provides `/dev/usb-mydevice-0001-0002`
 
+### Filesystems
+
+> [/core/utils/src/commands/mount.ts](/core/utils/src/commands/mount.ts)
+
+ecmaOS supports multiple filesystem backends powered by [zenfs](https://zenfs.dev), allowing you to mount various storage types into the virtual filesystem.
+
+#### Supported Filesystem Types
+
+- **memory**: In-memory filesystem (temporary, lost on page reload)
+- **indexeddb**: IndexedDB-backed persistent filesystem
+- **webstorage**: WebStorage-backed filesystem (localStorage or sessionStorage)
+- **webaccess**: File System Access API filesystem (requires user interaction)
+- **singlebuffer**: Filesystem backed by a single buffer
+- **fetch**: Remote filesystem via HTTP fetch
+- **xml**: DOM XML filesystem (WIP)
+- **zip**: Read-only filesystem from a zip archive (file or URL)
+- **iso**: Read-only filesystem from an ISO image (file or URL)
+- **dropbox**: Dropbox filesystem (WIP)
+- **s3**: S3 filesystem (WIP)
+- **googledrive**: Google Drive filesystem (WIP)
+
+#### Basic Usage
+
+```sh
+# Mount a memory filesystem
+mount -t memory /mnt/tmp
+
+# Mount an IndexedDB store
+mount -t indexeddb mydb /mnt/db
+
+# Mount WebStorage (localStorage by default)
+mount -t webstorage /mnt/storage
+
+# Mount WebStorage using sessionStorage
+mount -t webstorage /mnt/storage -o storage=sessionStorage
+
+# Mount a zip archive
+mount -t zip /tmp/archive.zip /mnt/zip
+
+# Mount from a remote URL
+mount -t zip https://example.com/archive.zip /mnt/zip
+
+# Mount a fetch filesystem (see utils/fetch-fs-server.js)
+mount -t fetch index.json /mnt/api -o baseUrl=http://localhost:30808
+
+# List all mounted filesystems
+mount -l
+
+# Unmount a filesystem
+umount /mnt/tmp
+```
+
+#### /etc/fstab
+
+The kernel automatically processes `/etc/fstab` during boot to mount filesystems. The fstab format is space or tab-separated:
+
+```plaintext
+source target type [options]
+```
+
+**Format:**
+
+- `source`: Device/URL/database name (use `none` for filesystems that don't require a source)
+- `target`: Mount point (absolute path)
+- `type`: Filesystem type
+- `options`: Optional comma-separated key=value pairs
+
+**Example /etc/fstab:**
+
+```plaintext
+# ecmaOS fstab - Filesystem mount table
+# Format: source target type [options]
+
+# Memory filesystem for temporary data
+none /mnt/tmp memory
+
+# IndexedDB filesystem for persistent storage
+mydb /mnt/db indexeddb
+
+# WebStorage filesystem using localStorage
+none /mnt/storage webstorage storage=localStorage
+
+# Fetch filesystem from a remote API
+index.json /mnt/api fetch baseUrl=http://localhost:30808
+```
+
 ### Generators
 
 > [/turbo/generators](/turbo/generators)
@@ -155,8 +241,8 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
   - User Manager
   - WASM Loader
   <!-- - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps -->
-  - Window Manager (WinBox)
   - Web Workers
+  - Window Manager (WinBox)
 
 ### Metal
 
@@ -172,8 +258,8 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - Refer to the full list of [official modules on npm](https://www.npmjs.com/org/ecmaos-modules)
 - See the [MODULES.md](/MODULES.md) file for a list of community modules; submit a PR to add your module!
 - Modules are dynamically loaded into the kernel at boot and can be enabled or disabled
-- They are specified during build via the `VITE_KERNEL_MODULES` environment variable
-  - e.g. `VITE_KERNEL_MODULES=@ecmaos-modules/boilerplate@0.1.0,@your/package@1.2.3`
+- They are specified during build via the `ECMAOS_KERNEL_MODULES` environment variable
+  - e.g. `ECMAOS_KERNEL_MODULES=@ecmaos-modules/boilerplate@0.1.0,@your/package@1.2.3`
 - Versions must be pinned and are mandatory - you cannot use NPM version specifiers
 - They can provide additional functionality, devices, commands, etc.
 - They offer a [common interface](./core/types/modules.ts) for interacting with the kernel
@@ -209,7 +295,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 ### Telemetry
 
 - [OpenTelemetry](https://opentelemetry.io) is used for collecting and analyzing telemetry data from the kernel and applications
-- It is only active if the VITE_OPENTELEMETRY_ENDPOINT environment variable is set when building the kernel
+- It is only active if the ECMAOS_OPENTELEMETRY_ENDPOINT environment variable is set when building the kernel
 - There is a simple test server included in the `utils/opentelemetry` directory that can be used to test the telemetry system: `python3 utils/opentelemetry/otlp-server.py`
 
 ### Utils
@@ -221,7 +307,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 ## Important Files and Directories
 
 - `/bin/`: Built-in commands
-- `/bios/`: The BIOS filesystem
+<!-- - `/bios/`: The BIOS filesystem -->
 - `/boot/init`: A script that runs on boot
 - `/dev/`: All devices are here
 - `/etc/crontab`: System-wide crontab file (loaded on boot)
@@ -237,8 +323,8 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 ## Command Examples
 
 ```sh
-ai "Despite all my rage" # use `env OPENAI_API_KEY --set sk-`
-cat /var/log/kernel.log
+ai "Despite all my rage" # use `env OPENAI_API_KEY=`
+cat /var/log/kernel.lo
 cd /tmp
 echo "Hello, world!" > hello.txt
 chmod 700 hello.txt
@@ -252,6 +338,8 @@ download hello.txt
 edit hello.txt
 env hello --set world ; env
 fetch https://ipecho.net/plain > /tmp/myip.txt
+fetch -o /tmp/initfs.tar.gz /initfs.tar.gz
+fetch /initfs.tar.gz | head | hex
 fetch /xkcd-os.sixel # xterm.js includes sixel support
 fetch /swapi/fs/home/user/hello.txt # fetch a file from the filesystem
 fetch /swapi/fake/person/fullName # fetch a random person from the SWAPI
@@ -260,7 +348,7 @@ install @ecmaos-apps/boilerplate
 ls /dev
 mkdir /tmp/zip ; cd /tmp/zip
 upload
-mount myuploadedzip.zip /mnt/zip -t zip
+mount -t zip myuploaded.zip /mnt/zip
 cd .. ; pwd
 unzip zip/myuploaded.zip
 mv zip/myuploaded.zip /tmp/backup.zip
@@ -273,7 +361,7 @@ snake
 stat /tmp/hello.txt
 touch /tmp/test.bin
 umount /mnt/zip
-user add --username user
+user add user
 su user
 video /root/video.mp4
 zip /root/tmp.zip /tmp
@@ -285,23 +373,21 @@ zip /root/tmp.zip /tmp
 /dev/audio test
 /dev/battery status
 /dev/bluetooth scan
-echo "This will error" > /dev/full
 /dev/gamepad list
 /dev/geo position
 /dev/gpu test
 /dev/hid list
 /dev/midi list
-echo "Goodbye" > /dev/null
 /dev/presentation start https://wikipedia.org
-cat /dev/random --bytes 10
 /dev/sensors list
 /dev/serial devices
 /dev/usb list
 /dev/webgpu test
-cat /dev/zero --bytes 10 > /dev/null
+echo "Goodbye" > /dev/null
+echo "This will error" > /dev/full
+head -c 32 /dev/random > /tmp/random.txt
+head -c 32 /dev/zero > /dev/null
 ```
-
-Note: many device implementations are incomplete, but provide a solid starting point
 
 ## Code Execution Example
 
@@ -324,8 +410,8 @@ install jquery
 - `/etc/crontab` is loaded on boot and contains system-wide scheduled tasks
 - `~/.config/crontab` is loaded on user login and contains user-specific scheduled tasks
 - `/etc/packages` is a list of already installed packages to load on boot; one per line
-- The env var `VITE_KERNEL_MODULES` is a list of modules to load on boot; CSV with pinned versions
-- The env var `VITE_RECOMMENDED_APPS` is a list of apps to suggest to new users
+- The env var `ECMAOS_KERNEL_MODULES` is a list of modules to load on boot; CSV with pinned versions
+- The env var `ECMAOS_RECOMMENDED_APPS` is a list of apps to suggest to new users
 
 ## App Development
 

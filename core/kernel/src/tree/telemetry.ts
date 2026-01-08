@@ -17,7 +17,7 @@ export class Telemetry {
 
   constructor(options: TelemetryOptions) {
     this._kernel = options.kernel
-    const endpoint = import.meta.env.VITE_OPENTELEMETRY_ENDPOINT
+    const endpoint = import.meta.env.ECMAOS_OPENTELEMETRY_ENDPOINT
 
     if (endpoint) {
       try {
@@ -34,7 +34,7 @@ export class Telemetry {
       headers: {}
     })
 
-    const useSimpleProcessor = import.meta.env.VITE_OPENTELEMETRY_SIMPLE_PROCESSOR === 'true'
+    const useSimpleProcessor = import.meta.env.ECMAOS_OPENTELEMETRY_SIMPLE_PROCESSOR === 'true'
     const spanProcessor = useSimpleProcessor
       ? new SimpleSpanProcessor(exporter)
       : new BatchSpanProcessor(exporter, {
