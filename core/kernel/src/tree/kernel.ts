@@ -1473,12 +1473,8 @@ export class Kernel implements IKernel {
 
       const content = await this.filesystem.fs.readFile(fstabPath, 'utf-8')
       const entries = parseFstabFile(content)
-
-      if (entries.length === 0) {
-        return
-      }
-
-      this.log.info(`Processing ${entries.length} fstab entry/entries...`)
+      if (entries.length === 0) return
+      this.log.info(`Processing ${entries.length} fstab entries...`)
 
       // Create dummy streams and terminal mock to avoid WritableStream locking issues during boot
       // These streams discard all output since we're mounting programmatically
