@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
-import { writelnStdout, writelnStderr, writeStdout } from '../shared/helpers.js'
+import { writelnStderr, writeStdout } from '../shared/helpers.js'
 
 function printUsage(process: Process | undefined, terminal: Terminal): void {
   const usage = `Usage: env [OPTION]... [NAME=VALUE]... [COMMAND [ARG]...]
