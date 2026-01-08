@@ -1,5 +1,60 @@
 # @ecmaos/kernel
 
+## 0.9.0
+
+### Minor Changes
+
+- c6d3ea8: Filesystem & Mount System
+
+  - Added fstab file processing and parsing utilities
+  - Implemented mount and umount commands with full filesystem support
+  - Changed environment variable prefix handling
+  - Enhanced filesystem configuration and mount management
+
+  Environment Management
+
+  - Added support for global /etc/env file
+  - Fixed env command argument handling
+  - New env command implementation in core/utils
+
+  Documentation & SEO
+
+  - Enhanced HTML metadata and SEO improvements
+  - Added AI and passkey tutorials
+  - Updated README with expanded documentation
+  - Added lighthouse performance report
+  - Updated project description
+
+  Bug Fixes & Enhancements
+
+  - Enhanced cron command with improved parsing and functionality
+  - Fixed readline bug in terminal
+  - Fixed less command first-line offset display issue
+
+  Miscellaneous
+
+  - Removed offers metadata from HTML
+  - Sorted package.json scripts
+  - Synced documentation across codebase
+
+### Patch Changes
+
+- Updated dependencies [c6d3ea8]
+  - @ecmaos/coreutils@0.4.0
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.8.1
 
 ### Patch Changes
