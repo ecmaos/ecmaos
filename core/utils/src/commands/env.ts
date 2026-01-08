@@ -53,7 +53,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             varName = arg.slice(8)
           } else {
             i++
-            varName = argv[i]
+            varName = argv[i] || ''
             if (!varName) {
               await writelnStderr(process, terminal, chalk.red('env: option requires an argument -- \'u\''))
               return 1
