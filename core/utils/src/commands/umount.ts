@@ -1,6 +1,5 @@
 import path from 'path'
 import chalk from 'chalk'
-import { mounts } from '@zenfs/core'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
@@ -50,7 +49,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
 
       if (allMode) {
-        const mountList = Array.from(mounts.keys())
+        const mountList = Array.from(kernel.filesystem.mounts.keys())
         let unmountedCount = 0
         let errorCount = 0
 
@@ -98,7 +97,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 1
       }
 
-      const mountList = Array.from(mounts.keys())
+      const mountList = Array.from(kernel.filesystem.mounts.keys())
       if (!mountList.includes(target)) {
         await writelnStderr(process, terminal, chalk.red(`umount: ${target} is not mounted`))
         return 1

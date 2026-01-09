@@ -9,7 +9,7 @@
  */
 
 import { TFunction } from 'i18next'
-import { configure as configureZenFS, fs, InMemory } from '@zenfs/core'
+import { configure as configureZenFS, fs, InMemory, mounts } from '@zenfs/core'
 import { IndexedDB } from '@zenfs/dom'
 import { TarReader } from '@gera2ld/tarjs'
 import pako from 'pako'
@@ -100,9 +100,8 @@ export class Filesystem {
 
   /**
    * @returns {ZenFS.mounts} The mounted filesystems.
-   * @remarks Remove or replace this; zenfs.mounts is deprecated.
    */
-  // get mounts(): typeof fs.mounts { return this._fs.mounts }
+  get mounts() { return mounts }
 
   /**
    * Configures the filesystem with the given options.

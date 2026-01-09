@@ -1,6 +1,6 @@
 import path from 'path'
 import chalk from 'chalk'
-import { Fetch, InMemory, mounts, resolveMountConfig, SingleBuffer } from '@zenfs/core'
+import { Fetch, InMemory, resolveMountConfig, SingleBuffer } from '@zenfs/core'
 import { IndexedDB, WebStorage, WebAccess, /* XML */ } from '@zenfs/dom'
 import { Iso, Zip } from '@zenfs/archives'
 import { Dropbox, /* S3Bucket, */ GoogleDrive } from '@zenfs/cloud'
@@ -175,7 +175,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       }
 
       if (listMode || (argv.length === 0 && !allMode)) {
-        const mountList = Array.from(mounts.entries())
+        const mountList = Array.from(kernel.filesystem.mounts.entries())
         
         if (mountList.length === 0) {
           await writelnStdout(process, terminal, 'No filesystems mounted.')
@@ -1175,7 +1175,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           }
           default:
             await writelnStderr(process, terminal, chalk.red(`mount: unknown filesystem type '${type}'`))
-            await writelnStderr(process, terminal, 'Supported types: fetch, indexeddb, webstorage, webaccess, memory, singlebuffer, zip, iso, dropbox, /* s3, */ googledrive')
+            await writelnStderr(process, terminal, 'Supported types: fetch, indexeddb, webstorage, webaccess, memory, singlebuffer, zip, iso, dropbox, s3, googledrive')
             return 1
         }
 

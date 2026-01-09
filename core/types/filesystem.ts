@@ -2,7 +2,7 @@
  * Filesystem types and interfaces
  */
 
-import type { Configuration, ConfigMounts, fs } from '@zenfs/core'
+import type { Configuration, ConfigMounts, fs, mounts } from '@zenfs/core'
 import type { TFunction } from 'i18next'
 
 /**
@@ -89,7 +89,7 @@ export interface Filesystem {
   /** Get the synchronous filesystem instance */
   readonly fsSync: typeof fs
   /** Get mounted filesystems */
-  // readonly mounts: Map<string, any>
+  readonly mounts: typeof mounts
 
   /**
    * Configure the filesystem
