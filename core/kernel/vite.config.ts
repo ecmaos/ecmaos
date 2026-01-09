@@ -76,7 +76,7 @@ export default defineConfig({
   server: {
     port: Number(process.env['ECMAOS_PORT']) || 30443,
     headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
       'Cross-Origin-Embedder-Policy': 'require-corp'
     },
     watch: {

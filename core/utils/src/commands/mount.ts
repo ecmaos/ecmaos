@@ -982,21 +982,61 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
                 return 1
               }
 
-              if (!mountOptions.apiKey) {
-                await writelnStderr(process, terminal, chalk.red('mount: googledrive filesystem requires apiKey option'))
-                await writelnStderr(process, terminal, 'Usage: mount -t googledrive TARGET -o apiKey=YOUR_API_KEY')
-                return 1
-              }
+              // if (!mountOptions.apiKey) {
+              //   await writelnStderr(process, terminal, chalk.red('mount: googledrive filesystem requires apiKey option'))
+              //   await writelnStderr(process, terminal, 'Usage: mount -t googledrive TARGET -o apiKey=YOUR_API_KEY')
+              //   return 1
+              // }
 
               const win = window as unknown as { 
                 gapi?: { 
                   load?: (module: string, callback: () => void) => void
                   client?: { 
-                    init?: (config: { apiKey: string; clientId?: string; discoveryDocs?: string[]; scope?: string }) => Promise<void>
+                    init?: (config: { apiKey: string; discoveryDocs?: string[] }) => Promise<void>
                     request?: (config: { path: string }) => Promise<unknown>
+                    setToken?: (token: { access_token: string }) => void
                     drive?: unknown
                   }
                 }
+                google?: {
+                  accounts?: {
+                    id?: {
+                      initialize: (config: { client_id: string; callback: (response: { credential: string }) => void; scope?: string }) => void
+                      prompt: (callback?: (notification: { isNotDisplayed: boolean; isSkippedMoment: boolean; isDismissedMoment: boolean }) => void) => void
+                      renderButton: (element: HTMLElement, config: { theme?: string; size?: string; text?: string; width?: number; locale?: string }) => void
+                    }
+                    oauth2?: {
+                      initTokenClient: (config: { client_id: string; scope: string; callback: (response: { access_token: string }) => void }) => { requestAccessToken: () => void }
+                    }
+                  }
+                }
+              }
+
+              // Load Google Identity Services library if not already loaded
+              if (!win.google?.accounts) {
+                await writelnStdout(process, terminal, chalk.gray('Loading Google Identity Services library...'))
+                
+                await new Promise<void>((resolve, reject) => {
+                  const script = document.createElement('script')
+                  script.src = 'https://accounts.google.com/gsi/client'
+                  script.async = true
+                  script.defer = true
+                  script.onload = () => resolve()
+                  script.onerror = () => reject(new Error('Failed to load Google Identity Services script'))
+                  document.head.appendChild(script)
+                })
+              }
+
+              // Wait for google.accounts to be available
+              let attempts = 0
+              while (!win.google?.accounts && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100))
+                attempts++
+              }
+
+              if (!win.google?.accounts) {
+                await writelnStderr(process, terminal, chalk.red('mount: Failed to load Google Identity Services library'))
+                return 1
               }
 
               // Load Google API script if not already loaded
@@ -1013,7 +1053,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
               }
 
               // Wait for gapi to be available
-              let attempts = 0
+              attempts = 0
               while (!win.gapi && attempts < 50) {
                 await new Promise(resolve => setTimeout(resolve, 100))
                 attempts++
@@ -1024,26 +1064,16 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
                 return 1
               }
 
-              // Initialize gapi.client
               if (!win.gapi.client || !win.gapi.client.drive) {
                 await writelnStdout(process, terminal, chalk.gray('Initializing Google API client...'))
-                
+
                 const initConfig: { 
                   apiKey: string
-                  clientId?: string
                   discoveryDocs?: string[]
-                  scope?: string
                 } = {
-                  apiKey: mountOptions.apiKey
+                  apiKey: mountOptions.apiKey!,
+                  discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
                 }
-
-                if (mountOptions.clientId) {
-                  initConfig.clientId = mountOptions.clientId
-                }
-
-                const scope = mountOptions.scope || 'https://www.googleapis.com/auth/drive'
-                initConfig.scope = scope
-                initConfig.discoveryDocs = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
 
                 // Load the client module
                 await new Promise<void>((resolve, reject) => {
@@ -1057,47 +1087,62 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
                       return
                     }
                     win.gapi.client.init(initConfig)
-                      .then(() => resolve())
-                      .catch(reject)
+                      .then(() => {
+                        setTimeout(() => {
+                          if (win.gapi?.client?.drive) {
+                            resolve()
+                          } else {
+                            reject(new Error('API discovery response missing required fields. The Drive API discovery document may have failed to load. This could be due to: network issues, invalid API key, or the Drive API not being enabled in your Google Cloud project.'))
+                          }
+                        }, 1000)
+                      })
+                      .catch((error: Error & { error?: string; details?: string }) => {
+                        const err = error as Error & { error?: string; details?: string }
+                        let errorMessage = 'Unknown error'
+                        
+                        errorMessage = JSON.stringify({
+                          error: err.error,
+                          details: err.details
+                        }, null, 2)
+
+                        const lowerError = err.error?.toLowerCase()
+                        if (lowerError?.includes('discovery') || lowerError?.includes('API') || lowerError?.includes('required fields')) {
+                          reject(new Error(`API discovery failed: ${errorMessage}. This could be due to: network issues, invalid API key, or the Drive API not being enabled in your Google Cloud project.`))
+                        } else {
+                          reject(new Error(err.error || err.details || 'Unknown error'))
+                        }
+                      })
                   })
                 })
 
-                // Load the Drive API
-                await new Promise<void>((resolve, reject) => {
-                  if (!win.gapi?.client?.request) {
-                    reject(new Error('gapi.client.request is not available'))
-                    return
-                  }
-                  // Drive API is loaded via discoveryDocs, but we need to ensure it's ready
-                  // The Drive API should be available after init, but we'll wait a bit
-                  setTimeout(() => {
-                    const gapi = win.gapi
-                    if (gapi?.client?.drive) {
-                      resolve()
-                    } else if (gapi?.client?.request) {
-                      // Try to trigger Drive API loading by making a simple request
-                      gapi.client.request({
-                        path: 'https://www.googleapis.com/drive/v3/about?fields=user'
-                      }).then(() => {
+                // Verify Drive API is loaded
+                if (!win.gapi?.client?.drive) {
+                  // Try one more time with a longer wait
+                  await new Promise<void>((resolve, reject) => {
+                    let attempts = 0
+                    const checkDrive = () => {
+                      if (win.gapi?.client?.drive) {
                         resolve()
-                      }).catch(() => {
-                        // Even if this fails, drive might still be available
-                        if (gapi?.client?.drive) {
-                          resolve()
-                        } else {
-                          reject(new Error('Failed to load Drive API'))
-                        }
-                      })
-                    } else {
-                      reject(new Error('gapi.client.request is not available'))
+                      } else if (attempts < 10) {
+                        attempts++
+                        setTimeout(checkDrive, 200)
+                      } else {
+                        reject(new Error('Failed to load Drive API. The discovery document may have failed to load. Check the browser console for network errors (502 Bad Gateway suggests a network issue).'))
+                      }
                     }
-                  }, 500)
-                })
+                    checkDrive()
+                  })
+                }
               }
 
               if (!win.gapi?.client?.drive) {
                 await writelnStderr(process, terminal, chalk.red('mount: Google Drive API is not available'))
-                await writelnStderr(process, terminal, 'Please ensure the Drive API is enabled in your Google Cloud project')
+                await writelnStderr(process, terminal, chalk.yellow('Troubleshooting steps:'))
+                await writelnStderr(process, terminal, '  1. Check the browser console for network errors (502 Bad Gateway suggests a network/server issue)')
+                await writelnStderr(process, terminal, '  2. Verify your API key is valid and has the Drive API enabled')
+                await writelnStderr(process, terminal, '  3. Ensure the Drive API is enabled in your Google Cloud project')
+                await writelnStderr(process, terminal, '  4. Check if there are any API key restrictions (HTTP referrers, IP addresses, etc.)')
+                await writelnStderr(process, terminal, '  5. Try refreshing the page and mounting again')
                 return 1
               }
 
@@ -1107,7 +1152,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
                 
                 const driveScope = mountOptions.scope || 'https://www.googleapis.com/auth/drive'
                 
-                // Check if user is already signed in
+                // Check if user is already authenticated
                 try {
                   const client = win.gapi?.client
                   if (client?.request) {
@@ -1116,58 +1161,124 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
                     })
                   }
                 } catch (error) {
-                  // User needs to authenticate
-                  await writelnStdout(process, terminal, chalk.yellow('Authentication required. Please sign in to Google...'))
+                  // User needs to authenticate using Google Identity Services
+                  await writelnStdout(process, terminal, chalk.gray('Authentication required. Please sign in to Google...'))
                   
-                  const authInstance = (win.gapi as unknown as { auth2?: { getAuthInstance?: () => { signIn: () => Promise<unknown> } } }).auth2
-                  if (authInstance?.getAuthInstance) {
-                    const auth = authInstance.getAuthInstance()
-                    await auth.signIn()
-                  } else {
-                    // Fallback: try to trigger auth flow
+                  try {
+                    if (!win.google?.accounts?.oauth2) {
+                      throw new Error('Google Identity Services OAuth2 is not available')
+                    }
+                    
                     await new Promise<void>((resolve, reject) => {
-                      if (!win.gapi?.load) {
-                        reject(new Error('gapi.load is not available'))
-                        return
-                      }
-                      win.gapi.load('auth2', () => {
-                        const auth2 = (win.gapi as unknown as { auth2?: { init: (config: unknown) => Promise<unknown>; getAuthInstance: () => { signIn: () => Promise<unknown> } } }).auth2
-                        if (auth2?.init) {
-                          auth2.init({
-                            client_id: mountOptions.clientId,
-                            scope: driveScope
-                          }).then(() => {
-                            if (auth2.getAuthInstance) {
-                              const auth = auth2.getAuthInstance()
-                              auth.signIn().then(() => resolve()).catch(reject)
-                            } else {
-                              resolve()
-                            }
-                          }).catch(reject)
-                        } else {
-                          resolve()
-                        }
+                      const tokenClient = win.google?.accounts?.oauth2?.initTokenClient({
+                        client_id: mountOptions.clientId!,
+                        scope: driveScope,
+                        callback: (response: { access_token: string }) => {
+                          if (response.access_token && win.gapi?.client?.setToken) {
+                            win.gapi.client.setToken({ access_token: response.access_token })
+                            resolve()
+                          } else {
+                            reject(new Error('Failed to obtain access token'))
+                          }
+                        },
                       })
+
+                      tokenClient?.requestAccessToken()
                     })
+                  } catch (authError) {
+                    const authErrMsg = authError instanceof Error ? authError.message : String(authError)
+                    if (authErrMsg.toLowerCase().includes('popup') || authErrMsg.toLowerCase().includes('blocked')) {
+                      throw new Error(`OAuth authentication failed: ${authErrMsg}. Please allow popups for this site.`)
+                    } else if (authErrMsg.toLowerCase().includes('origin') || authErrMsg.toLowerCase().includes('authorized')) {
+                      throw new Error(`OAuth authentication failed: ${authErrMsg}. Your origin may not be authorized in Google Cloud Console. Add your current origin to the OAuth client's authorized JavaScript origins.`)
+                    }
+                    throw authError
                   }
                 }
               }
 
               const drive = win.gapi.client.drive
-              const cacheTTL = mountOptions.cacheTTL ? parseInt(mountOptions.cacheTTL, 10) : undefined
+              const cacheTTL = mountOptions.cacheTTL ? parseInt(mountOptions.cacheTTL) : undefined
 
               await kernel.filesystem.fsSync.mount(
                 target,
                 await resolveMountConfig({
                   backend: GoogleDrive,
-                  drive: drive as never, // gapi.client.drive type from global
+                  drive: drive as never,
+                  disableAsyncCache: true,
                   ...(cacheTTL && !isNaN(cacheTTL) ? { cacheTTL } : {})
                 })
               )
             } catch (error) {
-              await writelnStderr(process, terminal, chalk.red(`mount: failed to mount googledrive filesystem: ${error instanceof Error ? error.message : 'Unknown error'}`))
-              if (error instanceof Error && error.stack) {
-                await writelnStderr(process, terminal, chalk.gray(error.stack))
+              let errorMessage = 'Unknown error'
+              if (error instanceof Error) {
+                errorMessage = error.message || error.toString()
+              } else if (typeof error === 'string') {
+                errorMessage = error
+              } else if (error && typeof error === 'object') {
+                // Try to extract error message from object
+                const err = error as Record<string, unknown>
+                errorMessage = 
+                  (typeof err.message === 'string' ? err.message : '') ||
+                  (typeof err.error === 'string' ? err.error : '') ||
+                  (typeof err.details === 'string' ? err.details : '') ||
+                  (typeof err.reason === 'string' ? err.reason : '') ||
+                  (err.toString && typeof err.toString === 'function' ? err.toString() : '') ||
+                  JSON.stringify(error)
+              } else {
+                errorMessage = String(error)
+              }
+              
+              await writelnStderr(process, terminal, chalk.red(`mount: failed to mount googledrive filesystem: ${errorMessage}`))
+              
+              // Provide specific guidance for common errors
+              const lowerMessage = errorMessage.toLowerCase()
+              if (lowerMessage.includes('popup') || lowerMessage.includes('blocked')) {
+                await writelnStderr(process, terminal, chalk.yellow('\nOAuth popup was blocked. Common causes:'))
+                await writelnStderr(process, terminal, '  • Browser popup blocker is enabled')
+                await writelnStderr(process, terminal, '  • Browser security restrictions')
+                await writelnStderr(process, terminal, chalk.gray('\nTo fix this:'))
+                await writelnStderr(process, terminal, '  1. Allow popups for this site in your browser settings')
+                await writelnStderr(process, terminal, '  2. Try the mount command again')
+              } else if (lowerMessage.includes('origin') || lowerMessage.includes('authorized')) {
+                await writelnStderr(process, terminal, chalk.yellow('\nOAuth authentication failed. Common causes:'))
+                await writelnStderr(process, terminal, '  • Your domain/origin is not authorized in Google Cloud Console')
+                await writelnStderr(process, terminal, '  • Invalid or incorrect OAuth client ID')
+                await writelnStderr(process, terminal, chalk.gray('\nTo fix this:'))
+                await writelnStderr(process, terminal, '  1. Go to Google Cloud Console > APIs & Services > Credentials')
+                await writelnStderr(process, terminal, '  2. Find your OAuth 2.0 Client ID')
+                await writelnStderr(process, terminal, '  3. Add your current origin to "Authorized JavaScript origins"')
+                await writelnStderr(process, terminal, '     (e.g., http://localhost:30443 or your domain)')
+                await writelnStderr(process, terminal, '  4. If you only need read-only access, try mounting without clientId:')
+                await writelnStderr(process, terminal, '     mount -t googledrive /mnt/gdrive -o apiKey=YOUR_API_KEY')
+              } else if (lowerMessage.includes('discovery') || lowerMessage.includes('api discovery') || lowerMessage.includes('required fields')) {
+                await writelnStderr(process, terminal, chalk.yellow('\nThe Drive API discovery document failed to load. Common causes:'))
+                await writelnStderr(process, terminal, '  • Network connectivity issues (check for 502 Bad Gateway in console)')
+                await writelnStderr(process, terminal, '  • Invalid or restricted API key')
+                await writelnStderr(process, terminal, '  • Drive API not enabled in Google Cloud project')
+                await writelnStderr(process, terminal, '  • CORS or browser security restrictions')
+                await writelnStderr(process, terminal, chalk.gray('\nCheck the browser console for detailed network error messages.'))
+              } else if (lowerMessage.includes('network') || lowerMessage.includes('fetch') || lowerMessage.includes('502') || lowerMessage.includes('bad gateway')) {
+                await writelnStderr(process, terminal, chalk.yellow('\nNetwork error detected. This may be a temporary issue with Google\'s servers.'))
+                await writelnStderr(process, terminal, '  • Wait a few moments and try again')
+                await writelnStderr(process, terminal, '  • Check your internet connection')
+                await writelnStderr(process, terminal, '  • Verify the API key is correct')
+              }
+              
+              // Show full error details if it's an object (for debugging)
+              if (error && typeof error === 'object' && !(error instanceof Error)) {
+                try {
+                  const errorStr = JSON.stringify(error, null, 2)
+                  if (errorStr !== '{}' && errorStr.length < 500) {
+                    await writelnStderr(process, terminal, chalk.gray(`\nError details:\n${errorStr}`))
+                  }
+                } catch {
+                  // Ignore JSON stringify errors
+                }
+              }
+              
+              if (error instanceof Error && error.stack && !lowerMessage.includes('discovery') && !lowerMessage.includes('network')) {
+                await writelnStderr(process, terminal, chalk.gray(`\nStack trace:\n${error.stack}`))
               }
               return 1
             }
