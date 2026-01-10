@@ -1,3 +1,5 @@
+// TODO: Dropbox and S3 are WIP
+
 import path from 'path'
 import chalk from 'chalk'
 import { Fetch, InMemory, resolveMountConfig, SingleBuffer } from '@zenfs/core'
@@ -77,7 +79,7 @@ function printUsage(process: Process | undefined, terminal: Terminal): void {
 Mount a filesystem.
 
 Options:
-  -t, --type TYPE     filesystem type (fetch, indexeddb, webstorage, webaccess, memory, singlebuffer, zip, iso, dropbox, /* s3, */ googledrive)
+  -t, --type TYPE     filesystem type (fetch, indexeddb, webstorage, webaccess, memory, singlebuffer, zip, iso, googledrive)
   -o, --options OPTS   mount options (comma-separated key=value pairs)
   -a, --all           mount all filesystems listed in /etc/fstab
   -l, --list          list all mounted filesystems
@@ -92,20 +94,19 @@ Filesystem types:
   singlebuffer  mount a filesystem backed by a single buffer
   zip           mount a readonly filesystem from a zip archive (requires SOURCE file or URL)
   iso           mount a readonly filesystem from an ISO image (requires SOURCE file or URL)
-  dropbox       mount a Dropbox filesystem (requires client configuration via -o client)
   googledrive   mount a Google Drive filesystem (requires apiKey via -o apiKey, optionally clientId for OAuth)
 
 Mount options:
   baseUrl=URL        base URL for fetch operations (fetch type)
   size=BYTES         buffer size in bytes for singlebuffer type (default: 1048576)
   storage=TYPE       storage type for webstorage (localStorage or sessionStorage, default: localStorage)
-  client=JSON        client configuration as JSON string (dropbox type)
   apiKey=KEY         Google API key (googledrive type, required)
   clientId=ID        Google OAuth client ID (googledrive type, optional)
   scope=SCOPE        OAuth scope (googledrive type, default: https://www.googleapis.com/auth/drive)
   cacheTTL=SECONDS   cache TTL in seconds for cloud backends (optional)
 
 Examples:
+  mount -l                                    list all mounted filesystems
   mount -t memory /mnt/tmp                    mount memory filesystem at /mnt/tmp
   mount -t indexeddb mydb /mnt/db             mount IndexedDB store 'mydb' at /mnt/db
   mount -t webstorage /mnt/storage            mount WebStorage filesystem using localStorage
@@ -119,10 +120,8 @@ Examples:
   mount -t zip /tmp/archive.zip /mnt/zip
   mount -t iso https://example.com/image.iso /mnt/iso
   mount -t iso /tmp/image.iso /mnt/iso
-  mount -t dropbox /mnt/dropbox -o client='{"accessToken":"..."}'
-  mount -t googledrive /mnt/gdrive -o apiKey=YOUR_API_KEY
-  mount -t googledrive /mnt/gdrive -o apiKey=YOUR_API_KEY,clientId=YOUR_CLIENT_ID
-  mount -l                                    list all mounted filesystems`
+  mount -t googledrive /mnt/gdrive -o apiKey=YOUR_API_KEY # readonly/public
+  mount -t googledrive /mnt/gdrive -o clientId=YOUR_CLIENT_ID # rw/private`
   writelnStderr(process, terminal, usage)
 }
 
@@ -191,13 +190,12 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           
           return {
             target: chalk.blue(target),
-            type: chalk.gray(backendName.toLowerCase()),
             name: chalk.gray(name)
           }
         })
         
         for (const row of mountRows) {
-          await writelnStdout(process, terminal, `${row.target.padEnd(30)} ${row.type.padEnd(15)} ${row.name}`)
+          await writelnStdout(process, terminal, `${row.target.padEnd(30)} ${row.name}`)
         }
 
         return 0
