@@ -101,7 +101,7 @@ export class Filesystem {
   /**
    * @returns {ZenFS.mounts} The mounted filesystems.
    */
-  get mounts() { return mounts }
+  get mounts(): typeof mounts { return mounts }
 
   /**
    * Configures the filesystem with the given options.

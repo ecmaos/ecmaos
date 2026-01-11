@@ -8,6 +8,8 @@
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"],
       "env": [
         "EMSDK",
+        "ECMAOS_PORT",
+        "ECMAOS_KERNEL_INTERVALS_PROC",
         "ECMAOS_RECOMMENDED_APPS",
         "ECMAOS_APP_SHOW_DEFAULT_LOGIN", 
         "ECMAOS_INITFS",
