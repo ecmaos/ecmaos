@@ -12,6 +12,10 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
 
+    "types": [
+      "./node_modules/user-agent-data-types"
+    ],
+
     /* Bundler mode */
     "moduleResolution": "bundler",
     "isolatedModules": true,

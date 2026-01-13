@@ -42,21 +42,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
 
   // Kernel-specific commands
   const kernelCommands: { [key: string]: TerminalCommand } = {
-    chown: new TerminalCommand({
-      command: 'chown',
-      description: 'Change file ownership',
-      kernel,
-      shell,
-      terminal,
-      options: [
-        HelpOption,
-        { name: 'args', type: String, multiple: true, defaultOption: true, description: 'The user and path to the file or directory' },
-        { name: 'group', type: String, description: 'The group to set for the file or directory' }
-      ],
-      run: async (argv: CommandLineOptions) => {
-        return await chown({ kernel, shell, terminal, args: [argv.args[0], argv.args[1], argv.group] })
-      }
-    }),
     clear: new TerminalCommand({
       command: 'clear',
       description: 'Clear the terminal screen',
@@ -242,12 +227,6 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
 export { TerminalCommand, type CommandArgs } from '@ecmaos/coreutils'
 
 // Kernel-specific command implementations (non-essential commands remain here)
-export const chown = async ({ shell, args }: CommandArgs) => {
-  const [user, target, group] = (args as string[])
-  if (!user || !target) return 1
-  const fullPath = path.resolve(shell.cwd, target)
-  await shell.context.fs.promises.chown(fullPath, parseInt(user), parseInt(group ?? user))
-}
 
 export const clear = async ({ terminal }: CommandArgs) => {
   terminal.write('\x1b[2J\x1b[H')

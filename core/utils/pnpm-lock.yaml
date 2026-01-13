@@ -83,6 +83,9 @@ importers:
       '@types/command-line-usage':
         specifier: ^5.0.4
         version: 5.0.4
+      user-agent-data-types:
+        specifier: ^0.4.2
+        version: 0.4.2
 
 packages:
 
@@ -261,8 +264,8 @@ packages:
   '@maxim_mazurok/gapi.client.discovery-v1@0.4.20200806':
     resolution: {integrity: sha512-Jeo/KZqK39DI6ExXHcJ4lqnn1O/wEqboQ6eQ8WnNpu5eJ7wUnX/C5KazOgs1aRhnIB/dVzDe8wm62nmtkMIoaw==}
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260102':
-    resolution: {integrity: sha512-5pe9J0gKhFXV0b3Pvwyz/2nUBC4AhTq+GbBo5GWupXvDUnoKR5X5nsQAeAzLdu5ptElihWz13KEW7oQ3xTTZQg==}
+  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260105':
+    resolution: {integrity: sha512-siz+TvNpM/BAalrJpYr4HxK686e3UKTxTwfTSPaliwgOe7zBrShpxO8Ile9ntX7Y2ufv4Hvaac2eydgXmDbF9w==}
 
   '@smithy/abort-controller@4.2.7':
     resolution: {integrity: sha512-rzMY6CaKx2qxrbYbqjXWS0plqEy7LOdKHS0bg4ixJ6aoGDPNUcLWk/FRNuCILh7GKLG9TFUXYYeQQldMBBwuyw==}
@@ -835,6 +838,9 @@ packages:
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
 
+  user-agent-data-types@0.4.2:
+    resolution: {integrity: sha512-jXep3kO/dGNmDOkbDa8ccp4QArgxR4I76m3QVcJ1aOF0B9toc+YtSXtX5gLdDTZXyWlpQYQrABr6L1L2GZOghw==}
+
   utilium@2.5.8:
     resolution: {integrity: sha512-RNXAYoYH7hefayCW/2LU3SYCwDGQlDc8f4gPCRbMO6dJsYGGlzAhyHqYQGp73ox41JtPKjdqzddAbDhWQ9MrXQ==}
     engines: {node: '>=22.0.0'}
@@ -1356,7 +1362,7 @@ snapshots:
       '@types/gapi.client.discovery-v1': 0.0.4
     optional: true
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260102':
+  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260105':
     dependencies:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
@@ -1715,7 +1721,7 @@ snapshots:
 
   '@types/gapi.client.drive-v3@0.0.5':
     dependencies:
-      '@maxim_mazurok/gapi.client.drive-v3': 0.1.20260102
+      '@maxim_mazurok/gapi.client.drive-v3': 0.1.20260105
     optional: true
 
   '@types/gapi.client@1.0.8':
@@ -2032,6 +2038,8 @@ snapshots:
   typical@7.3.0: {}
 
   undici-types@7.16.0: {}
+
+  user-agent-data-types@0.4.2: {}
 
   utilium@2.5.8:
     dependencies:
