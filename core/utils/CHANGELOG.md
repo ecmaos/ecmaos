@@ -1,5 +1,11 @@
 # @ecmaos/coreutils
 
+## 0.4.2
+
+### Patch Changes
+
+- 53068e0: Many new coreutils added
+
 ## 0.4.0
 
 ### Minor Changes
