@@ -4,7 +4,7 @@ import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
 
 function printUsage(process: Process | undefined, terminal: Terminal): void {
-  const usage = `Usage: hex [FILE]
+  const usage = `Usage: xxd [FILE]
 Display file contents or stdin in hexadecimal format.
 
   FILE    the file to display (if omitted, reads from stdin)
@@ -14,7 +14,7 @@ Display file contents or stdin in hexadecimal format.
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
   return new TerminalCommand({
-    command: 'hex',
+    command: 'xxd',
     description: 'Display file contents or stdin in hexadecimal format',
     kernel,
     shell,
@@ -36,14 +36,14 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       try {
         if (!filePath) {
           if (!process.stdin) {
-            await writelnStderr(process, terminal, 'Usage: hex <file>')
-            await writelnStderr(process, terminal, '   or: <command> | hex')
+            await writelnStderr(process, terminal, 'Usage: xxd <file>')
+            await writelnStderr(process, terminal, '   or: <command> | xxd')
             return 1
           }
 
           if (process.stdinIsTTY) {
-            await writelnStderr(process, terminal, 'Usage: hex <file>')
-            await writelnStderr(process, terminal, '   or: <command> | hex')
+            await writelnStderr(process, terminal, 'Usage: xxd <file>')
+            await writelnStderr(process, terminal, '   or: <command> | xxd')
             return 1
           }
 
@@ -54,8 +54,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             const first = await reader.read()
             
             if (first.done && !first.value) {
-              await writelnStderr(process, terminal, 'Usage: hex <file>')
-              await writelnStderr(process, terminal, '   or: <command> | hex')
+              await writelnStderr(process, terminal, 'Usage: xxd <file>')
+              await writelnStderr(process, terminal, '   or: <command> | xxd')
               return 1
             }
             
@@ -78,8 +78,8 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
           const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
           if (totalLength === 0) {
-            await writelnStderr(process, terminal, 'Usage: hex <file>')
-            await writelnStderr(process, terminal, '   or: <command> | hex')
+            await writelnStderr(process, terminal, 'Usage: xxd <file>')
+            await writelnStderr(process, terminal, '   or: <command> | xxd')
             return 1
           }
 
@@ -94,13 +94,13 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
 
           const exists = await shell.context.fs.promises.exists(fullPath)
           if (!exists) {
-            await writelnStderr(process, terminal, `hex: ${filePath}: No such file or directory`)
+            await writelnStderr(process, terminal, `xxd: ${filePath}: No such file or directory`)
             return 1
           }
 
           const stats = await shell.context.fs.promises.stat(fullPath)
           if (stats.isDirectory()) {
-            await writelnStderr(process, terminal, `hex: ${filePath}: Is a directory`)
+            await writelnStderr(process, terminal, `xxd: ${filePath}: Is a directory`)
             return 1
           }
 
@@ -152,7 +152,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         return 0
       } catch (error) {
         const errorPath = filePath || 'stdin'
-        await writelnStderr(process, terminal, `hex: ${errorPath}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        await writelnStderr(process, terminal, `xxd: ${errorPath}: ${error instanceof Error ? error.message : 'Unknown error'}`)
         return 1
       }
     }

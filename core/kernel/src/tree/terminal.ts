@@ -199,13 +199,12 @@ export class Terminal extends XTerm implements ITerminal {
     // Handle bell character
     this.onBell(() => {
       const theme = { ...this.options.theme }
-      const originalBackground = theme.background
-      theme.background = originalBackground === '#000000' ? '#FFFFFF' : '#000000'
+      theme.background = '#FFFFFF'
       this.options.theme = theme
 
       setTimeout(() => {
         const theme = { ...this.options.theme }
-        theme.background = originalBackground
+        theme.background = '#000000'
         this.options.theme = theme
       }, 100)
     })

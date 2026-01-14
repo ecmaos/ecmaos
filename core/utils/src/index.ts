@@ -42,7 +42,7 @@ import { createCommand as createRm } from './commands/rm.js'
 import { createCommand as createRmdir } from './commands/rmdir.js'
 import { createCommand as createStat } from './commands/stat.js'
 import { createCommand as createTouch } from './commands/touch.js'
-import { createCommand as createHex } from './commands/hex.js'
+import { createCommand as createXxd } from './commands/xxd.js'
 import { createCommand as createLess } from './commands/less.js'
 import { createCommand as createMan } from './commands/man.js'
 import { createCommand as createPasskey } from './commands/passkey.js'
@@ -131,7 +131,7 @@ export { createCommand as createRmdir } from './commands/rmdir.js'
 export { createCommand as createStat } from './commands/stat.js'
 export { createCommand as createStrings } from './commands/strings.js'
 export { createCommand as createTouch } from './commands/touch.js'
-export { createCommand as createHex } from './commands/hex.js'
+export { createCommand as createXxd } from './commands/xxd.js'
 export { createCommand as createLess } from './commands/less.js'
 export { createCommand as createMan } from './commands/man.js'
 export { createCommand as createSed } from './commands/sed.js'
@@ -215,7 +215,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     stat: createStat(kernel, shell, terminal),
     strings: createStrings(kernel, shell, terminal),
     touch: createTouch(kernel, shell, terminal),
-    hex: createHex(kernel, shell, terminal),
+    xxd: createXxd(kernel, shell, terminal),
     less: createLess(kernel, shell, terminal),
     man: createMan(kernel, shell, terminal),
     passkey: createPasskey(kernel, shell, terminal),

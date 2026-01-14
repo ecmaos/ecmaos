@@ -79,31 +79,31 @@ function printUsage(process: Process | undefined, terminal: Terminal): void {
 Mount a filesystem.
 
 Options:
-  -t, --type TYPE     filesystem type (fetch, indexeddb, webstorage, webaccess, memory, singlebuffer, zip, iso, googledrive)
-  -o, --options OPTS   mount options (comma-separated key=value pairs)
+  -t, --type TYPE     filesystem type
+  -o, --options OPTS  mount options (comma-separated key=value pairs)
   -a, --all           mount all filesystems listed in /etc/fstab
   -l, --list          list all mounted filesystems
   --help              display this help and exit
 
 Filesystem types:
-  fetch         mount a remote filesystem via HTTP fetch
-  indexeddb     mount an IndexedDB-backed filesystem
-  webstorage    mount a WebStorage-backed filesystem (localStorage or sessionStorage)
-  webaccess     mount a filesystem using the File System Access API
-  memory        mount an in-memory filesystem
-  singlebuffer  mount a filesystem backed by a single buffer
-  zip           mount a readonly filesystem from a zip archive (requires SOURCE file or URL)
-  iso           mount a readonly filesystem from an ISO image (requires SOURCE file or URL)
-  googledrive   mount a Google Drive filesystem (requires apiKey via -o apiKey, optionally clientId for OAuth)
+  fetch               mount a remote filesystem via HTTP fetch
+  indexeddb           mount an IndexedDB-backed filesystem
+  webstorage          mount a WebStorage-backed filesystem (localStorage or sessionStorage)
+  webaccess           mount a filesystem using the File System Access API
+  memory              mount an in-memory filesystem
+  singlebuffer        mount a filesystem backed by a single buffer
+  zip                 mount a readonly filesystem from a zip archive (requires SOURCE file or URL)
+  iso                 mount a readonly filesystem from an ISO image (requires SOURCE file or URL)
+  googledrive         mount a Google Drive filesystem (requires apiKey via -o apiKey, optionally clientId for OAuth)
 
 Mount options:
-  baseUrl=URL        base URL for fetch operations (fetch type)
-  size=BYTES         buffer size in bytes for singlebuffer type (default: 1048576)
-  storage=TYPE       storage type for webstorage (localStorage or sessionStorage, default: localStorage)
-  apiKey=KEY         Google API key (googledrive type, required)
-  clientId=ID        Google OAuth client ID (googledrive type, optional)
-  scope=SCOPE        OAuth scope (googledrive type, default: https://www.googleapis.com/auth/drive)
-  cacheTTL=SECONDS   cache TTL in seconds for cloud backends (optional)
+  baseUrl=URL         base URL for fetch operations (fetch type)
+  size=BYTES          buffer size in bytes for singlebuffer type (default: 1048576)
+  storage=TYPE        storage type for webstorage (localStorage or sessionStorage, default: localStorage)
+  apiKey=KEY          Google API key (googledrive type, required)
+  clientId=ID         Google OAuth client ID (googledrive type, optional)
+  scope=SCOPE         OAuth scope (googledrive type, default: https://www.googleapis.com/auth/drive)
+  cacheTTL=SECONDS    cache TTL in seconds for cloud backends (optional)
 
 Examples:
   mount -l                                    list all mounted filesystems
