@@ -5,6 +5,7 @@ import humanFormat from 'human-format'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
+import { CoreutilsDescriptions } from '../index.js'
 
 function printUsage(process: Process | undefined, terminal: Terminal): void {
   const usage = `Usage: ls [OPTION]... [FILE]...
@@ -12,6 +13,33 @@ List information about the FILEs (the current directory by default).
 
   --help  display this help and exit`
   writelnStderr(process, terminal, usage)
+}
+
+function truncateInfo(text: string, maxWidth: number = 40): string {
+  if (!text) return text
+  
+  // Strip ANSI codes to get visible length
+  const ansiRegex = /\x1b\[[0-9;]*m/g
+  const plainText = text.replace(ansiRegex, '')
+  
+  if (plainText.length <= maxWidth) return text
+  
+  // Extract all ANSI codes from the original text
+  const codes: string[] = []
+  let match
+  const codeRegex = /\x1b\[[0-9;]*m/g
+  while ((match = codeRegex.exec(text)) !== null) {
+    codes.push(match[0])
+  }
+  
+  // Truncate plain text and add ellipsis
+  const truncated = plainText.substring(0, maxWidth - 3)
+  
+  // Reconstruct with original color codes at the start
+  const prefixCodes = codes.length > 0 ? codes[0] : ''
+  const resetCode = '\x1b[0m'
+  
+  return `${prefixCodes}${truncated}...${resetCode}`
 }
 
 export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal): TerminalCommand {
@@ -204,7 +232,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           Name: coloredName,
           Mode: chalk.gray(modeString),
           Owner: directory.stats ? chalk.gray(getOwnerString(directory.stats)) : '',
-          Info: chalk.gray(linkInfo)
+          Info: truncateInfo(chalk.gray(linkInfo))
         }
 
         if (!isDevDirectory) {
@@ -235,6 +263,14 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           const linkInfo = getLinkInfo(file.linkTarget, file.linkStats, file.stats)
           if (linkInfo) return linkInfo
           
+          // Check if this is a command in /bin/ and use CoreutilsDescriptions
+          if (file.target.startsWith('/bin/')) {
+            const commandName = path.basename(file.target)
+            if (commandName in CoreutilsDescriptions) {
+              return CoreutilsDescriptions[commandName as keyof typeof CoreutilsDescriptions]
+            }
+          }
+          
           if (descriptions.has(file.target)) return descriptions.get(file.target) || ''
           if (file.name.includes('.')) {
             const ext = file.name.split('.').pop()
@@ -252,7 +288,7 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           Name: coloredName,
           Mode: chalk.gray(modeString),
           Owner: file.stats ? chalk.gray(getOwnerString(file.stats)) : '',
-          Info: chalk.gray(info)
+          Info: truncateInfo(chalk.gray(info))
         }
 
         if (!isDevDirectory) {
