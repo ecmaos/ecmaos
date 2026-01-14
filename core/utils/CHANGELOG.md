@@ -1,5 +1,16 @@
 # @ecmaos/coreutils
 
+## 0.5.0
+
+### Minor Changes
+
+- ad7dc2e: add initfs.demo; fix bell flash; rename hex to xxd
+
+### Patch Changes
+
+- Updated dependencies [ad7dc2e]
+  - @ecmaos/types@0.7.2
+
 ## 0.4.3
 
 ### Patch Changes

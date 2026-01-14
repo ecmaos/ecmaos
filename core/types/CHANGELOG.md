@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.7.2
+
+### Patch Changes
+
+- ad7dc2e: add initfs.demo; fix bell flash; rename hex to xxd
+
 ## 0.7.1
 
 ### Patch Changes

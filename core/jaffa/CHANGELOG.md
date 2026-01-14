@@ -1,5 +1,13 @@
 # @ecmaos/jaffa
 
+## 0.2.17
+
+### Patch Changes
+
+- Updated dependencies [ad7dc2e]
+  - @ecmaos/kernel@0.9.4
+  - @ecmaos/types@0.7.2
+
 ## 0.2.16
 
 ### Patch Changes
