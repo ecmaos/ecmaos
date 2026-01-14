@@ -1,5 +1,11 @@
 # @ecmaos/coreutils
 
+## 0.5.1
+
+### Patch Changes
+
+- 9a406cf: support coreutil descriptions
+
 ## 0.5.0
 
 ### Minor Changes

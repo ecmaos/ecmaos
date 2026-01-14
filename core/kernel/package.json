@@ -1,7 +1,7 @@
 {
   "name": "@ecmaos/kernel",
   "description": "ecmaOS: Micro-kernel and framework for web technologies",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "license": "MIT+Apache-2.0",
   "homepage": "https://ecmaos.sh",
   "repository": "https://github.com/ecmaos/ecmaos",

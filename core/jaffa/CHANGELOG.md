@@ -1,5 +1,11 @@
 # @ecmaos/jaffa
 
+## 0.2.18
+
+### Patch Changes
+
+- @ecmaos/kernel@0.9.5
+
 ## 0.2.17
 
 ### Patch Changes
