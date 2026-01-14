@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.7.1
+
+### Patch Changes
+
+- f332a2f: Upgrade xterm and support progress escape sequences controlling topbar
+
 ## 0.7.0
 
 ### Minor Changes

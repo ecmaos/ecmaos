@@ -1,5 +1,12 @@
 # @ecmaos/coreutils
 
+## 0.4.3
+
+### Patch Changes
+
+- Updated dependencies [f332a2f]
+  - @ecmaos/types@0.7.1
+
 ## 0.4.2
 
 ### Patch Changes
