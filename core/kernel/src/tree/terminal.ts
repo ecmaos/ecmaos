@@ -18,6 +18,7 @@ import { IDisposable, ITerminalAddon, Terminal as XTerm } from '@xterm/xterm'
 import { AttachAddon } from '@xterm/addon-attach'
 import { FitAddon } from '@xterm/addon-fit'
 import { ImageAddon } from '@xterm/addon-image'
+import { ProgressAddon } from '@xterm/addon-progress'
 import { SearchAddon } from '@xterm/addon-search'
 import { SerializeAddon } from '@xterm/addon-serialize'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -198,12 +199,13 @@ export class Terminal extends XTerm implements ITerminal {
     // Handle bell character
     this.onBell(() => {
       const theme = { ...this.options.theme }
-      theme.background = '#FFFFFF'
+      const originalBackground = theme.background
+      theme.background = originalBackground === '#000000' ? '#FFFFFF' : '#000000'
       this.options.theme = theme
 
       setTimeout(() => {
         const theme = { ...this.options.theme }
-        theme.background = '#000000'
+        theme.background = originalBackground
         this.options.theme = theme
       }, 100)
     })
@@ -213,6 +215,7 @@ export class Terminal extends XTerm implements ITerminal {
     this._addons = options.addons || new Map([
       ['fit', new FitAddon()],
       ['image', new ImageAddon()],
+      ['progress', new ProgressAddon()],
       ['search', new SearchAddon()],
       ['serialize', new SerializeAddon()],
       ['web-links', new WebLinksAddon()]
@@ -220,6 +223,69 @@ export class Terminal extends XTerm implements ITerminal {
 
     for (const addon of this._addons.values()) this.loadAddon(addon)
     if (this.addons?.get('fit')) (this.addons.get('fit') as FitAddon).fit()
+    if (this.addons?.get('progress')) {
+      const defaultBarColors = {
+        0: "rgba(26,  188, 156, .9)",
+        ".25": "rgba(52,  152, 219, .9)",
+        ".50": "rgba(241, 196, 15,  .9)",
+        ".75": "rgba(230, 126, 34,  .9)",
+        "1.0": "rgba(211, 84,  0,   .9)"
+      }
+
+      const errorBarColors = {
+        0: "rgba(220, 20, 60, .9)",
+        ".25": "rgba(200, 0, 0, .9)",
+        ".50": "rgba(178, 34, 34, .8)",
+        ".75": "rgba(139, 0, 0, .8)",
+        "1.0": "rgba(255, 0, 0, .7)"
+      }
+
+      const pauseBarColors = {
+        0: "rgba(127, 140, 141, .9)",
+        ".25": "rgba(189, 195, 199, .9)",
+        ".50": "rgba(241, 196, 15,  .7)",
+        ".75": "rgba(230, 126, 34, .7)",
+        "1.0": "rgba(231, 76, 60,  .7)"
+      }
+
+      ;(this.addons.get('progress') as ProgressAddon).onChange(({ state, value }) => {
+        console.log('progress', state, value)
+        switch (state) {
+          case 0: // Remove
+            this._kernel.dom.topbar(false)
+            this._kernel.dom.topbarProgress(0)
+            break
+          case 1: // Set
+            this._kernel.dom.topbarConfig({
+              autoRun: false,
+              barColors: defaultBarColors
+            })
+            this._kernel.dom.topbar(true)
+            this._kernel.dom.topbarProgress(value / 100)
+            break
+          case 2: // Error
+            this._kernel.dom.topbar(true)
+            this._kernel.dom.topbarProgress(value / 100)
+            this._kernel.dom.topbarConfig({
+              autoRun: false,
+              barColors: errorBarColors
+            })
+            break
+          case 3: // Indeterminate
+            this._kernel.dom.topbarConfig({ autoRun: false, barColors: defaultBarColors })
+            this._kernel.dom.topbarProgress(1)
+            this._kernel.dom.topbar(true)
+            break
+          case 4: // Pause
+            this._kernel.dom.topbarConfig({
+              autoRun: false,
+              barColors: pauseBarColors
+            })
+            this._kernel.dom.topbar(true)
+            break
+        }
+      })
+    }
 
     globalThis.addEventListener('resize', () => {
       if (this.addons?.get('fit')) (this.addons.get('fit') as FitAddon).fit()
@@ -308,6 +374,10 @@ export class Terminal extends XTerm implements ITerminal {
 
   createSpecialLink(uri: string, text: string) {
     return `\x1b]8;;${uri}\x1b\\${text}\x1b]8;;\x1b\\`
+  }
+
+  progress(state: string | number, value: number) {
+    this.write(`\x1b]9;4;${state};${value}\x07`)
   }
 
   connect(socket: WebSocket) {

@@ -1,3 +1,5 @@
+import type { TopbarConfigOptions } from 'topbar'
+
 /**
  * DOM types and interfaces
  */
@@ -24,4 +26,16 @@ export interface Dom {
    * @param show - Optional boolean to set visibility state
    */
   topbar(show?: boolean): Promise<void>
+
+  /**
+   * Configure the topbar
+   * @param options - Options to configure the topbar (@see https://buunguyen.github.io/topbar)
+   */
+  topbarConfig(options: TopbarConfigOptions): Promise<void>
+
+  /**
+   * Set the topbar progress
+   * @param value - Progress value (0-100)
+   */
+  topbarProgress(value: number): Promise<void>
 } 

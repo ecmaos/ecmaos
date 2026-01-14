@@ -623,9 +623,10 @@ export class Kernel implements IKernel {
         usersSpan.end()
         throw err
       }
-      usersSpan.end()
 
+      usersSpan.end()
       spinner?.stop()
+      this.dom.topbar()
 
       // Show login prompt or auto-login
       const authSpan = tracer.startSpan('kernel.boot.authentication', {}, trace.setSpan(context.active(), bootSpan))
@@ -883,9 +884,6 @@ export class Kernel implements IKernel {
         this.storage.local.setItem('ecmaos:first-boot', Date.now().toString())
       }
 
-      // const currentUser = this.users.get(this.shell.credentials.euid ?? this.shell.credentials.uid ?? 0)
-      // this.terminal.promptTemplate = `{user}:{cwd}${currentUser && currentUser.uid !== 0 ? '$' : '#' } `
-
       this.terminal.write(ansi.erase.inLine(2) + this.terminal.prompt())
       this.terminal.focus()
       this.terminal.listen()
@@ -902,8 +900,6 @@ export class Kernel implements IKernel {
         duration: 0,
         dismissible: false
       })
-    } finally {
-      this.dom.topbar()
     }
   }
 

@@ -21,7 +21,8 @@
     "@zenfs/emscripten": "^1.0.5",
     "chalk": "^5.3.0",
     "i18next": "^23.16.6",
-    "notyf": "^3.10.0"
+    "notyf": "^3.10.0",
+    "topbar": "^3.0.0"
   },
   "devDependencies": {
     "@ecmaos/config-typescript": "workspace:^",

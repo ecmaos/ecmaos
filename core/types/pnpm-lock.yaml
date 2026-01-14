@@ -40,6 +40,9 @@ importers:
       notyf:
         specifier: ^3.10.0
         version: 3.10.0
+      topbar:
+        specifier: ^3.0.0
+        version: 3.0.0
     devDependencies:
       '@ecmaos/config-typescript':
         specifier: workspace:^
@@ -931,6 +934,9 @@ packages:
   to-buffer@1.2.2:
     resolution: {integrity: sha512-db0E3UJjcFhpDhAF4tLo03oli3pwl3dbnzXOUIlRKrp+ldk/VUxzpWYZENsw2SZiuBjHAk7DfB0VU7NKdpb6sw==}
     engines: {node: '>= 0.4'}
+
+  topbar@3.0.0:
+    resolution: {integrity: sha512-mhczD7KfYi1anfoMPKRdl0wPSWiYc0YOK4KyycYs3EaNT15pVVNDG5CtfgZcEBWIPJEdfR7r8K4hTXDD2ECBVQ==}
 
   tslog@4.9.3:
     resolution: {integrity: sha512-oDWuGVONxhVEBtschLf2cs/Jy8i7h1T+CpdkTNWQgdAF7DhRo2G8vMCgILKe7ojdEkLhICWgI1LYSSKaJsRgcw==}
@@ -1938,6 +1944,8 @@ snapshots:
       isarray: 2.0.5
       safe-buffer: 5.2.1
       typed-array-buffer: 1.0.3
+
+  topbar@3.0.0: {}
 
   tslog@4.9.3: {}
 
