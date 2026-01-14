@@ -1,0 +1,40 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "build/**"],
+      "env": [
+        "EMSDK",
+        "ECMAOS_PORT",
+        "ECMAOS_KERNEL_INTERVALS_PROC",
+        "ECMAOS_RECOMMENDED_APPS",
+        "ECMAOS_APP_SHOW_DEFAULT_LOGIN", 
+        "ECMAOS_INITFS",
+        "TURBO_TEAM",
+        "SKIP_BUILD_BIOS",
+        "ECMAOS_BOOT_DISABLE_LOGO_FIGLET",
+        "ECMAOS_BOOT_DISABLE_LOGO_CONSOLE",
+        "ECMAOS_BOOT_DISABLE_ISSUES",
+        "ECMAOS_BOOT_DISABLE_TIPS"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["EMSDK"]
+    },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
+    "test": {
+      "dependsOn": ["^test"]
+    },
+    "test:watch": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
