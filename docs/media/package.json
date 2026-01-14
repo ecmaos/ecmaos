@@ -1,6 +1,6 @@
 {
   "name": "ecmaos",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "ecmaOS: Micro-kernel and framework for web technologies",
   "homepage": "https://github.com/ecmaos/ecmaos#readme",
   "license": "MIT+Apache-2.0",
@@ -35,7 +35,7 @@
     "lint": "turbo run lint",
     "lint:repo": "sherif",
     "preinstall": "npx only-allow pnpm",
-    "publish-packages": "turbo run build lint test && pnpm sync && changeset version && changeset publish",
+    "publish-packages": "turbo run build lint test && pnpm sync && git commit -am \"chore: sync version and docs\" && changeset version && changeset publish",
     "start": "turbo run dev --filter=@ecmaos/kernel",
     "sync": "pnpm sync:readme && pnpm sync:version && pnpm sync:version:html && pnpm build:docs && pnpm sync:tutorials && pnpm sync:docs && pnpm sync:licenses && pnpm sync:zenfs && pnpm sync:initfs",
     "sync:docs": "cp -r docs core/kernel/public/initfs/usr/share/docs/@ecmaos/kernel",
