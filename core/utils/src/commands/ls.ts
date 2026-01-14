@@ -2,6 +2,7 @@ import path from 'path'
 import chalk from 'chalk'
 import columnify from 'columnify'
 import humanFormat from 'human-format'
+import type { Device, DeviceFS } from '@zenfs/core'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
@@ -278,7 +279,10 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           }
           if (!file.stats) return ''
           if (file.stats.isBlockDevice() || file.stats.isCharacterDevice()) {
-            // TODO: zenfs `fs.mounts` is deprecated - use a better way of getting device info
+            const devicePackage = kernel.devices.get(path.basename(file.target))
+            const description = devicePackage?.device?.pkg?.description || ''
+            const hasCLI = devicePackage?.device?.cli !== undefined
+            return `${description}${hasCLI ? ' ' + `${chalk.bold(`(${kernel.i18n.t('CLI')})`)}${chalk.reset()}` : ''}`
           }
 
           return ''
