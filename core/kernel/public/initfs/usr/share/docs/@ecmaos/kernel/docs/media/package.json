@@ -1,6 +1,6 @@
 {
   "name": "ecmaos",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "ecmaOS: Micro-kernel and framework for web technologies",
   "homepage": "https://github.com/ecmaos/ecmaos#readme",
   "license": "MIT+Apache-2.0",
@@ -40,6 +40,7 @@
     "sync": "pnpm sync:readme && pnpm sync:version && pnpm sync:version:html && pnpm build:docs && pnpm sync:tutorials && pnpm sync:docs && pnpm sync:licenses && pnpm sync:zenfs && pnpm sync:initfs",
     "sync:docs": "cp -r docs core/kernel/public/initfs/usr/share/docs/@ecmaos/kernel",
     "sync:initfs": "tar --owner=root --group=root -czf core/kernel/public/initfs.tar.gz -C core/kernel/public/initfs .",
+    "sync:initfs:demo": "tar --owner=root --group=root -czf core/kernel/public/initfs.demo.tar.gz -C core/kernel/public/initfs.demo .",
     "sync:licenses": "cp LICENSE LICENSE-APACHE LICENSE-MIT core/kernel/public/initfs/usr/share/licenses/@ecmaos/kernel/",
     "sync:readme": "cp README.md core/kernel/README.md && cp README.md core/kernel/public/initfs/usr/share/docs/@ecmaos/kernel/index.md",
     "sync:tutorials": "./utils/sync-tutorials.sh",
