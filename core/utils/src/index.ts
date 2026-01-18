@@ -61,6 +61,7 @@ import { createCommand as createColumn } from './commands/column.js'
 import { createCommand as createComm } from './commands/comm.js'
 import { createCommand as createCurl } from './commands/curl.js'
 import { createCommand as createCut } from './commands/cut.js'
+import { createCommand as createDd } from './commands/dd.js'
 import { createCommand as createDate } from './commands/date.js'
 import { createCommand as createDiff } from './commands/diff.js'
 import { createCommand as createDirname } from './commands/dirname.js'
@@ -147,6 +148,7 @@ export { createCommand as createCmp } from './commands/cmp.js'
 export { createCommand as createColumn } from './commands/column.js'
 export { createCommand as createCurl } from './commands/curl.js'
 export { createCommand as createCut } from './commands/cut.js'
+export { createCommand as createDd } from './commands/dd.js'
 export { createCommand as createDate } from './commands/date.js'
 export { createCommand as createDiff } from './commands/diff.js'
 export { createCommand as createDirname } from './commands/dirname.js'
@@ -233,6 +235,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     comm: createComm(kernel, shell, terminal),
     curl: createCurl(kernel, shell, terminal),
     cut: createCut(kernel, shell, terminal),
+    dd: createDd(kernel, shell, terminal),
     date: createDate(kernel, shell, terminal),
     diff: createDiff(kernel, shell, terminal),
     dirname: createDirname(kernel, shell, terminal),

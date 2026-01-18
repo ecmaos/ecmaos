@@ -45,7 +45,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - TypeScript, WebAssembly, AssemblyScript, C++
 - Filesystem supporting multiple backends powered by [zenfs](https://github.com/zen-fs/core)
 - Terminal interface powered by [xterm.js](https://xtermjs.org)
-- Pseudo-streams, allowing redirection and piping
+- Streams for handling input and output, allowing redirection and piping
 - Device framework with a common interface for working with hardware: WebBluetooth, WebSerial, WebHID, WebUSB, etc.
 - Some devices have a builtin CLI, so you can run them like normal commands: `# /dev/bluetooth`
 - Install any client-side npm package (this doesn't mean it will work out of the box as expected)
@@ -54,6 +54,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - Interval manager for scheduling recurring operations with support for cron expressions via the `cron` command
 - Memory manager for managing pseudo-memory: Collections, Config, Heap, and Stack
 - Storage manager for managing Storage API capabilities: IndexedDB, localStorage, etc.
+- User manager for managing users and authentication (all client-side, so limited real security but useful for organizational purposes)
 - Internationalization framework for translating text powered by [i18next](https://www.i18next.com)
 - Window manager powered by [WinBox](https://github.com/nextapps-de/winbox)
 <!-- - `BIOS`: A C++ module compiled to WebAssembly with [Emscripten](https://emscripten.org) providing performance-critical functionality -->
@@ -336,7 +337,7 @@ cron reload # reload crontabs from files
 cron list # list all cron jobs
 download hello.txt
 edit hello.txt
-env hello --set world ; env
+env hello=world ; env
 fetch https://ipecho.net/plain > /tmp/myip.txt
 fetch -o /tmp/initfs.tar.gz /initfs.tar.gz
 fetch /initfs.tar.gz | head | hex

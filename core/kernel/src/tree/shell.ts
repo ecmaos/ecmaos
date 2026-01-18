@@ -608,13 +608,17 @@ export class Shell implements IShell {
             const { command, redirections } = this.parseRedirection(commandLine)
             const parsedArgs = shellQuote.parse(command, this.envObject)
             const [commandName, ...rawArgs] = parsedArgs
-            if (!commandName || typeof commandName !== 'string') return Infinity
+            if (!commandName || typeof commandName !== 'string') {
+              throw new Error(`Command not found: ${commandLine}`)
+            }
 
             // Expand glob patterns in arguments
             const args = await this.expandGlobArgs(rawArgs)
 
             const finalCommand = await this.resolveCommand(commandName)
-            if (!finalCommand) return Infinity
+            if (!finalCommand) {
+              throw new Error(`Command not found: ${commandName}`)
+            }
 
             const isFirstCommand = i === 0
             const isLastCommand = i === commands.length - 1

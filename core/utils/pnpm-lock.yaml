@@ -7,8 +7,6 @@ settings:
 overrides:
   canvas: Automattic/node-canvas#master
 
-pnpmfileChecksum: sha256-Zzw6AUu2SJputeGoAFT8YK9JWXNZcYWS/QbYOLDEi5E=
-
 importers:
 
   .:
@@ -264,8 +262,8 @@ packages:
   '@maxim_mazurok/gapi.client.discovery-v1@0.4.20200806':
     resolution: {integrity: sha512-Jeo/KZqK39DI6ExXHcJ4lqnn1O/wEqboQ6eQ8WnNpu5eJ7wUnX/C5KazOgs1aRhnIB/dVzDe8wm62nmtkMIoaw==}
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260105':
-    resolution: {integrity: sha512-siz+TvNpM/BAalrJpYr4HxK686e3UKTxTwfTSPaliwgOe7zBrShpxO8Ile9ntX7Y2ufv4Hvaac2eydgXmDbF9w==}
+  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260113':
+    resolution: {integrity: sha512-XJFWVL+FGyerjT2UewJVUyJEkehkX2iZRP4sRuODnOWVnJ0BMEqa5OAiQI5771s/RAM3oOKLLLdS3Xkj29gzYA==}
 
   '@smithy/abort-controller@4.2.7':
     resolution: {integrity: sha512-rzMY6CaKx2qxrbYbqjXWS0plqEy7LOdKHS0bg4ixJ6aoGDPNUcLWk/FRNuCILh7GKLG9TFUXYYeQQldMBBwuyw==}
@@ -1362,7 +1360,7 @@ snapshots:
       '@types/gapi.client.discovery-v1': 0.0.4
     optional: true
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260105':
+  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260113':
     dependencies:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
@@ -1721,7 +1719,7 @@ snapshots:
 
   '@types/gapi.client.drive-v3@0.0.5':
     dependencies:
-      '@maxim_mazurok/gapi.client.drive-v3': 0.1.20260105
+      '@maxim_mazurok/gapi.client.drive-v3': 0.1.20260113
     optional: true
 
   '@types/gapi.client@1.0.8':

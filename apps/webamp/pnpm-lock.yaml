@@ -7,8 +7,6 @@ settings:
 overrides:
   canvas: Automattic/node-canvas#master
 
-pnpmfileChecksum: sha256-Zzw6AUu2SJputeGoAFT8YK9JWXNZcYWS/QbYOLDEi5E=
-
 importers:
 
   .:
@@ -284,7 +282,6 @@ packages:
 
   core-js@2.6.12:
     resolution: {integrity: sha512-Kb2wC0fvsWfQrgk8HU5lW6U/Lcs8+9aaYcy4ZFc6DDlo4nZ7n70dEgE5rtR0oG6ufKDUnrwfWL1mXR5ljDatrQ==}
-    deprecated: core-js@<3.23.3 is no longer maintained and not recommended for usage due to the number of issues. Because of the V8 engine whims, feature detection in old core-js versions could cause a slowdown up to 100x even if nothing is polyfilled. Some versions have web compatibility issues. Please, upgrade your dependencies to the actual version of core-js.
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
@@ -585,7 +582,6 @@ packages:
 
   music-metadata-browser@0.6.6:
     resolution: {integrity: sha512-14KFz4HR6rM6RATcLtJoBDRbehU/dKdVzElCdeI8CjP7Un2HtSf0WiT7f7Lz+XNkcBMZUjthmC6Wy4+NNayCRw==}
-    deprecated: No longer support, superseded by music-metadata
 
   music-metadata@3.8.0:
     resolution: {integrity: sha512-aIADbp3uCS+ANr4nnFEHzTzMy81OT7PR7WBMW73SJ28Y7P94nnEugmTOj1ICP2JmxBBDlo+MeYVgiPnxVN69tg==}
@@ -657,7 +653,6 @@ packages:
 
   redux-devtools-extension@2.13.9:
     resolution: {integrity: sha512-cNJ8Q/EtjhQaZ71c8I9+BPySIBVEKssbPpskBfsXqb8HJ002A3KRVHfeRzwRo6mGPqsm7XuHTqNSNeS1Khig0A==}
-    deprecated: Package moved to @redux-devtools/extension.
     peerDependencies:
       redux: ^3.1.0 || ^4.0.0
 
@@ -768,7 +763,6 @@ packages:
   then-read-stream@1.5.1:
     resolution: {integrity: sha512-I+iiemYWhp1ysJQEioqpEICgvHlqHS5WrQGZkboFLs7Jm350Kvq4cN3qRCzHpETUuq5+NsdrdWEg6M0NFxtwtQ==}
     engines: {node: '>=8'}
-    deprecated: Package renamed to peak-readable.
 
   tinyqueue@1.2.3:
     resolution: {integrity: sha512-Qz9RgWuO9l8lT+Y9xvbzhPT2efIUIFd69N7eF7tJ9lnQl0iLj1M7peK7IoUGZL9DJHw9XftqLreccfxcQgYLxA==}
