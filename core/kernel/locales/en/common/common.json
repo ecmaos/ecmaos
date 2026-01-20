@@ -1,3 +1,16 @@
 {
-  
+  "Available": "Available",
+  "Booting": "Booting",
+  "Free": "Free",
+  "Info": "Info",
+  "Modified": "Modified",
+  "Mode": "Mode",
+  "Name": "Name",
+  "Owner": "Owner",
+  "Password": "Password",
+  "Rebooting": "Rebooting",
+  "Size": "Size",
+  "Type": "Type",
+  "Used": "Used",
+  "Username": "Username"
 }

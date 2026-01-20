@@ -268,7 +268,8 @@ export class Kernel implements IKernel {
     })
 
     let spinner
-    const t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
+    // Translation function will be set after locale is loaded
+    let t: ReturnType<typeof this.i18n.i18next.getFixedT>
 
     // TODO: Remnants of experiments - to clean up or resume later
     // if (!globalThis.process.nextTick) globalThis.process.nextTick = (fn: () => void) => setTimeout(fn, 0)
@@ -395,6 +396,79 @@ export class Kernel implements IKernel {
         this.terminal.writeln(logMessage)
       })
 
+      // Configure filesystem first (needed before we can read locale file)
+      const configureSpan = tracer.startSpan('kernel.boot.configure', {}, trace.setSpan(context.active(), bootSpan))
+      await this.configure({ devices: this.options.devices || DefaultDevices, filesystem: Filesystem.options() })
+      configureSpan.end()
+
+      // Create required filesystem paths (including /etc/default for locale file)
+      const filesystemSpan = tracer.startSpan('kernel.boot.filesystem', {}, trace.setSpan(context.active(), bootSpan))
+      const requiredPaths = [
+        '/bin', '/sbin', '/boot', '/proc', '/tmp', '/home', '/lib', '/run', '/root', '/opt', '/sys',
+        '/etc', '/etc/default', '/etc/opt',
+        '/var', '/var/cache', '/var/lib', '/var/log', '/var/spool', '/var/tmp', '/var/lock', '/var/opt', '/var/games',
+        '/usr', '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/docs', '/usr/share/licenses', '/usr/include', '/usr/local'
+      ]
+
+      const specialPermissions: Record<string, number> = {
+        '/root': 0o700,
+        '/proc': 0o777
+      }
+
+      for (const path of requiredPaths) {
+        let mode = 0o755
+        if (specialPermissions[path]) mode = specialPermissions[path]
+        if (!(await this.filesystem.fs.exists(path))) await this.filesystem.fs.mkdir(path, { recursive: true, mode })
+      }
+      filesystemSpan.setAttribute('filesystem.paths_created', requiredPaths.length)
+      filesystemSpan.end()
+
+      // Load system-wide locale from /etc/default/locale (must happen before boot messages)
+      const localeSpan = tracer.startSpan('kernel.boot.locale', {}, trace.setSpan(context.active(), bootSpan))
+      try {
+        const localeFilePath = '/etc/default/locale'
+        let systemLocale = 'en_US'
+        
+        if (await this.filesystem.fs.exists(localeFilePath)) {
+          const localeContent = await this.filesystem.fs.readFile(localeFilePath, 'utf-8')
+          // Parse locale file: handle comments, quotes, and various formats
+          // Examples: LANG=en_US, LANG="en_US", LANG='en_US', # comment, LANG=en_US.UTF-8
+          for (const line of localeContent.split('\n')) {
+            const trimmedLine = line.trim()
+            // Skip empty lines and comments
+            if (!trimmedLine || trimmedLine.startsWith('#')) continue
+            
+            const match = trimmedLine.match(/^LANG\s*=\s*(.+)$/)
+            const localeValue = match?.[1]
+            if (localeValue) {
+              // Remove quotes and whitespace, then remove .UTF-8 suffix if present
+              const cleaned = localeValue.trim().replace(/^["']|["']$/g, '')
+              const parts = cleaned.split('.')
+              systemLocale = parts[0] || 'en_US'
+              break
+            }
+          }
+        } else {
+          // Create default locale file if it doesn't exist
+          await this.sudo(async () => {
+            await this.filesystem.fs.writeFile(localeFilePath, 'LANG=en_US\n', { mode: 0o644 })
+          })
+        }
+        
+        this.i18n.setLanguage(systemLocale)
+        // Get fresh translation function after locale is loaded
+        t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
+        localeSpan.setAttribute('locale.system', systemLocale)
+        localeSpan.setAttribute('locale.language', this.i18n.language)
+      } catch (error) {
+        this.log.warn(`Failed to load system locale: ${(error as Error).message}`)
+        localeSpan.recordException(error as Error)
+        this.i18n.setLanguage('en_US')
+        // Fallback translation function
+        t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
+      }
+      localeSpan.end()
+
       // Show verbose boot messages
       if (!options.silent && this.log) {
         const figletFont = options.figletFontRandom
@@ -434,12 +508,12 @@ export class Kernel implements IKernel {
           { name: '@zen-fs/core', link: this.terminal.createSpecialLink('https://github.com/zen-fs/core', '@zenfs/core') + `@${import.meta.env['ZENFS_VERSION']}` },
         ]
 
-        this.terminal.writeln(chalk.red.bold(`🐉  ${t('kernel.experimental', 'EXPERIMENTAL')} 🐉`))
+        this.terminal.writeln(chalk.red.bold(`🐉  ${this.i18n.ns.kernel('experimental')} 🐉`))
         this.terminal.writeln(
           `${this.terminal.createSpecialLink(import.meta.env['HOMEPAGE'], import.meta.env['NAME'] || 'ecmaOS')}@${import.meta.env['VERSION']}`
           + chalk.cyan(` [${dependencyLinks.map(link => link.link).join(', ')}]`))
 
-        this.terminal.writeln(`${t('kernel.madeBy', 'Made with ❤️  by Jay Mathis')} ${this.terminal.createSpecialLink(
+        this.terminal.writeln(`${this.i18n.ns.kernel('madeBy')} ${this.terminal.createSpecialLink(
           import.meta.env['AUTHOR']?.url || 'https://github.com/mathiscode',
           `${import.meta.env['AUTHOR']?.name} <${import.meta.env['AUTHOR']?.email}>`
         )}`)
@@ -447,16 +521,16 @@ export class Kernel implements IKernel {
         this.terminal.writeln(import.meta.env['REPOSITORY'] + '\n')
 
         if (import.meta.env['KNOWN_ISSUES'] && import.meta.env['ECMAOS_BOOT_DISABLE_ISSUES'] !== 'true') {
-          this.terminal.writeln(chalk.yellow.bold(t('kernel.knownIssues', 'Known Issues')))
+          this.terminal.writeln(chalk.yellow.bold(this.i18n.ns.kernel('knownIssues')))
           this.terminal.writeln(chalk.yellow(import.meta.env['KNOWN_ISSUES'].map((issue: string) => `- ${issue}`).join('\n')) + '\n')
         }
 
         if (import.meta.env['TIPS'] && import.meta.env['ECMAOS_BOOT_DISABLE_TIPS'] !== 'true') {
-          this.terminal.writeln(chalk.green.bold(t('kernel.tips', 'Tips')))
+          this.terminal.writeln(chalk.green.bold(this.i18n.ns.kernel('tips')))
           this.terminal.writeln(chalk.green(import.meta.env['TIPS'].map((tip: string) => `- ${tip}`).join('\n')) + '\n')
         }
 
-        spinner = this.terminal.spinner('arrow3', chalk.yellow(this.i18n.t('Booting')))
+        spinner = this.terminal.spinner('arrow3', chalk.yellow(this.i18n.ns.common('Booting')))
         spinner.start()
 
         if (logoFiglet && import.meta.env['ECMAOS_BOOT_DISABLE_LOGO_CONSOLE'] !== 'true') {
@@ -474,33 +548,6 @@ export class Kernel implements IKernel {
 
         this.toast.success(`${import.meta.env['NAME']} v${import.meta.env['VERSION']}`)
       }
-
-      const configureSpan = tracer.startSpan('kernel.boot.configure', {}, trace.setSpan(context.active(), bootSpan))
-      await this.configure({ devices: this.options.devices || DefaultDevices, filesystem: Filesystem.options() })
-      configureSpan.end()
-
-      const filesystemSpan = tracer.startSpan('kernel.boot.filesystem', {}, trace.setSpan(context.active(), bootSpan))
-      // We don't strictly conform to the FHS, but we try to follow it as closely as possible where relevant
-      // User packages can use them as they see fit, and we'll find more uses for them as we go along
-      const requiredPaths = [
-        '/bin', '/sbin', '/boot', '/proc', '/tmp', '/home', '/lib', '/run', '/root', '/opt', '/sys',
-        '/etc', '/etc/opt',
-        '/var', '/var/cache', '/var/lib', '/var/log', '/var/spool', '/var/tmp', '/var/lock', '/var/opt', '/var/games',
-        '/usr', '/usr/bin', '/usr/lib', '/usr/sbin', '/usr/share', '/usr/share/docs', '/usr/share/licenses', '/usr/include', '/usr/local'
-      ]
-
-      const specialPermissions: Record<string, number> = {
-        '/root': 0o700,
-        '/proc': 0o777
-      }
-
-      for (const path of requiredPaths) {
-        let mode = 0o755
-        if (specialPermissions[path]) mode = specialPermissions[path]
-        if (!(await this.filesystem.fs.exists(path))) await this.filesystem.fs.mkdir(path, { recursive: true, mode })
-      }
-      filesystemSpan.setAttribute('filesystem.paths_created', requiredPaths.length)
-      filesystemSpan.end()
 
       if (await this.filesystem.fs.exists('/run')) {
         const entries = await this.filesystem.fs.readdir('/run')
@@ -645,11 +692,12 @@ export class Kernel implements IKernel {
         this.shell.env.set('USER', user.username)
         process.env = Object.fromEntries(this.shell.env)
         await this.shell.loadEnvFile()
+        this.updateLocaleFromEnv()
         authSpan.setAttribute('auth.method', 'auto_login')
         authSpan.setAttribute('auth.username', this.options.credentials.username)
         authSpan.end()
       } else {
-        if (import.meta.env['ECMAOS_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold(`⚠️  ${this.i18n.t('kernel.defaultLogin', 'Default Login')}: root / root\n`))
+        if (import.meta.env['ECMAOS_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold(`⚠️  ${this.i18n.ns.kernel('defaultLogin')}: root / root\n`))
 
         // TODO: Pretty US/NA-centric, but it's a simple start
         const holidayEmojis: Record<string, string> = {
@@ -704,7 +752,7 @@ export class Kernel implements IKernel {
 
             this.terminal.writeln(`${icon}  ${protocolStr}//${hostname}${port}`)
 
-            const username = await this.terminal.readline(`👤  ${this.i18n.t('Username')}: `)
+            const username = await this.terminal.readline(`👤  ${this.i18n.ns.common('Username')}: `)
             const user = Array.from(this.users.all.values()).find(u => u.username === username)
             
             let loginSuccess = false
@@ -734,7 +782,7 @@ export class Kernel implements IKernel {
                     timeout: 60000
                   }
 
-                  this.terminal.writeln(chalk.yellow(t('kernel.passkeyAuthenticate', '🔐  Please use your passkey to authenticate...')))
+                  this.terminal.writeln(chalk.yellow(`🔐  ${this.i18n.ns.kernel('passkeyAuthenticate')}`))
                   const credential = await this.auth.passkey.get(requestOptions)
                   
                   if (credential && credential instanceof PublicKeyCredential) {
@@ -750,11 +798,11 @@ export class Kernel implements IKernel {
             }
 
             if (!loginSuccess) {
-              const password = await this.terminal.readline(`🔑  ${this.i18n.t('Password')}: `, true)
+              const password = await this.terminal.readline(`🔑  ${this.i18n.ns.common('Password')}: `, true)
               userCred = await this.users.login(username, password)
             }
 
-            if (!userCred) throw new Error(t('kernel.loginFailed', 'Login failed'))
+            if (!userCred) throw new Error(this.i18n.ns.kernel('loginFailed'))
 
             authSpan.setAttribute('auth.method', loginSuccess ? 'passkey' : 'password')
             authSpan.setAttribute('auth.username', username)
@@ -773,6 +821,7 @@ export class Kernel implements IKernel {
             this.shell.env.set('HOME', userCred.user.home || '/root')
             this.shell.env.set('USER', userCred.user.username)
             process.env = Object.fromEntries(this.shell.env)
+            this.updateLocaleFromEnv()
             break
           } catch (err) {
             console.error(err)
@@ -871,9 +920,9 @@ export class Kernel implements IKernel {
         const recommendedApps = import.meta.env['ECMAOS_RECOMMENDED_APPS']
         if (recommendedApps) {
           const apps = recommendedApps.split(',')
-          this.terminal.writeln('\n' + chalk.yellow.bold(this.i18n.t('kernel.recommendedApps', 'Recommended apps:')))
+          this.terminal.writeln('\n' + chalk.yellow.bold(this.i18n.ns.kernel('recommendedApps')))
           this.terminal.writeln(chalk.green(apps.map((app: string) => `- ${app}`).join('\n')))
-          this.terminal.write(chalk.green.bold(this.i18n.t('kernel.installRecommendedApps', 'Do you want to install the recommended apps? (Y/n)')))
+          this.terminal.write(chalk.green.bold(this.i18n.ns.kernel('installRecommendedApps')))
 
           const answer = await this.terminal.readline()
           if (answer.toLowerCase()[0] === 'y' || answer === '') {
@@ -896,7 +945,7 @@ export class Kernel implements IKernel {
       this._state = KernelState.PANIC
       this.events.dispatch<KernelPanicEvent>(KernelEvents.PANIC, { error: error as Error })
       this.toast.error({
-        message: t('kernel.panic', 'Uh oh, kernel panic! Check the logs for more details.'),
+        message: this.i18n.ns.kernel('panic'),
         duration: 0,
         dismissible: false
       })
@@ -1307,7 +1356,7 @@ export class Kernel implements IKernel {
    * Reboots the kernel by performing a shutdown and page reload
    */
   async reboot() {
-    this.log.warn(this.i18n.t('Rebooting'))
+    this.log.warn(this.i18n.ns.common('Rebooting'))
     await this.shutdown()
     globalThis.location.reload()
   }
@@ -1579,7 +1628,7 @@ export class Kernel implements IKernel {
         const { downlink, effectiveType, rtt, saveData } = navigator.connection as { downlink: number; effectiveType: string; rtt: number; saveData: boolean }
         contents.connection = JSON.stringify({ downlink, effectiveType, rtt, saveData }, null, 2)
       } catch {
-        this.log.warn(this.i18n.t('kernel.connectionDataFailed', 'Failed to get connection data'))
+        this.log.warn(this.i18n.ns.kernel('connectionDataFailed'))
       }
     }
 
@@ -1659,6 +1708,22 @@ export class Kernel implements IKernel {
     this.terminal.unlisten()
     this._state = KernelState.SHUTDOWN
     this.events.dispatch<KernelShutdownEvent>(KernelEvents.SHUTDOWN, { data: {} })
+  }
+
+  /**
+   * Updates the i18n language from the LANG environment variable if present
+   * This allows users to override the system-wide locale with their LANG env var
+   */
+  private updateLocaleFromEnv(): void {
+    const langEnv = this.shell.env.get('LANG')
+    if (langEnv) {
+      try {
+        this.i18n.setLanguage(langEnv)
+        this.log.debug(`Locale updated from LANG env var: ${langEnv} -> ${this.i18n.language}`)
+      } catch (error) {
+        this.log.warn(`Failed to update locale from LANG env var: ${(error as Error).message}`)
+      }
+    }
   }
 
   /**

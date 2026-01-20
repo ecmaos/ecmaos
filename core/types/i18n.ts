@@ -6,7 +6,39 @@ import type { InitOptions, TFunction } from 'i18next'
 import type i18next from 'i18next'
 
 /**
- * Interface for internationalization functionality
+ * Utility describing the shape of a translation resources object.
+ * Example: { en: { common: { ... }, kernel: { ... } }, es: { ... } }
+ */
+export type I18nResourceBundle = Record<string, Record<string, Record<string, string>>>
+
+/**
+ * Options for configuring internationalization
+ */
+export interface I18nOptions extends InitOptions {
+  resources?: I18nResourceBundle
+  lng?: string
+  fallbackLng?: string
+  ns?: string[]
+  defaultNS?: string
+  interpolation?: {
+    escapeValue?: boolean
+  }
+}
+
+/**
+ * Namespaces helper for typed translation.
+ * This matches the ns object in I18n class.
+ */
+export interface I18nNamespaces {
+  common: TFunction
+  kernel: TFunction
+  filesystem: TFunction
+}
+
+/**
+ * Interface for internationalization functionality.
+ *
+ * Mirrors i18n API and helpers from kernel/src/tree/i18n.ts.
  */
 export interface I18n {
   /** Get the i18next instance */
@@ -15,24 +47,16 @@ export interface I18n {
   readonly language: string
   /** Get the translation function */
   readonly t: TFunction
+  /** Get fixed translation functions for particular namespaces */
+  readonly ns: I18nNamespaces
+  /**
+   * Converts a locale string to a language code
+   * Examples: 'en_US' -> 'en', 'es_ES' -> 'es', 'en' -> 'en'
+   */
+  localeToLanguage(locale: string): string
+  /**
+   * Sets the language for i18next
+   * @param locale - Locale string (e.g., 'en_US', 'es_ES', 'en', 'es')
+   */
+  setLanguage(locale: string): void
 }
-
-/**
- * Options for configuring internationalization
- */
-export interface I18nOptions extends InitOptions {
-  /** Resources for translations */
-  resources?: Record<string, Record<string, Record<string, string>>>
-  /** Default language */
-  lng?: string
-  /** Fallback language */
-  fallbackLng?: string
-  /** Namespaces */
-  ns?: string[]
-  /** Default namespace */
-  defaultNS?: string
-  /** Interpolation options */
-  interpolation?: {
-    escapeValue?: boolean
-  }
-} 

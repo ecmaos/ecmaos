@@ -609,7 +609,7 @@ export class Shell implements IShell {
             const parsedArgs = shellQuote.parse(command, this.envObject)
             const [commandName, ...rawArgs] = parsedArgs
             if (!commandName || typeof commandName !== 'string') {
-              throw new Error(`Command not found: ${commandLine}`)
+              throw new Error(kernel.i18n.t('commandNotFound', { ns: 'kernel', command: commandLine }))
             }
 
             // Expand glob patterns in arguments
@@ -617,7 +617,7 @@ export class Shell implements IShell {
 
             const finalCommand = await this.resolveCommand(commandName)
             if (!finalCommand) {
-              throw new Error(`Command not found: ${commandName}`)
+              throw new Error(kernel.i18n.t('commandNotFound', { ns: 'kernel', command: commandName }))
             }
 
             const isFirstCommand = i === 0

@@ -738,8 +738,7 @@ export class Terminal extends XTerm implements ITerminal {
 
           try {
             this.events.dispatch<TerminalExecuteEvent>(TerminalEvents.EXECUTE, { terminal: this, command: this._cmd })
-            const result = await this._shell.execute(this._cmd)
-            if (result === Infinity) throw new Error(`${this._kernel.i18n.t('kernel.commandNotFound', 'Command not found')}: ${this._cmd.split(' ')[0]}`)
+            await this._shell.execute(this._cmd)
           } catch (error) {
             this.writeln(chalk.red(`${error}`))
           }

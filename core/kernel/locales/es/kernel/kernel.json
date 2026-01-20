@@ -1,0 +1,21 @@
+{
+  "experimental": "EXPERIMENTAL",
+  "madeBy": "Hecho con ❤️  por",
+  "knownIssues": "Problemas conocidos",
+  "tips": "Consejos",
+  "defaultLogin": "Inicio de sesión predeterminado",
+  "panic": "¡Oh no, pánico del kernel! Consulta los registros para más detalles.",
+  "permissionNotificationDenied": "Permiso de notificación denegado",
+  "passkeyAuthenticate": "Por favor, usa tu clave de acceso para autenticarte...",
+  "passkeyCancelled": "Autenticación con clave de acceso cancelada o fallida. Volviendo a la contraseña...",
+  "passkeyError": "Error de autenticación con clave de acceso: {{error}}. Volviendo a la contraseña...",
+  "loginFailed": "Inicio de sesión fallido",
+  "userNotFound": "Usuario no encontrado",
+  "recommendedApps": "Aplicaciones recomendadas:",
+  "installRecommendedApps": "¿Quieres instalar las aplicaciones recomendadas? (S/n)",
+  "connectionDataFailed": "Error al obtener datos de conexión",
+  "commandNotFound": "Comando no encontrado: {{command}}",
+  "modules": {
+    "blacklisted": "Omitiendo módulo en lista negra {{module}}"
+  }
+}

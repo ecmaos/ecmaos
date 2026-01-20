@@ -1,15 +1,21 @@
 {
-  "kernel": {
-    "madeBy": "Made with ❤️  by",
-    "panic": "Uh oh, kernel panic! Check the logs for more details.",
-    "permissionNotificationDenied": "Notification permission denied",
-    "passkeyAuthenticate": "🔐  Please use your passkey to authenticate...",
-    "passkeyCancelled": "Passkey authentication cancelled or failed. Falling back to password...",
-    "passkeyError": "Passkey authentication error: {{error}}. Falling back to password...",
-    "loginFailed": "Login failed",
-    "connectionDataFailed": "Failed to get connection data",
-    "modules": {
-      "blacklisted": "Skipping blacklisted module {{module}}"
-    }
+  "experimental": "EXPERIMENTAL",
+  "madeBy": "Made with ❤️  by",
+  "knownIssues": "Known Issues",
+  "tips": "Tips",
+  "defaultLogin": "Default Login",
+  "panic": "Uh oh, kernel panic! Check the logs for more details.",
+  "permissionNotificationDenied": "Notification permission denied",
+  "passkeyAuthenticate": "Please use your passkey to authenticate...",
+  "passkeyCancelled": "Passkey authentication cancelled or failed. Falling back to password...",
+  "passkeyError": "Passkey authentication error: {{error}}. Falling back to password...",
+  "loginFailed": "Login failed",
+  "userNotFound": "User not found",
+  "recommendedApps": "Recommended apps:",
+  "installRecommendedApps": "Do you want to install the recommended apps? (Y/n)",
+  "connectionDataFailed": "Failed to get connection data",
+  "commandNotFound": "Command not found: {{command}}",
+  "modules": {
+    "blacklisted": "Skipping blacklisted module {{module}}"
   }
 }
