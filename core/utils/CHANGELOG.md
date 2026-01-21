@@ -1,5 +1,21 @@
 # @ecmaos/coreutils
 
+## 0.5.2
+
+### Patch Changes
+
+- 472a7f1: feat: i18n filesystem loading, browser detection, and Spanish translations
+
+  - Load locales from filesystem at /usr/share/locales
+  - Auto-detect browser language and configure locale
+  - Add Spanish translations for all namespaces
+  - Add dd coreutil command
+  - Fix shell command not found errors
+  - Update dependencies (turbo 2.7.5)
+
+- Updated dependencies [472a7f1]
+  - @ecmaos/types@0.7.3
+
 ## 0.5.1
 
 ### Patch Changes

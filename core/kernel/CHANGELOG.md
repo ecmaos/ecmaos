@@ -1,5 +1,34 @@
 # @ecmaos/kernel
 
+## 0.9.6
+
+### Patch Changes
+
+- 472a7f1: feat: i18n filesystem loading, browser detection, and Spanish translations
+
+  - Load locales from filesystem at /usr/share/locales
+  - Auto-detect browser language and configure locale
+  - Add Spanish translations for all namespaces
+  - Add dd coreutil command
+  - Fix shell command not found errors
+  - Update dependencies (turbo 2.7.5)
+
+- Updated dependencies [472a7f1]
+  - @ecmaos/coreutils@0.5.2
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.9.5
 
 ### Patch Changes
