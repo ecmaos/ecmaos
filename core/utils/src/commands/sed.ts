@@ -236,9 +236,9 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
         const trimmed = arg.trim()
         return (
           trimmed.startsWith('s/') ||
-          trimmed.startsWith('/') ||
-          /^\d+[sd]/.test(trimmed) ||
-          /^\d+,\d*[sd]/.test(trimmed) ||
+          /^\/.+?\/[dp]$/.test(trimmed) ||
+          /^\d+[sd]$/.test(trimmed) ||
+          /^\d+,\d*[sd]$/.test(trimmed) ||
           /^\d+s\//.test(trimmed) ||
           /^\d+,\d*s\//.test(trimmed)
         )
@@ -341,73 +341,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           return content.split('\n')
         }
 
-        let inputLines: string[] = []
-
-        if (files.length > 0) {
-          for (const file of files) {
-            const expandedPath = shell.expandTilde(file)
-            const fullPath = path.resolve(shell.cwd, expandedPath)
-            const lines = await processFile(fullPath)
-            inputLines.push(...lines)
-            if (lines.length > 0 && inputLines.length > lines.length) {
-              inputLines.push('')
-            }
-          }
-        } else {
-          if (!process.stdin) {
-            await writelnStderr(process, terminal, 'sed: No input provided')
-            return 1
-          }
-
-          const reader = process.stdin.getReader()
-          const decoder = new TextDecoder()
-          const chunks: string[] = []
-
-          try {
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) break
-              chunks.push(decoder.decode(value, { stream: true }))
-            }
-            chunks.push(decoder.decode(new Uint8Array(), { stream: false }))
-          } finally {
-            reader.releaseLock()
-          }
-
-          const content = chunks.join('')
-          inputLines = content.split('\n')
-        }
-
-        const outputLines: string[] = []
-        const totalLines = inputLines.length
-
-        for (let i = 0; i < inputLines.length; i++) {
-          let line = inputLines[i] || ''
-          let lineNum = i + 1
-          let shouldPrint = false
-
-          for (const command of commands) {
-            const { result, shouldPrint: print } = applySedCommand(line, lineNum, totalLines, command)
-            if (result === null) {
-              line = null as unknown as string
-              break
-            }
-            line = result
-            if (print) {
-              shouldPrint = true
-            }
-          }
-
-          if (line !== null) {
-            outputLines.push(line)
-            if (shouldPrint && !quiet) {
-              outputLines.push(line)
-            }
-          }
-        }
-
-        const output = outputLines.join('\n')
-
         if (inplace !== undefined && files.length > 0) {
           for (const file of files) {
             const expandedPath = shell.expandTilde(file)
@@ -455,6 +388,72 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             await shell.context.fs.promises.writeFile(fullPath, fileOutput)
           }
         } else {
+          let inputLines: string[] = []
+
+          if (files.length > 0) {
+            for (const file of files) {
+              const expandedPath = shell.expandTilde(file)
+              const fullPath = path.resolve(shell.cwd, expandedPath)
+              const lines = await processFile(fullPath)
+              inputLines.push(...lines)
+              if (lines.length > 0 && inputLines.length > lines.length) {
+                inputLines.push('')
+              }
+            }
+          } else {
+            if (!process.stdin) {
+              await writelnStderr(process, terminal, 'sed: No input provided')
+              return 1
+            }
+
+            const reader = process.stdin.getReader()
+            const decoder = new TextDecoder()
+            const chunks: string[] = []
+
+            try {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+                chunks.push(decoder.decode(value, { stream: true }))
+              }
+              chunks.push(decoder.decode(new Uint8Array(), { stream: false }))
+            } finally {
+              reader.releaseLock()
+            }
+
+            const content = chunks.join('')
+            inputLines = content.split('\n')
+          }
+
+          const outputLines: string[] = []
+          const totalLines = inputLines.length
+
+          for (let i = 0; i < inputLines.length; i++) {
+            let line = inputLines[i] || ''
+            let lineNum = i + 1
+            let shouldPrint = false
+
+            for (const command of commands) {
+              const { result, shouldPrint: print } = applySedCommand(line, lineNum, totalLines, command)
+              if (result === null) {
+                line = null as unknown as string
+                break
+              }
+              line = result
+              if (print) {
+                shouldPrint = true
+              }
+            }
+
+            if (line !== null) {
+              outputLines.push(line)
+              if (shouldPrint && !quiet) {
+                outputLines.push(line)
+              }
+            }
+          }
+
+          const output = outputLines.join('\n')
           await writer.write(new TextEncoder().encode(output))
         }
 

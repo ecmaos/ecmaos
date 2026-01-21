@@ -423,6 +423,24 @@ export class Kernel implements IKernel {
       filesystemSpan.setAttribute('filesystem.paths_created', requiredPaths.length)
       filesystemSpan.end()
 
+      const i18nResourcesSpan = tracer.startSpan('kernel.boot.i18n_resources', {}, trace.setSpan(context.active(), bootSpan))
+      try {
+        const i18nResult = await this.i18n.loadFilesystemResources(
+          this.filesystem.fs,
+          this.options.i18n?.fsTranslationsPath
+        )
+        i18nResourcesSpan.setAttribute('i18n.resources.bundles', i18nResult.bundles)
+        i18nResourcesSpan.setAttribute('i18n.resources.files', i18nResult.files)
+        if (i18nResult.errors.length > 0) {
+          this.log.warn(`Loaded i18n resources with ${i18nResult.errors.length} error(s)`)
+          for (const error of i18nResult.errors) this.log.warn(error)
+        }
+      } catch (error) {
+        this.log.warn(`Failed to load filesystem i18n resources: ${(error as Error).message}`)
+        i18nResourcesSpan.recordException(error as Error)
+      }
+      i18nResourcesSpan.end()
+
       // Load system-wide locale from /etc/default/locale (must happen before boot messages)
       const localeSpan = tracer.startSpan('kernel.boot.locale', {}, trace.setSpan(context.active(), bootSpan))
       try {
@@ -455,10 +473,27 @@ export class Kernel implements IKernel {
           })
         }
         
-        this.i18n.setLanguage(systemLocale)
+        // Detect browser language and override system locale if they differ
+        const browserLanguage = this.i18n.detectBrowserLanguage()
+        const browserLocale = this.i18n.languageToLocale(browserLanguage)
+        const systemLanguage = this.i18n.localeToLanguage(systemLocale)
+        
+        let finalLocale = systemLocale
+        if (browserLanguage !== systemLanguage) {
+          finalLocale = browserLocale
+          // Update /etc/default/locale to match browser language
+          await this.sudo(async () => {
+            await this.filesystem.fs.writeFile(localeFilePath, `LANG=${finalLocale}\n`, { mode: 0o644 })
+          })
+          localeSpan.setAttribute('locale.overridden', true)
+          localeSpan.setAttribute('locale.browser', browserLanguage)
+        }
+        
+        this.i18n.setLanguage(finalLocale)
         // Get fresh translation function after locale is loaded
         t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
         localeSpan.setAttribute('locale.system', systemLocale)
+        localeSpan.setAttribute('locale.final', finalLocale)
         localeSpan.setAttribute('locale.language', this.i18n.language)
       } catch (error) {
         this.log.warn(`Failed to load system locale: ${(error as Error).message}`)
@@ -525,9 +560,15 @@ export class Kernel implements IKernel {
           this.terminal.writeln(chalk.yellow(import.meta.env['KNOWN_ISSUES'].map((issue: string) => `- ${issue}`).join('\n')) + '\n')
         }
 
-        if (import.meta.env['TIPS'] && import.meta.env['ECMAOS_BOOT_DISABLE_TIPS'] !== 'true') {
-          this.terminal.writeln(chalk.green.bold(this.i18n.ns.kernel('tips')))
-          this.terminal.writeln(chalk.green(import.meta.env['TIPS'].map((tip: string) => `- ${tip}`).join('\n')) + '\n')
+        if (import.meta.env['ECMAOS_BOOT_DISABLE_TIPS'] !== 'true') {
+          const tipsList = this.i18n.ns.kernel('tipsList', { returnObjects: true }) as string[]
+          if (Array.isArray(tipsList) && tipsList.length > 0) {
+            this.terminal.writeln(chalk.green.bold(this.i18n.ns.kernel('tips')))
+            this.terminal.writeln(chalk.green(tipsList.map(tip => `- ${tip}`).join('\n')) + '\n')
+          } else if (import.meta.env['TIPS']) {
+            this.terminal.writeln(chalk.green.bold(this.i18n.ns.kernel('tips')))
+            this.terminal.writeln(chalk.green(import.meta.env['TIPS'].map((tip: string) => `- ${tip}`).join('\n')) + '\n')
+          }
         }
 
         spinner = this.terminal.spinner('arrow3', chalk.yellow(this.i18n.ns.common('Booting')))

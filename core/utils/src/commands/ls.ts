@@ -5,7 +5,6 @@ import humanFormat from 'human-format'
 import type { Kernel, Process, Shell, Terminal } from '@ecmaos/types'
 import { TerminalCommand } from '../shared/terminal-command.js'
 import { writelnStdout, writelnStderr } from '../shared/helpers.js'
-import { CoreutilsDescriptions } from '../index.js'
 
 function printUsage(process: Process | undefined, terminal: Terminal): void {
   const usage = `Usage: ls [OPTION]... [FILE]...
@@ -265,11 +264,13 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           const linkInfo = getLinkInfo(file.linkTarget, file.linkStats, file.stats)
           if (linkInfo) return linkInfo
           
-          // Check if this is a command in /bin/ and use CoreutilsDescriptions
+          // Check if this is a command in /bin/ and use coreutils translations
           if (file.target.startsWith('/bin/')) {
             const commandName = path.basename(file.target)
-            if (commandName in CoreutilsDescriptions) {
-              return CoreutilsDescriptions[commandName as keyof typeof CoreutilsDescriptions]
+            const translatedDescription = kernel.i18n.ns.coreutils(commandName)
+            // Only use translation if it exists (i18next returns the key if translation is missing)
+            if (translatedDescription !== commandName) {
+              return translatedDescription
             }
           }
           

@@ -159,7 +159,10 @@ export class Terminal extends XTerm implements ITerminal {
   set promptTemplate(value: string) { this._promptTemplate = value }
 
   constructor(options: TerminalOptions = DefaultTerminalOptions) {
-    if (!options.kernel) throw new Error('Terminal requires a kernel')
+    if (!options.kernel) {
+      const message = globalThis.kernel?.i18n?.ns.terminal('requiresKernel') || 'Terminal requires a kernel'
+      throw new Error(message)
+    }
     super({ ...DefaultTerminalOptions, ...options })
     globalThis.terminals?.set(this.id, this)
 
@@ -295,7 +298,7 @@ export class Terminal extends XTerm implements ITerminal {
       this._socket = options.socket
 
       this._socket.addEventListener('message', (event) => {
-        this.writeln(`Connected to socket at ${this._socket!.url}`)
+        this.writeln(this._kernel.i18n.ns.terminal('socketConnected', { url: this._socket!.url }))
         this._kernel.events.dispatch<TerminalMessageEvent>(TerminalEvents.MESSAGE, { terminal: this, message: event })
 
         if (event.data.startsWith('@ecmaos/metal')) {
@@ -326,7 +329,7 @@ export class Terminal extends XTerm implements ITerminal {
                 }
                 const onError = () => {
                   this._socket!.removeEventListener('error', onError)
-                  reject(new Error('Socket failed to open'))
+                  reject(new Error(this._kernel.i18n.ns.terminal('socketFailedToOpen')))
                 }
 
                 this._socket!.addEventListener('open', onOpen)
@@ -507,7 +510,7 @@ export class Terminal extends XTerm implements ITerminal {
 
   spinner(spinner: keyof typeof spinners, prefix?: string, suffix?: string) {
     const { interval, frames } = spinners[spinner]
-    if (!interval || !frames) throw new Error('Invalid spinner')
+    if (!interval || !frames) throw new Error(this._kernel.i18n.ns.terminal('invalidSpinner'))
 
     return new Spinner(this, interval, frames, prefix, suffix)
   }
@@ -731,7 +734,7 @@ export class Terminal extends XTerm implements ITerminal {
             this._history[uid] = this._history[uid] || []
             this._history[uid].push(this._cmd)
             try { this._kernel.storage.local.setItem(`history:${uid}`, JSON.stringify(this._history[uid] || [])) }
-            catch (error) { this._kernel.log.error('Failed to save history', error) }
+            catch (error) { this._kernel.log.error(this._kernel.i18n.ns.terminal('failedToSaveHistory'), error) }
           }
 
           this._historyPosition = this._history[uid]?.length || 0

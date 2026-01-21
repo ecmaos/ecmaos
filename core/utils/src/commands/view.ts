@@ -306,7 +306,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           }
 
           // Read file
-          await writelnStdout(process, terminal, chalk.blue(`Loading: ${file}...`))
           const fileData = await shell.context.fs.promises.readFile(fullPath)
           const fileType = detectFileType(fullPath)
           const mimeType = getMimeType(fullPath, fileType)
@@ -374,8 +373,6 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
             })
             
             win.mount(container)
-
-            await writelnStdout(process, terminal, chalk.green(`Viewing: ${file}`))
           } else if (fileType === 'json') {
             // Read and parse JSON file
             const jsonText = new TextDecoder().decode(fileData)

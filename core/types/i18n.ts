@@ -11,6 +11,19 @@ import type i18next from 'i18next'
  */
 export type I18nResourceBundle = Record<string, Record<string, Record<string, string>>>
 
+export interface I18nFilesystemAdapter {
+  exists(path: string): Promise<boolean>
+  readdir(path: string): Promise<string[]>
+  readFile(path: string, encoding: 'utf-8'): Promise<string>
+  stat(path: string): Promise<{ isDirectory(): boolean }>
+}
+
+export interface I18nResourceLoadResult {
+  bundles: number
+  files: number
+  errors: string[]
+}
+
 /**
  * Options for configuring internationalization
  */
@@ -20,6 +33,7 @@ export interface I18nOptions extends InitOptions {
   fallbackLng?: string
   ns?: string[]
   defaultNS?: string
+  fsTranslationsPath?: string
   interpolation?: {
     escapeValue?: boolean
   }
@@ -33,6 +47,8 @@ export interface I18nNamespaces {
   common: TFunction
   kernel: TFunction
   filesystem: TFunction
+  coreutils: TFunction
+  terminal: TFunction
 }
 
 /**
@@ -59,4 +75,8 @@ export interface I18n {
    * @param locale - Locale string (e.g., 'en_US', 'es_ES', 'en', 'es')
    */
   setLanguage(locale: string): void
+  loadFilesystemResources(
+    fs: I18nFilesystemAdapter,
+    rootPath?: string
+  ): Promise<I18nResourceLoadResult>
 }

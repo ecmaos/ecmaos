@@ -233,7 +233,9 @@ export interface KernelOptions {
   devices?: Record<string, KernelDevice>
   dom?: DomOptions
   filesystem?: FilesystemOptions<FilesystemConfigMounts>
-  i18n?: InitOptions
+  i18n?: InitOptions & {
+    fsTranslationsPath?: string
+  }
   log?: LogOptions
   service?: ServiceOptions
   socket?: WebSocket
