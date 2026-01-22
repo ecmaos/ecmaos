@@ -222,12 +222,12 @@ index.json /mnt/api fetch baseUrl=http://localhost:30808
 - Built-in translations are in the [/core/kernel/locales](/core/kernel/locales) directory and compiled into the kernel at build time
 - Translations can be defined and loaded from the filesystem at runtime
 - Override or add translations in `/usr/share/locales/{lang}/{namespace}.json`
-- e.g. `/usr/share/locales/en/kernel.json`
+  - e.g. `/usr/share/locales/en/kernel.json`
 - System locale can be set from the `/etc/default/locale` file
 - User locale can be set from the `LANG` environment variable
 - `kernel.i18n.t` is the primary translation function for the kernel
 - `kernel.i18n.ns` provides access to translation functions for specific namespaces
-- e.g. `kernel.i18n.ns.common('Hello')`
+  - e.g. `kernel.i18n.ns.common('Hello')`
 
 ### Kernel
 
