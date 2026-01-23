@@ -4,21 +4,18 @@
 #include <sys/stat.h>
 
 namespace commands {
-    int ls(const std::string& args) {
-        emscripten_console_log("ls command executing");
+    CommandResult ls(const std::string& args) {
         const char* path = args.empty() ? "/" : args.c_str();
-        
-        emscripten_console_log("Listing directory:");
-        emscripten_console_log(path);
-        
+
         DIR* dir = opendir(path);
         if (!dir) {
-            emscripten_console_error("Failed to open directory: ");
-            emscripten_console_error(path);
-            return -1;
+            std::string message = "Failed to open directory: ";
+            message += path;
+            return { -1, message };
         }
 
         struct dirent* entry;
+        std::string output;
         while ((entry = readdir(dir)) != nullptr) {
             std::string full_path = std::string(path);
             if (full_path.back() != '/') {
@@ -29,14 +26,14 @@ namespace commands {
             struct stat st;
             if (stat(full_path.c_str(), &st) == 0) {
                 std::string entry_type = S_ISDIR(st.st_mode) ? "d" : "-";
-                std::string entry_info = entry_type + " " + entry->d_name;
-                emscripten_console_log(entry_info.c_str());
+                output += entry_type + " " + entry->d_name + "\n";
             } else {
-                emscripten_console_log(entry->d_name);
+                output += entry->d_name;
+                output += "\n";
             }
         }
 
         closedir(dir);
-        return 0;
+        return { 0, output };
     }
 } 

@@ -5,6 +5,23 @@ export const consoleElement = document.getElementById('console')
 export const stateElement = document.getElementById('bios-state')
 export const versionElement = document.getElementById('bios-version')
 export const commandInput = document.getElementById('command-input')
+const textDecoder = new TextDecoder('utf-8')
+
+function readStringFromWasm(ptr, length) {
+    if (!ptr || length <= 0) return ''
+    return textDecoder.decode(bios.HEAPU8.subarray(ptr, ptr + length))
+}
+
+function readBufferResult(ptr, lenPtr) {
+    const length = bios.HEAP32[lenPtr >> 2]
+    let result = ''
+    if (ptr) {
+        result = readStringFromWasm(ptr, length)
+        bios._free(ptr)
+    }
+    bios._free(lenPtr)
+    return result
+}
 
 export function log(message, type = 'info') {
     const timestamp = new Date().toISOString()
@@ -53,13 +70,19 @@ export async function executeCommand() {
 
     try {
         log(`> ${command}`)
-        
-        const result = bios.ccall(
-            'execute',          // C function name
-            'number',           // Return type
-            ['string'],         // Argument types
-            [command.trim()]    // Arguments
+
+        const lenPtr = bios._malloc(4)
+        const ptr = bios.ccall(
+            'execute_with_output',
+            'number',
+            ['string', 'number'],
+            [command.trim(), lenPtr]
         )
+        const output = readBufferResult(ptr, lenPtr)
+        const status = bios.ccall('get_last_status', 'number', [], [])
+
+        if (output) log(output)
+        if (!output && status !== 0) log(`Command failed with status ${status}`, 'error')
         
         commandInput.value = ''
     } catch (err) {
@@ -106,7 +129,9 @@ export async function readFile() {
     if (!path) return log('Please provide a file path', 'error')
 
     try {
-        const content = bios.ccall('read_file', 'string', ['string'], [path])
+        const lenPtr = bios._malloc(4)
+        const ptr = bios.ccall('read_file', 'number', ['string', 'number'], [path, lenPtr])
+        const content = readBufferResult(ptr, lenPtr)
         if (content) {
             document.getElementById('file-content').value = content
             log(`File read successfully: ${path}`)
@@ -154,7 +179,9 @@ export async function listFiles() {
     if (!bios) return log('BIOS not initialized!', 'error')
 
     try {
-        const files = bios.ccall('list_directory', 'string', ['string'], ['/'])
+        const lenPtr = bios._malloc(4)
+        const ptr = bios.ccall('list_directory', 'number', ['string', 'number'], ['/', lenPtr])
+        const files = readBufferResult(ptr, lenPtr)
         if (files) {
             log('Directory listing:')
             files.split('\n').forEach(file => {

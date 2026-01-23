@@ -11,7 +11,7 @@ namespace commands {
         {"rm", rm}
     };
 
-    int execute_command(const std::string& command) {
+    CommandResult execute_command(const std::string& command) {
         // emscripten_console_log("Command received:");
         // emscripten_console_log(command.c_str());
 
@@ -25,12 +25,7 @@ namespace commands {
         // Look up command in registry
         auto it = command_registry.find(cmd);
         if (it == command_registry.end()) {
-            emscripten_console_error("Unknown command");
-            // emscripten_console_log("Available commands:");
-            // for (const auto& pair : command_registry) {
-            //     emscripten_console_log(pair.first.c_str());
-            // }
-            return -1;
+            return { -1, "Unknown command" };
         }
 
         // Execute command

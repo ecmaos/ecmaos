@@ -2,15 +2,20 @@
 #include <string>
 
 namespace commands {
+    struct CommandResult {
+        int code;
+        std::string output;
+    };
+
     // Command function type definition
-    typedef int (*CommandFunction)(const std::string& args);
+    typedef CommandResult (*CommandFunction)(const std::string& args);
 
     // Command functions
-    int ls(const std::string& args);
-    int cat(const std::string& args);
-    int echo(const std::string& args);
-    int rm(const std::string& args);
+    CommandResult ls(const std::string& args);
+    CommandResult cat(const std::string& args);
+    CommandResult echo(const std::string& args);
+    CommandResult rm(const std::string& args);
 
     // Command registration and execution
-    int execute_command(const std::string& command);
+    CommandResult execute_command(const std::string& command);
 } 

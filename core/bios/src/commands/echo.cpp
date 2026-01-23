@@ -3,7 +3,7 @@
 #include <fstream>
 
 namespace commands {
-    int echo(const std::string& args) {
+    CommandResult echo(const std::string& args) {
         size_t gt_pos = args.find('>');
         if (gt_pos != std::string::npos) {
             std::string content = args.substr(0, gt_pos);
@@ -15,15 +15,13 @@ namespace commands {
             
             std::ofstream file(filename);
             if (!file.is_open()) {
-                emscripten_console_error("Failed to open file for writing");
-                return -1;
+                return { -1, "Failed to open file for writing" };
             }
             
             file << content;
-            return 0;
+            return { 0, "" };
         } else {
-            emscripten_console_log(args.c_str());
-            return 0;
+            return { 0, args };
         }
     }
 } 

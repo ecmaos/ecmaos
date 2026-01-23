@@ -21,6 +21,11 @@ const gzipFixPlugin = () => {
         // `res.removeHeader("Content-Encoding")` does not work
         res.setHeader("Content-Encoding", "invalid-value")
       }
+      
+      if (req.url?.includes('.wasm')) {
+        res.setHeader("Content-Type", "application/wasm")
+      }
+
       next()
     })
   }
@@ -71,7 +76,8 @@ export default defineConfig({
     dedupe: ['vite-plugin-node-polyfills']
   },
   optimizeDeps: {
-    include: ['vite-plugin-node-polyfills/shims/buffer', 'vite-plugin-node-polyfills/shims/global', 'vite-plugin-node-polyfills/shims/process']
+    include: ['vite-plugin-node-polyfills/shims/buffer', 'vite-plugin-node-polyfills/shims/global', 'vite-plugin-node-polyfills/shims/process'],
+    exclude: ['@wasmer/sdk']
   },
   server: {
     port: Number(process.env['ECMAOS_PORT']) || 30443,

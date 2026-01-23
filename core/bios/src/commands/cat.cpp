@@ -3,16 +3,14 @@
 #include <fstream>
 
 namespace commands {
-    int cat(const std::string& args) {
+    CommandResult cat(const std::string& args) {
         if (args.empty()) {
-            emscripten_console_error("Usage: cat <filename>");
-            return -1;
+            return { -1, "Usage: cat <filename>" };
         }
 
         std::ifstream file(args, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            emscripten_console_error("Failed to open file");
-            return -1;
+            return { -1, "Failed to open file" };
         }
 
         std::streamsize size = file.tellg();
@@ -20,11 +18,9 @@ namespace commands {
 
         std::string content(size, '\0');
         if (!file.read(&content[0], size)) {
-            emscripten_console_error("Failed to read file");
-            return -1;
+            return { -1, "Failed to read file" };
         }
 
-        emscripten_console_log(content.c_str());
-        return 0;
+        return { 0, content };
     }
 } 

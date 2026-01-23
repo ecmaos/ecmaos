@@ -8,14 +8,19 @@ declare module '@ecmaos/bios' {
     _init(): number
     _get_version(): string
     _execute(command: string): number
+    _execute_with_output(command: string, outLenPtr: number): number
+    _get_last_status(): number
 
     // File system operations
     FS: typeof FS
     _write_file(path: string, content: string): number
-    _read_file(path: string): string
+    _read_file(path: string, outLenPtr: number): number
     _file_exists(path: string): number
     _delete_file(path: string): number
-    _list_directory(path: string): string
+    _list_directory(path: string, outLenPtr: number): number
+
+    HEAPU8: Uint8Array
+    HEAP32: Int32Array
   }
 
   export enum BIOSState {

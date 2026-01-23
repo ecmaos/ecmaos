@@ -16,6 +16,8 @@ extern "C" {
         PANIC
     };
 
+    static int last_status = 0;
+
     // Initialize kernel and return state
     EMSCRIPTEN_KEEPALIVE
     int init() {
@@ -38,10 +40,43 @@ extern "C" {
         if (command && *command) {  // Check if command is valid and not empty
             // emscripten_console_log(command);
             std::string cmd(command);  // Create a proper C++ string
-            return commands::execute_command(cmd);
+            const auto result = commands::execute_command(cmd);
+            last_status = result.code;
+            return result.code;
         }
         emscripten_console_error("Empty or invalid command");
+        last_status = -1;
         return -1;
+    }
+
+    EMSCRIPTEN_KEEPALIVE
+    char* execute_with_output(const char* command, int* out_len) {
+        if (!out_len) return nullptr;
+        *out_len = 0;
+
+        if (!(command && *command)) {
+            last_status = -1;
+            return nullptr;
+        }
+
+        std::string cmd(command);
+        const auto result = commands::execute_command(cmd);
+        last_status = result.code;
+
+        if (result.output.empty()) return nullptr;
+
+        char* buffer = (char*)malloc(result.output.size() + 1);
+        if (!buffer) return nullptr;
+
+        memcpy(buffer, result.output.data(), result.output.size());
+        buffer[result.output.size()] = '\0';
+        *out_len = static_cast<int>(result.output.size());
+        return buffer;
+    }
+
+    EMSCRIPTEN_KEEPALIVE
+    int get_last_status() {
+        return last_status;
     }
 
     // Write file to emscripten virtual filesystem
@@ -67,7 +102,9 @@ extern "C" {
 
     // Read file from emscripten virtual filesystem
     EMSCRIPTEN_KEEPALIVE
-    char* read_file(const char* path) {
+    char* read_file(const char* path, int* out_len) {
+        if (!out_len) return nullptr;
+        *out_len = 0;
         try {
             std::ifstream file(path, std::ios::binary | std::ios::ate);
             if (!file.is_open()) {
@@ -92,6 +129,7 @@ extern "C" {
             }
 
             buffer[size] = '\0';
+            *out_len = static_cast<int>(size);
             return buffer;
         } catch (const std::exception& e) {
             emscripten_console_error(e.what());
@@ -120,7 +158,9 @@ extern "C" {
 
     // List files in a directory
     EMSCRIPTEN_KEEPALIVE
-    char* list_directory(const char* path) {
+    char* list_directory(const char* path, int* out_len) {
+        if (!out_len) return nullptr;
+        *out_len = 0;
         DIR* dir = opendir(path);
         if (!dir) {
             emscripten_console_error("Failed to open directory");
@@ -145,6 +185,7 @@ extern "C" {
         }
         
         strcpy(buffer, result.c_str());
+        *out_len = static_cast<int>(result.size());
         return buffer;
     }
 } 
