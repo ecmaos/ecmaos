@@ -13,6 +13,28 @@ export interface WasmOptions {
 }
 
 /**
+ * Stream options for WASI component loading
+ */
+export interface WasiStreamOptions {
+  /** Standard input stream */
+  stdin: ReadableStream<Uint8Array>
+  /** Standard output stream */
+  stdout: WritableStream<Uint8Array>
+  /** Standard error stream */
+  stderr: WritableStream<Uint8Array>
+}
+
+/**
+ * Result of loading a WASI component
+ */
+export interface WasiComponentResult {
+  /** WebAssembly instance */
+  instance: WebAssembly.Instance
+  /** Promise that resolves to the exit code */
+  exitCode: Promise<number>
+}
+
+/**
  * Interface for WebAssembly management functionality
  */
 export interface Wasm {
@@ -27,4 +49,19 @@ export interface Wasm {
    * @param path - Path to the WebAssembly module
    */
   loadWasm(path: string): Promise<{ module: WebAssembly.Module; instance: WebAssembly.Instance }>
+
+  /**
+   * Detect if a WASM module requires WASI bindings
+   * @param wasmBytes - The WASM module bytes
+   * @returns True if WASI is required, false otherwise
+   */
+  detectWasiRequirements(wasmBytes: Uint8Array): Promise<boolean>
+
+  /**
+   * Load a WASI component with stream integration
+   * @param path - Path to the WASM file
+   * @param streams - Stream options for stdin/stdout/stderr
+   * @returns The WASM instance and exit code promise
+   */
+  loadWasiComponent(path: string, streams: WasiStreamOptions, args?: string[]): Promise<WasiComponentResult>
 }

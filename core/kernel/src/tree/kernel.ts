@@ -54,7 +54,8 @@ import { parseFstabFile } from '#lib/fstab.ts'
 
 import {
   KernelEvents,
-  KernelState
+  KernelState,
+  TerminalEvents
 } from '@ecmaos/types'
 
 import type {
@@ -1079,6 +1080,9 @@ export class Kernel implements IKernel {
 
       let exitCode: number | void = -1
       switch (header.type) {
+        case 'wasm':
+          exitCode = await this.executeWasm(options)
+          break
         case 'bin':
           switch (header.namespace) {
             case 'terminal': // left for backward-compatibility
@@ -1295,6 +1299,137 @@ export class Kernel implements IKernel {
   }
 
   /**
+   * Executes a WebAssembly file
+   * @param options - Execution options containing WASM path and shell
+   * @returns Exit code of the WASM execution
+   */
+  async executeWasm(options: KernelExecuteOptions): Promise<number> {
+    const terminal = options.terminal || this.terminal
+    const stdinIsTTY = options.stdinIsTTY ?? (options.stdin ? false : true)
+    const shouldUnlisten = terminal && stdinIsTTY
+    let keyListener: { dispose: () => void } | null = null
+
+    try {
+      const wasmBytes = await this.shell.context.fs.promises.readFile(options.command)
+      const needsWasi = await this.wasm.detectWasiRequirements(wasmBytes)
+
+      let stdin: ReadableStream<Uint8Array>
+      let closeStdin: (() => void) | null = null
+
+      if (options.stdin) {
+        stdin = options.stdin
+      } else if (terminal && shouldUnlisten) {
+        const stdinWithClose = terminal.getInputStreamWithClose()
+        stdin = stdinWithClose.stream
+        closeStdin = stdinWithClose.close
+      } else {
+        stdin = terminal?.getInputStream() || new ReadableStream<Uint8Array>()
+      }
+
+      const stdout = options.stdout || terminal?.stdout || new WritableStream<Uint8Array>()
+      const stderr = options.stderr || terminal?.stderr || new WritableStream<Uint8Array>()
+
+      if (shouldUnlisten) {
+        terminal.clearCommand()
+        terminal.unlisten()
+
+        keyListener = terminal.onKey(({ domEvent }) => {
+          console.log(domEvent.ctrlKey, domEvent.key)
+          if (domEvent.ctrlKey && domEvent.key === 'c') {
+            domEvent.preventDefault()
+            domEvent.stopPropagation()
+            terminal.events.dispatch(TerminalEvents.INTERRUPT, { terminal })
+            return
+          }
+
+          if (domEvent.ctrlKey && domEvent.key === 'd') {
+            domEvent.preventDefault()
+            domEvent.stopPropagation()
+            if (closeStdin) closeStdin()
+            else stdin.cancel().catch(() => {})
+            return
+          }
+
+          domEvent.preventDefault()
+          domEvent.stopPropagation()
+
+          // Echo to terminal and dispatch to stdin
+          if (domEvent.key === 'Enter') {
+            terminal.write('\r\n')
+            // Send newline to stdin (fgets expects \n)
+            terminal.dispatchStdin('\n')
+          } else if (domEvent.key.length === 1) {
+            terminal.write(domEvent.key)
+            terminal.dispatchStdin(domEvent.key)
+          }
+        })
+      }
+
+      const process = new Process({
+        uid: options.shell.credentials.uid,
+        gid: options.shell.credentials.gid,
+        args: options.args || [],
+        command: options.command,
+        kernel: this,
+        shell: options.shell || this.shell,
+        terminal: options.terminal || this.terminal,
+        entry: async () => {
+          if (needsWasi) {
+            const result = await this.wasm.loadWasiComponent(options.command, {
+              stdin,
+              stdout,
+              stderr
+            }, [options.command, ...(options.args || [])])
+            return await result.exitCode
+          } else {
+            const { instance } = await this.wasm.loadWasm(options.command)
+            const exports = instance.exports
+            
+            if (typeof exports._start === 'function') {
+              try {
+                (exports._start as () => void)()
+                return 0
+              } catch (error) {
+                this.log.error(`WASM _start failed: ${(error as Error).message}`)
+                return 1
+              }
+            } else if (typeof exports._initialize === 'function') {
+              try {
+                (exports._initialize as () => void)()
+                return 0
+              } catch (error) {
+                this.log.error(`WASM _initialize failed: ${(error as Error).message}`)
+                return 1
+              }
+            }
+            return 0
+          }
+        },
+        stdin,
+        stdinIsTTY: options.stdinIsTTY,
+        stdout,
+        stdoutIsTTY: options.stdoutIsTTY,
+        stderr
+      })
+
+      const exitCode = await process.start()
+      return exitCode
+    } catch (error) {
+      this.log.error(`Failed to execute WASM: ${error}`)
+      terminal?.writeln(chalk.red((error as Error).message))
+      return -1
+    } finally {
+      if (keyListener) {
+        keyListener.dispose()
+        keyListener = null
+      }
+      if (shouldUnlisten) {
+        terminal.listen()
+      }
+    }
+  }
+
+  /**
    * Executes a script file
    * @param options - Execution options containing script path and shell
    * @returns Exit code of the script
@@ -1308,7 +1443,7 @@ export class Kernel implements IKernel {
       return -1
     }
 
-    const script = await this.filesystem.fs.readFile(options.command, 'utf-8')
+    const script = await this.shell.context.fs.promises.readFile(options.command, 'utf-8')
     if (script) {
       const terminalCmdBefore = options.terminal?.cmd || ''
       
@@ -1380,8 +1515,42 @@ export class Kernel implements IKernel {
     return new Promise((resolve, reject) => {
       (async () => {
         try {
-          if (!await this.filesystem.fs.exists(filePath)) return resolve(null)
-          const readable = this.filesystem.fsSync.createReadStream(filePath)
+          if (!await this.shell.context.fs.promises.exists(filePath)) return resolve(null)
+          
+          const wasmMagicBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6D])
+          
+          try {
+            const handle = await this.shell.context.fs.promises.open(filePath, 'r')
+            const buffer = new Uint8Array(4)
+            const { bytesRead } = await handle.read(buffer, 0, 4, 0)
+            await handle.close()
+            
+            if (bytesRead >= 4) {
+              const isWasm = wasmMagicBytes.every((byte, index) => byte === buffer[index])
+              if (isWasm) {
+                return resolve({ type: 'wasm' })
+              }
+            }
+          } catch {
+            const readable = this.shell.context.fs.createReadStream(filePath)
+            readable.on('data', (chunk: Buffer) => {
+              if (chunk.length >= 4) {
+                const firstBytes = new Uint8Array(chunk.buffer, chunk.byteOffset, 4)
+                const isWasm = wasmMagicBytes.every((byte, index) => byte === firstBytes[index])
+                if (isWasm) {
+                  readable.destroy()
+                  return resolve({ type: 'wasm' })
+                }
+              }
+              resolve(parseHeader(chunk.toString().split('\n')[0] || ''))
+              readable.destroy()
+            })
+            readable.on('error', (error: Error) => reject(error))
+            readable.on('close', () => resolve(null))
+            return
+          }
+          
+          const readable = this.shell.context.fs.createReadStream(filePath)
           readable.on('data', (chunk: Buffer) => resolve(parseHeader(chunk.toString().split('\n')[0] || '')))
           readable.on('error', (error: Error) => reject(error))
           readable.on('close', () => resolve(null))
@@ -1495,16 +1664,10 @@ export class Kernel implements IKernel {
       let content: string
       
       if (scope === 'system') {
-        // System crontab uses kernel filesystem
-        if (!await this.filesystem.fs.exists(filePath)) {
-          return
-        }
-        content = await this.filesystem.fs.readFile(filePath, 'utf-8')
+        if (!await this.shell.context.fs.promises.exists(filePath)) return
+        content = await this.shell.context.fs.promises.readFile(filePath, 'utf-8')
       } else {
-        // User crontab uses shell context filesystem
-        if (!await this.shell.context.fs.promises.exists(filePath)) {
-          return
-        }
+        if (!await this.shell.context.fs.promises.exists(filePath)) return
         content = await this.shell.context.fs.promises.readFile(filePath, 'utf-8')
       }
 

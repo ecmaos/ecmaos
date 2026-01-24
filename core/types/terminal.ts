@@ -232,6 +232,18 @@ export interface Terminal extends XTerm {
   getInputStream(): ReadableStream<Uint8Array>
 
   /**
+   * Get a new input stream with a close function to signal EOF.
+   * Use this when you need to close the stream gracefully (e.g., for Ctrl+D).
+   */
+  getInputStreamWithClose(): { stream: ReadableStream<Uint8Array>, close: () => void }
+
+  /**
+   * Dispatch data to all stdin subscribers.
+   * Used to send keyboard input to processes reading from stdin.
+   */
+  dispatchStdin(key: string): void
+
+  /**
    * Write text to terminal
    * @param data - Text to write
    */

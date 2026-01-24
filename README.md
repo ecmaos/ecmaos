@@ -435,7 +435,7 @@ The [apps](/apps) directory in the repository contains some examples of how to d
 - `@ecmaos-apps/boilerplate`: A minimal boilerplate app for reference
 - `@ecmaos-apps/code`: A simple code editor app using [Monaco](https://microsoft.github.io/monaco-editor/); serves as a good reference for more complex apps
 
-Basically, your app's [bin](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#bin) file has a `main` (or default) function export that is passed the kernel reference and can use it to interact with the system as needed. A shebang line of `#!ecmaos:bin:app:myappname` is required at the top of the bin file to identify it as an app.
+Basically, your app's [bin](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#bin) file has a `main` (or unnamed default) function export that is passed the kernel reference and can use it to interact with the system as needed. A shebang line of `#!ecmaos:bin:app:myappname` is required at the top of the bin file to identify it as an app.
 
 ## App/Kernel Interface Example
 
@@ -464,12 +464,11 @@ ecmaOS is currently in active development. It is not considered stable and the s
 Things to keep in mind:
 
 - If things go wrong or break, clear your browser cache and site data for ecmaOS
-- Things have changed a lot since the tests were written, so they need to be updated and fixed
+- The tests need to be updated and expanded
 - The kernel is designed to be run in an environment with a DOM (i.e. a browser)
 - Many features are only available on Chromium-based browsers, and many more behind feature flags
 - There will be a lot of technical challenges to overcome, and many things will first be implemented in a non-optimal way
 - Command interfaces won't match what you might be used to from a traditional Linux environment; not all commands and options are supported. Over time, Linuxish commands will be fleshed out and made to behave in a more familiar way.
-- Globbing doesn't work in the terminal yet, [but is supported at the filesystem level](https://zenfs.dev/core/functions/fs.promises.glob.html)
 
 ## Development
 

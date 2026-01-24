@@ -167,7 +167,7 @@ export class Terminal extends XTerm implements ITerminal {
     globalThis.terminals?.set(this.id, this)
 
     // Create the primary stdin stream (terminal's own stdin)
-    this._stdin = this.createSubscribedInputStream()
+    this._stdin = this.createSubscribedInputStream().stream
 
     // Create stdout stream that writes to the terminal
     this._stdout = new WritableStream({
@@ -911,14 +911,16 @@ export class Terminal extends XTerm implements ITerminal {
    * Each call returns an independent stream that receives all keyboard input.
    * The stream is automatically unsubscribed when cancelled or closed.
    */
-  private createSubscribedInputStream(): ReadableStream<Uint8Array> {
+  private createSubscribedInputStream(): { stream: ReadableStream<Uint8Array>, close: () => void } {
     let callback: ((data: Uint8Array) => void) | null = null
+    let controller: ReadableStreamDefaultController<Uint8Array> | null = null
     
-    return new ReadableStream<Uint8Array>({
-      start: (controller) => {
+    const stream = new ReadableStream<Uint8Array>({
+      start: (ctrl) => {
+        controller = ctrl
         callback = (data: Uint8Array) => {
           try {
-            controller.enqueue(data)
+            controller!.enqueue(data)
           } catch {
             // Stream closed, unsubscribe
             if (callback) {
@@ -934,8 +936,26 @@ export class Terminal extends XTerm implements ITerminal {
           this._stdinSubscribers.delete(callback)
           callback = null
         }
+        controller = null
       }
     })
+
+    const close = () => {
+      if (controller) {
+        try {
+          controller.close()
+        } catch {
+          // Controller may already be closed
+        }
+        controller = null
+      }
+      if (callback) {
+        this._stdinSubscribers.delete(callback)
+        callback = null
+      }
+    }
+
+    return { stream, close }
   }
 
   /**
@@ -943,7 +963,32 @@ export class Terminal extends XTerm implements ITerminal {
    * Each call returns an independent stream.
    */
   getInputStream(): ReadableStream<Uint8Array> {
+    return this.createSubscribedInputStream().stream
+  }
+
+  /**
+   * Get a new input stream with a close function to signal EOF.
+   * Use this when you need to close the stream gracefully (e.g., for Ctrl+D).
+   */
+  getInputStreamWithClose(): { stream: ReadableStream<Uint8Array>, close: () => void } {
     return this.createSubscribedInputStream()
+  }
+
+  /**
+   * Dispatch data to all stdin subscribers.
+   * Used to send keyboard input to processes reading from stdin.
+   */
+  dispatchStdin(key: string) {
+    if (key && key.length > 0) {
+      const data = new TextEncoder().encode(key)
+      for (const callback of this._stdinSubscribers) {
+        try {
+          callback(data)
+        } catch {
+          // Subscriber may be closed, will be cleaned up
+        }
+      }
+    }
   }
 
   clearCommand() {
