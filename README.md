@@ -1,4 +1,4 @@
-# The Web Kernel
+# The Web OS
 
 [![Launch ecmaOS.sh](https://img.shields.io/badge/launch-ecmaos.sh-blue?style=for-the-badge)](https://ecmaos.sh)
 

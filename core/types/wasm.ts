@@ -2,7 +2,7 @@
  * WebAssembly management types and interfaces
  */
 
-import type { Kernel } from './kernel.ts'
+import type { Kernel, Shell } from './index.ts'
 
 /**
  * Options for configuring WebAssembly management
@@ -61,7 +61,10 @@ export interface Wasm {
    * Load a WASI component with stream integration
    * @param path - Path to the WASM file
    * @param streams - Stream options for stdin/stdout/stderr
+   * @param args - Command line arguments
+   * @param shell - Optional shell instance to use for environment variables
+   * @param pid - Optional process ID for the WASM execution context
    * @returns The WASM instance and exit code promise
    */
-  loadWasiComponent(path: string, streams: WasiStreamOptions, args?: string[]): Promise<WasiComponentResult>
+  loadWasiComponent(path: string, streams: WasiStreamOptions, args?: string[], shell?: Shell, pid?: number): Promise<WasiComponentResult>
 }

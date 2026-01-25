@@ -1379,7 +1379,7 @@ export class Kernel implements IKernel {
               stdin,
               stdout,
               stderr
-            }, [options.command, ...(options.args || [])])
+            }, [options.command, ...(options.args || [])], options.shell || this.shell, process.pid)
             return await result.exitCode
           } else {
             const { instance } = await this.wasm.loadWasm(options.command)
@@ -1844,6 +1844,68 @@ export class Kernel implements IKernel {
       } catch (error) {
         this.log.warn(`Failed to write proc data: ${key}`, error)
       }
+    }
+
+    // Create /proc/self directory and entries for process information
+    if (!await this.filesystem.fs.exists('/proc/self')) {
+      await this.filesystem.fs.mkdir('/proc/self', { mode: 0o555 })
+    }
+
+    // Get the most recent process or use PID 1 as default
+    const allProcesses = Array.from(this.processes.all.values())
+    const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+    const currentPid = lastProcess?.pid || 1
+    const currentProcess = this.processes.get(currentPid) || null
+
+    // /proc/self/stat - process status (format similar to Linux /proc/self/stat)
+    // Fields: pid, comm, state, ppid, pgrp, session, tty_nr, tpgid, flags, minflt, cminflt, majflt, cmajflt, utime, stime, cutime, cstime, priority, nice, num_threads, itrealvalue, starttime, vsize, rss, rsslim, startcode, endcode, startstack, kstkesp, kstkeip, signal, blocked, sigignore, sigcatch, wchan, nswap, cnswap, exit_signal, processor, rt_priority, policy, delayacct_blkio_ticks, guest_time, cguest_time, start_data, end_data, start_brk, arg_start, arg_end, env_start, env_end, exit_code
+    const statFields = [
+      currentPid,                    // 1: pid
+      '(ecmaos)',                    // 2: comm (command name in parentheses)
+      'R',                           // 3: state (R=running)
+      currentProcess?.parent || 0,  // 4: ppid (parent process ID)
+      currentPid,                    // 5: pgrp (process group ID)
+      currentPid,                    // 6: session (session ID)
+      0,                             // 7: tty_nr (controlling terminal)
+      currentPid,                    // 8: tpgid (terminal process group)
+      0,                             // 9: flags
+      0, 0, 0, 0,                    // 10-13: minflt, cminflt, majflt, cmajflt
+      0, 0, 0, 0,                    // 14-17: utime, stime, cutime, cstime
+      0,                             // 18: priority
+      0,                             // 19: nice
+      1,                             // 20: num_threads
+      0,                             // 21: itrealvalue
+      Date.now(),                    // 22: starttime (jiffies since boot - using ms)
+      0,                             // 23: vsize (virtual memory size)
+      0,                             // 24: rss (resident set size)
+      0,                             // 25: rsslim
+      0, 0, 0, 0, 0,                 // 26-30: startcode, endcode, startstack, kstkesp, kstkeip
+      0, 0, 0, 0,                    // 31-34: signal, blocked, sigignore, sigcatch
+      0, 0, 0,                       // 35-37: wchan, nswap, cnswap
+      0,                             // 38: exit_signal
+      0,                             // 39: processor
+      0,                             // 40: rt_priority
+      0,                             // 41: policy
+      0,                             // 42: delayacct_blkio_ticks
+      0, 0,                          // 43-44: guest_time, cguest_time
+      0, 0, 0, 0,                    // 45-48: start_data, end_data, start_brk, arg_start
+      0, 0, 0,                       // 49-51: arg_end, env_start, env_end
+      0                              // 52: exit_code
+    ]
+    const statContent = statFields.join(' ')
+
+    // /proc/self/exe - path to executable (symlink to the command)
+    const exePath = currentProcess?.command || '/bin/ecmaos'
+
+    try {
+      await this.filesystem.fs.writeFile('/proc/self/stat', statContent, { flag: 'w+', mode: 0o444 })
+      // Create symlink for /proc/self/exe
+      if (await this.filesystem.fs.exists('/proc/self/exe')) {
+        await this.filesystem.fs.unlink('/proc/self/exe')
+      }
+      await this.filesystem.fs.symlink(exePath, '/proc/self/exe')
+    } catch (error) {
+      this.log.warn(`Failed to write /proc/self entries:`, error)
     }
   }
 

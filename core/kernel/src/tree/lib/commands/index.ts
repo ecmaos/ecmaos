@@ -202,7 +202,7 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
     }),
     upload: new TerminalCommand({
       command: 'upload',
-      description: 'Upload a file to the filesystem',
+      description: 'Upload files to the filesystem',
       kernel,
       shell,
       terminal,
@@ -211,7 +211,7 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         { name: 'path', type: String, typeLabel: '{underline path}', defaultOption: true, description: 'The path to store the file' }
       ],
       run: async (argv: CommandLineOptions, process?: Process) => {
-        return await upload({ kernel, shell, terminal, process, args: [argv.path] })
+        return await upload({ kernel, shell, terminal, process, args: argv.path ? [argv.path] : [] })
       }
     }),
   }
@@ -468,15 +468,13 @@ export const su = async ({ kernel, shell, terminal, process, args }: CommandArgs
 }
 
 export const upload = async ({ kernel, shell, terminal, process, args }: CommandArgs) => {
-  const destination = path.resolve((args as string[])[0] || shell.cwd)
-  if (!destination) {
-    await writelnStderr(process, terminal, chalk.red('File path is required'))
-    return 1
-  }
-
+  const destinationPath = (args as string[])[0]
+  const baseDestination = destinationPath ? path.resolve(shell.cwd, destinationPath) : shell.cwd
+  
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '*'
+  input.multiple = true
   input.onchange = async (event) => {
     if (!event.target) {
       await writelnStderr(process, terminal, chalk.red('No file selected'))
@@ -487,16 +485,26 @@ export const upload = async ({ kernel, shell, terminal, process, args }: Command
       await writelnStderr(process, terminal, chalk.red('No file selected'))
       return
     }
+
     for (const file of files) {
       const fileReader = new FileReader()
       fileReader.onload = async (event) => {
         if (!event.target) {
-          await writelnStderr(process, terminal, chalk.red('No file selected'))
+          await writelnStderr(process, terminal, chalk.red('Failed to read file'))
           return
         }
-        const data = new Uint8Array(event.target.result as ArrayBuffer)
-        await shell.context.fs.promises.writeFile(path.resolve(destination, file.name), data)
-        kernel.events.dispatch(KernelEvents.UPLOAD, { file: file.name, path: path.resolve(destination, file.name) })
+        try {
+          const data = new Uint8Array(event.target.result as ArrayBuffer)
+          const destination = path.resolve(baseDestination, file.name)
+          await shell.context.fs.promises.writeFile(destination, data)
+          kernel.events.dispatch(KernelEvents.UPLOAD, { file: file.name, path: destination })
+        } catch (error) {
+          await writelnStderr(process, terminal, chalk.red(`Failed to upload ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`))
+        }
+      }
+
+      fileReader.onerror = async () => {
+        await writelnStderr(process, terminal, chalk.red(`Failed to read file: ${file.name}`))
       }
 
       fileReader.readAsArrayBuffer(file)

@@ -1,5 +1,6 @@
 import { WASIShim } from '@bytecodealliance/preview2-shim/instantiation'
-import type { Kernel, WasmOptions, Wasm as IWasm } from '@ecmaos/types'
+import type { Kernel, WasmOptions, Wasm as IWasm, FileHandle, Shell } from '@ecmaos/types'
+import path from 'path'
 
 export interface WasiStreamOptions {
   stdin: ReadableStream<Uint8Array>
@@ -296,7 +297,9 @@ export class Wasm implements IWasm {
     streams: WasiStreamOptions, 
     args: string[], 
     hasAsyncify: boolean = false,
-    memoryRequirements: { initial: number; maximum?: number } = { initial: 1 }
+    memoryRequirements: { initial: number; maximum?: number } = { initial: 1 },
+    shell?: Shell,
+    pid?: number
   ): { 
     imports: WebAssembly.Imports, 
     setMemory: (memory: WebAssembly.Memory) => void, 
@@ -306,7 +309,8 @@ export class Wasm implements IWasm {
     getAsyncifyState: () => { pending: boolean, dataAddr: number },
     resetAsyncifyPending: () => void,
     setAsyncifyDataAddr: (addr: number) => void,
-    waitForStdinData: () => Promise<void>
+    waitForStdinData: () => Promise<void>,
+    initializePreOpenedDirs: () => Promise<void>
   } {
     const memoryOptions: { initial: number; maximum?: number } = { 
       initial: memoryRequirements.initial
@@ -325,6 +329,25 @@ export class Wasm implements IWasm {
     const encodedArgs = args.map((arg) => encoder.encode(arg))
     const argsBufferSize = encodedArgs.reduce((total, bytes) => total + bytes.length + 1, 0)
 
+    // Collect environment variables from the provided shell, or fall back to kernel shell
+    const envEntries: Array<[string, string]> = []
+    const activeShell = shell || this._kernel.shell
+    if (activeShell && activeShell.env) {
+      for (const [key, value] of activeShell.env.entries()) {
+        envEntries.push([key, value])
+      }
+    }
+    
+    // Encode environment variables as "KEY=VALUE\0" strings
+    const encodedEnvVars = envEntries.map(([key, value]) => {
+      const envString = `${key}=${value}`
+      return encoder.encode(envString)
+    })
+    
+    // Calculate total buffer size needed for environment variables
+    // Each env var is "KEY=VALUE\0" (null-terminated)
+    const totalEnvironBufSize = encodedEnvVars.reduce((total, bytes) => total + bytes.length + 1, 0)
+
     const stdinReader = streams.stdin.getReader()
     const stdoutWriter = streams.stdout.getWriter()
     const stderrWriter = streams.stderr.getWriter()
@@ -335,6 +358,177 @@ export class Wasm implements IWasm {
     
     let asyncifyPending = false
     let asyncifyDataAddr = 0
+
+    interface FdEntry {
+      handle: FileHandle
+      path: string
+      isDirectory: boolean
+      position?: number
+      preOpened?: boolean
+    }
+
+    const fdMap = new Map<number, FdEntry>()
+    let nextFd = 4
+
+    const mapFilesystemError = (error: Error): number => {
+      const message = error.message.toLowerCase()
+      const code = (error as { code?: string }).code
+
+      if (code === 'ENOENT' || message.includes('not found') || message.includes('enoent')) return 2
+      if (code === 'EIO' || message.includes('i/o error') || message.includes('eio')) return 5
+      if (code === 'EBADF' || message.includes('bad file descriptor') || message.includes('ebadf')) return 8
+      if (code === 'ENOTDIR' || message.includes('not a directory') || message.includes('enotdir')) return 54
+      if (code === 'EISDIR' || message.includes('is a directory') || message.includes('eisdir')) return 55
+      if (code === 'ENOTEMPTY' || message.includes('not empty') || message.includes('enotempty')) return 66
+      if (code === 'EEXIST' || message.includes('already exists') || message.includes('eexist')) return 20
+      if (code === 'EACCES' || message.includes('permission denied') || message.includes('eacces')) return 13
+      if (code === 'ENOSYS' || message.includes('not implemented') || message.includes('enosys')) return 52
+
+      return 5
+    }
+
+    const getFileHandle = (fd: number): FdEntry | null => {
+      if (fd < 0 || fd > 2) {
+        return fdMap.get(fd) || null
+      }
+      return null
+    }
+
+    const allocateFd = (handle: FileHandle, filePath: string, isDirectory: boolean, preOpened: boolean = false): number => {
+      const fd = preOpened ? 3 : nextFd++
+      fdMap.set(fd, { handle, path: filePath, isDirectory, position: 0, preOpened })
+      return fd
+    }
+
+    const resolvePath = (dirfd: number, pathStr: string): string => {
+      if (pathStr.startsWith('/')) {
+        return pathStr
+      }
+
+      let basePath = '/'
+      if (dirfd === 3) {
+        basePath = '/'
+      } else if (dirfd > 3) {
+        const entry = fdMap.get(dirfd)
+        if (!entry) {
+          throw new Error('EBADF')
+        }
+        if (!entry.isDirectory) {
+          throw new Error('ENOTDIR')
+        }
+        basePath = entry.path
+      } else if (dirfd < 0) {
+        basePath = '/'
+      }
+
+      return path.resolve(basePath, pathStr)
+    }
+
+    const readStringFromMemory = (ptr: number, len: number, memory: WebAssembly.Memory): string => {
+      const bytes = new Uint8Array(memory.buffer, ptr, len)
+      return new TextDecoder().decode(bytes)
+    }
+
+    const readNullTerminatedString = (ptr: number, memory: WebAssembly.Memory, maxLen: number = 4096): string => {
+      const view = new DataView(memory.buffer)
+      let len = 0
+      while (len < maxLen && view.getUint8(ptr + len) !== 0) {
+        len++
+      }
+      return readStringFromMemory(ptr, len, memory)
+    }
+
+    const writeStat64 = (stat: { mode: number; size: number; mtime: number; ctime: number; ino: number; dev: number; nlink: number; uid: number; gid: number; rdev: number; blksize: number; blocks: number; atime: number }, buf: number, memory: WebAssembly.Memory): void => {
+      const view = new DataView(memory.buffer)
+      let offset = buf
+
+      view.setBigUint64(offset, BigInt(stat.dev), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(stat.ino), true)
+      offset += 8
+      view.setUint32(offset, stat.mode, true)
+      offset += 4
+      view.setUint32(offset, stat.nlink, true)
+      offset += 4
+      view.setUint32(offset, stat.uid, true)
+      offset += 4
+      view.setUint32(offset, stat.gid, true)
+      offset += 4
+      view.setBigUint64(offset, BigInt(stat.rdev), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(stat.size), true)
+      offset += 8
+      view.setUint32(offset, stat.blksize, true)
+      offset += 4
+      view.setBigUint64(offset, BigInt(stat.blocks), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(Math.floor(stat.atime / 1000)), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(Math.floor(stat.mtime / 1000)), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(Math.floor(stat.ctime / 1000)), true)
+    }
+
+    const writeFilestat = (stat: { size: number; mtime: number; ctime: number; atime: number; ino: number; dev: number; nlink: number; isDirectory: boolean; isFile: boolean }, buf: number, memory: WebAssembly.Memory): void => {
+      const view = new DataView(memory.buffer)
+      let offset = buf
+
+      view.setBigUint64(offset, BigInt(stat.dev || 1), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(stat.ino || 1), true)
+      offset += 8
+      
+      let filetype = 0
+      if (stat.isDirectory) {
+        filetype = 3
+      } else if (stat.isFile) {
+        filetype = 4
+      }
+      view.setUint8(offset, filetype)
+      offset += 1
+      
+      for (let i = 0; i < 7; i++) {
+        view.setUint8(offset + i, 0)
+      }
+      offset += 7
+      
+      view.setBigUint64(offset, BigInt(stat.nlink || 1), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(stat.size || 0), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(Math.floor((stat.atime || Date.now()) * 1000000)), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(Math.floor((stat.mtime || Date.now()) * 1000000)), true)
+      offset += 8
+      view.setBigUint64(offset, BigInt(Math.floor((stat.ctime || Date.now()) * 1000000)), true)
+    }
+
+    const initializePreOpenedDirs = async () => {
+      try {
+        const fsSync = this._kernel.filesystem.fsSync
+        if (fsSync.existsSync('/')) {
+          const rootStat = fsSync.statSync('/')
+          if (rootStat.isDirectory()) {
+            // Create a dummy FileHandle for the root directory
+            // Directories can't be opened as files, so we use fd: -1
+            const rootHandle: FileHandle = {
+              fd: -1,
+              async close() {},
+              async readFile() { throw new Error('Cannot read directory as file') },
+              async writeFile() { throw new Error('Cannot write directory as file') },
+              async truncate() { throw new Error('Cannot truncate directory') }
+            } as FileHandle
+            allocateFd(rootHandle, '/', true, true)
+          } else {
+            this._kernel.log.warn('Root path is not a directory')
+          }
+        } else {
+          this._kernel.log.warn('Root directory does not exist')
+        }
+        } catch {
+          // Root directory may not be accessible, continue without pre-opening
+        }
+    }
 
     const pumpStdin = async () => {
       try {
@@ -464,70 +658,691 @@ export class Wasm implements IWasm {
         // fcntl64 - file control operations
         return 0
       },
-      __syscall_fstat64: (...args: number[]): number => {
-        ignore(...args)
-        // fstat64 - get file status
-        return -1
+      __syscall_read: (fd: number, buf: number, count: number): number => {
+        try {
+          if (fd === 0) {
+            const read = readFromStdinBuffer(buf, count, true)
+            return read
+          }
+
+          const entry = getFileHandle(fd)
+          if (!entry || entry.isDirectory) {
+            return -1
+          }
+
+          // Special handling for /proc/self/stat - ensure it exists and has correct content
+          if (entry.path === '/proc/self/stat') {
+            const currentPid = pid !== undefined ? pid : (() => {
+              const allProcesses = Array.from(this._kernel.processes.all.values())
+              const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+              return lastProcess?.pid || 1
+            })()
+            
+            const currentProcess = this._kernel.processes.get(currentPid) || null
+            const statFields = [
+              currentPid,
+              '(ecmaos)',
+              'R',
+              currentProcess?.parent || 0,
+              currentPid, currentPid, 0, currentPid, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, Date.now(),
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ]
+            const statContent = statFields.join(' ') + '\n' // Add newline at end like Linux
+            const encoder = new TextEncoder()
+            const contentBytes = encoder.encode(statContent)
+            const currentPos = entry.position || 0
+            const bytesToRead = Math.min(count, contentBytes.length - currentPos)
+            
+            if (bytesToRead > 0 && currentPos < contentBytes.length) {
+              const target = new Uint8Array(activeMemory.buffer, buf, bytesToRead)
+              target.set(contentBytes.slice(currentPos, currentPos + bytesToRead))
+              if (entry.position !== undefined) {
+                entry.position = currentPos + bytesToRead
+              }
+              return bytesToRead
+            }
+            return 0 // EOF
+          }
+
+          const fsSync = this._kernel.filesystem.fsSync
+          const currentPos = entry.position || 0
+          const buffer = Buffer.allocUnsafe(count)
+          try {
+            const bytesRead = fsSync.readSync(entry.handle.fd, buffer, 0, count, currentPos)
+
+            if (bytesRead > 0) {
+              const target = new Uint8Array(activeMemory.buffer, buf, bytesRead)
+              target.set(buffer.slice(0, bytesRead))
+              if (entry.position !== undefined) {
+                entry.position = currentPos + bytesRead
+              }
+            }
+
+            return bytesRead
+          } catch {
+            return -1
+          }
+        } catch {
+          return -1
+        }
       },
-      __syscall_getdents64: (...args: number[]): number => {
-        ignore(...args)
-        // getdents64 - get directory entries
+
+      __syscall_write: (fd: number, buf: number, count: number): number => {
+        try {
+          if (fd === 1 || fd === 2) {
+            const data = new Uint8Array(activeMemory.buffer, buf, count)
+            const isStdout = fd === 1
+            const writer = isStdout ? stdoutWriter : stderrWriter
+            queueWrite(writer, data, isStdout)
+            return count
+          }
+
+          const entry = getFileHandle(fd)
+          if (!entry || entry.isDirectory) {
+            return -1
+          }
+
+          const fsSync = this._kernel.filesystem.fsSync
+          const currentPos = entry.position || 0
+          const data = new Uint8Array(activeMemory.buffer, buf, count)
+          const bytesWritten = fsSync.writeSync(entry.handle.fd, data, 0, count, currentPos)
+
+          if (entry.position !== undefined) {
+            entry.position = currentPos + bytesWritten
+          }
+
+          return bytesWritten
+        } catch {
+          return -1
+        }
+      },
+
+      __syscall_close: (fd: number): number => {
+        if (fd < 0 || fd > 2) {
+          const entry = getFileHandle(fd)
+          if (!entry) {
+            return -1
+          }
+
+            try {
+              if (!entry.isDirectory && entry.handle.fd !== -1) {
+                const fsSync = this._kernel.filesystem.fsSync
+                fsSync.closeSync(entry.handle.fd)
+              }
+              fdMap.delete(fd)
+              return 0
+            } catch {
+              return -1
+            }
+        }
+
         return 0
       },
-      __syscall_ioctl: (...args: number[]): number => {
-        ignore(...args)
+
+      __syscall_fstat64: (fd: number, statbuf: number): number => {
+        try {
+          if (fd < 0 || fd > 2) {
+            const entry = getFileHandle(fd)
+            if (!entry) {
+              return -1
+            }
+
+            const fsSync = this._kernel.filesystem.fsSync
+            const stat = fsSync.statSync(entry.path)
+            writeStat64({
+              mode: stat.mode || 0o644,
+              size: stat.size || 0,
+              mtime: stat.mtime?.getTime() || Date.now(),
+              ctime: stat.ctime?.getTime() || Date.now(),
+              ino: stat.ino || 1,
+              dev: 1,
+              nlink: 1,
+              uid: 0,
+              gid: 0,
+              rdev: 0,
+              blksize: 4096,
+              blocks: Math.ceil((stat.size || 0) / 512),
+              atime: stat.atime?.getTime() || Date.now()
+            }, statbuf, activeMemory)
+            return 0
+          }
+
+          const fsSync = this._kernel.filesystem.fsSync
+          const pathStr = fd === 0 ? '/dev/stdin' : fd === 1 ? '/dev/stdout' : '/dev/stderr'
+          if (fsSync.existsSync(pathStr)) {
+            const stat = fsSync.statSync(pathStr)
+            writeStat64({
+              mode: stat.mode || 0o644,
+              size: stat.size || 0,
+              mtime: stat.mtime?.getTime() || Date.now(),
+              ctime: stat.ctime?.getTime() || Date.now(),
+              ino: stat.ino || 1,
+              dev: 1,
+              nlink: 1,
+              uid: 0,
+              gid: 0,
+              rdev: 0,
+              blksize: 4096,
+              blocks: 0,
+              atime: stat.atime?.getTime() || Date.now()
+            }, statbuf, activeMemory)
+            return 0
+          }
+
+          return -1
+        } catch {
+          return -1
+        }
+      },
+      __syscall_getdents64: (fd: number, dirent: number, count: number): number => {
+        try {
+          const entry = getFileHandle(fd)
+          if (!entry || !entry.isDirectory) {
+            return -1
+          }
+
+          const fsSync = this._kernel.filesystem.fsSync
+          const entries = fsSync.readdirSync(entry.path)
+          const view = new DataView(activeMemory.buffer)
+          let offset = 0
+          let ino = 1
+
+          for (const entryName of entries) {
+            if (offset + 280 > count) break
+
+            const entryPath = path.join(entry.path, entryName as string)
+            let stat
+            try {
+              stat = fsSync.statSync(entryPath)
+            } catch {
+              continue
+            }
+
+            const nameBytes = new TextEncoder().encode(entryName as string)
+            const reclen = Math.max(280, 19 + nameBytes.length + 1)
+            if (offset + reclen > count) break
+
+            const d_ino = BigInt(stat.ino || ino++)
+            const d_off = BigInt(offset + reclen)
+            const d_reclen = reclen
+            const d_type = stat.isDirectory() ? 4 : (stat.isFile() ? 8 : 0)
+
+            view.setBigUint64(dirent + offset, d_ino, true)
+            offset += 8
+            view.setBigUint64(dirent + offset, d_off, true)
+            offset += 8
+            view.setUint16(dirent + offset, d_reclen, true)
+            offset += 2
+            view.setUint8(dirent + offset, d_type)
+            offset += 1
+            const nameOffset = dirent + offset
+            const nameView = new Uint8Array(activeMemory.buffer, nameOffset, nameBytes.length + 1)
+            nameView.set(nameBytes)
+            nameView[nameBytes.length] = 0
+            offset += nameBytes.length + 1
+
+            const padding = reclen - (19 + nameBytes.length + 1)
+            offset += padding
+          }
+
+          return offset
+        } catch {
+          return -1
+        }
+      },
+      __syscall_ioctl: (fd: number, request: number, ...rest: number[]): number => {
         // ioctl - device control
+        // TIOCGWINSZ (0x5413) - get window size
+        // TIOCGETA (0x5401) - get terminal attributes
+        // TIOCGPGRP (0x5405) - get process group ID
+        // For stdout/stderr, return success to indicate it's a TTY
+        if ((fd === 1 || fd === 2) && (request === 0x5413 || request === 0x5401 || request === 0x5405)) {
+          return 0
+        }
+        ignore(...rest)
         return -1
       },
-      __syscall_lstat64: (...args: number[]): number => {
-        ignore(...args)
-        // lstat64 - get file status (no follow symlinks)
-        return -1
+      __syscall_lstat64: (pathPtr: number, statbuf: number): number => {
+        try {
+          const pathStr = readNullTerminatedString(pathPtr, activeMemory)
+          const resolvedPath = pathStr.startsWith('/') ? pathStr : path.resolve('/', pathStr)
+          const fsSync = this._kernel.filesystem.fsSync
+          const stat = fsSync.lstatSync(resolvedPath)
+          writeStat64({
+            mode: stat.mode || 0o644,
+            size: stat.size || 0,
+            mtime: stat.mtime?.getTime() || Date.now(),
+            ctime: stat.ctime?.getTime() || Date.now(),
+            ino: stat.ino || 1,
+            dev: 1,
+            nlink: 1,
+            uid: 0,
+            gid: 0,
+            rdev: 0,
+            blksize: 4096,
+            blocks: Math.ceil((stat.size || 0) / 512),
+            atime: stat.atime?.getTime() || Date.now()
+          }, statbuf, activeMemory)
+          return 0
+        } catch {
+          return -1
+        }
       },
-      __syscall_newfstatat: (...args: number[]): number => {
-        ignore(...args)
-        // newfstatat - get file status relative to directory
-        return -1
+      __syscall_newfstatat: (dirfd: number, pathPtr: number, statbuf: number): number => {
+        try {
+          const pathStr = readNullTerminatedString(pathPtr, activeMemory)
+          let effectiveDirfd = dirfd
+          if (pathStr.startsWith('/')) {
+            effectiveDirfd = 3
+          } else if (dirfd === -100) {
+            effectiveDirfd = 3
+          } else if (dirfd < 0 || (dirfd > 0 && dirfd < 3)) {
+            effectiveDirfd = 3
+          }
+          const resolvedPath = resolvePath(effectiveDirfd, pathStr)
+
+          // Ensure /proc/self/stat exists before trying to stat it
+          if (resolvedPath === '/proc/self/stat' || resolvedPath.startsWith('/proc/self/')) {
+            const currentPid = pid !== undefined ? pid : (() => {
+              const allProcesses = Array.from(this._kernel.processes.all.values())
+              const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+              return lastProcess?.pid || 1
+            })()
+            
+            if (resolvedPath === '/proc/self/stat') {
+              const currentProcess = this._kernel.processes.get(currentPid) || null
+              const statFields = [
+                currentPid,
+                '(ecmaos)',
+                'R',
+                currentProcess?.parent || 0,
+                currentPid, currentPid, 0, currentPid, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, Date.now(),
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+              ]
+              const statContent = statFields.join(' ') + '\n' // Add newline at end like Linux
+              const fsSync = this._kernel.filesystem.fsSync
+              try {
+                if (!fsSync.existsSync('/proc/self')) {
+                  fsSync.mkdirSync('/proc/self', { recursive: true, mode: 0o555 })
+                }
+                fsSync.writeFileSync('/proc/self/stat', statContent, { mode: 0o444 })
+              } catch (error) {
+                this._kernel.log.warn(`Failed to create /proc/self/stat: ${(error as Error).message}`)
+              }
+            }
+          }
+
+          const fsSync = this._kernel.filesystem.fsSync
+          const stat = fsSync.statSync(resolvedPath)
+          writeStat64({
+            mode: stat.mode || 0o644,
+            size: stat.size || 0,
+            mtime: stat.mtime?.getTime() || Date.now(),
+            ctime: stat.ctime?.getTime() || Date.now(),
+            ino: stat.ino || 1,
+            dev: 1,
+            nlink: 1,
+            uid: 0,
+            gid: 0,
+            rdev: 0,
+            blksize: 4096,
+            blocks: Math.ceil((stat.size || 0) / 512),
+            atime: stat.atime?.getTime() || Date.now()
+          }, statbuf, activeMemory)
+          return 0
+        } catch {
+          return -1
+        }
       },
-      __syscall_openat: (...args: number[]): number => {
-        ignore(...args)
-        // openat - open file relative to directory
-        return -1
+      __syscall_openat: (dirfd: number, pathPtr: number, flags: number): number => {
+        try {
+          const pathStr = readNullTerminatedString(pathPtr, activeMemory)
+          let effectiveDirfd = dirfd
+          
+          if (pathStr.startsWith('/')) {
+            effectiveDirfd = 3
+          } else if (dirfd === -100) {
+            effectiveDirfd = 3
+          } else if (dirfd < 0 || (dirfd > 0 && dirfd < 3)) {
+            effectiveDirfd = 3
+          }
+          
+          const resolvedPath = resolvePath(effectiveDirfd, pathStr)
+          const fsSync = this._kernel.filesystem.fsSync
+
+          // Handle /proc/self/stat dynamically - create it with the current process's PID
+          if (resolvedPath === '/proc/self/stat' || resolvedPath.startsWith('/proc/self/')) {
+            const currentPid = pid !== undefined ? pid : (() => {
+              const allProcesses = Array.from(this._kernel.processes.all.values())
+              const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+              return lastProcess?.pid || 1
+            })()
+            
+            if (resolvedPath === '/proc/self/stat') {
+              // Create /proc/self/stat with the current process's PID
+              const currentProcess = this._kernel.processes.get(currentPid) || null
+              const statFields = [
+                currentPid,                    // 1: pid
+                '(ecmaos)',                    // 2: comm (command name in parentheses)
+                'R',                           // 3: state (R=running)
+                currentProcess?.parent || 0,   // 4: ppid (parent process ID)
+                currentPid,                    // 5: pgrp (process group ID)
+                currentPid,                    // 6: session (session ID)
+                0,                             // 7: tty_nr (controlling terminal)
+                currentPid,                    // 8: tpgid (terminal process group)
+                0,                             // 9: flags
+                0, 0, 0, 0,                    // 10-13: minflt, cminflt, majflt, cmajflt
+                0, 0, 0, 0,                    // 14-17: utime, stime, cutime, cstime
+                0,                             // 18: priority
+                0,                             // 19: nice
+                1,                             // 20: num_threads
+                0,                             // 21: itrealvalue
+                Date.now(),                    // 22: starttime (jiffies since boot - using ms)
+                0,                             // 23: vsize (virtual memory size)
+                0,                             // 24: rss (resident set size)
+                0,                             // 25: rsslim
+                0, 0, 0, 0, 0,                 // 26-30: startcode, endcode, startstack, kstkesp, kstkeip
+                0, 0, 0, 0,                    // 31-34: signal, blocked, sigignore, sigcatch
+                0, 0, 0,                       // 35-37: wchan, nswap, cnswap
+                0,                             // 38: exit_signal
+                0,                             // 39: processor
+                0,                             // 40: rt_priority
+                0,                             // 41: policy
+                0,                             // 42: delayacct_blkio_ticks
+                0, 0,                          // 43-44: guest_time, cguest_time
+                0, 0, 0, 0,                    // 45-48: start_data, end_data, start_brk, arg_start
+                0, 0, 0,                       // 49-51: arg_end, env_start, env_end
+                0                              // 52: exit_code
+              ]
+              const statContent = statFields.join(' ')
+              
+              try {
+                // Ensure /proc/self directory exists
+                if (!fsSync.existsSync('/proc/self')) {
+                  fsSync.mkdirSync('/proc/self', { recursive: true, mode: 0o555 })
+                }
+                // Write the stat file with current process info
+                fsSync.writeFileSync('/proc/self/stat', statContent, { mode: 0o444 })
+              } catch (error) {
+                this._kernel.log.warn(`Failed to create /proc/self/stat: ${(error as Error).message}`)
+              }
+            } else if (resolvedPath === '/proc/self/exe') {
+              // Handle /proc/self/exe symlink
+              const currentProcess = this._kernel.processes.get(currentPid) || null
+              const exePath = currentProcess?.command || '/bin/ecmaos'
+              
+              try {
+                if (!fsSync.existsSync('/proc/self')) {
+                  fsSync.mkdirSync('/proc/self', { recursive: true, mode: 0o555 })
+                }
+                if (fsSync.existsSync('/proc/self/exe')) {
+                  fsSync.unlinkSync('/proc/self/exe')
+                }
+                fsSync.symlinkSync(exePath, '/proc/self/exe')
+              } catch (error) {
+                this._kernel.log.warn(`Failed to create /proc/self/exe: ${(error as Error).message}`)
+              }
+            }
+          }
+
+          const O_WRONLY = 1
+          const O_RDWR = 2
+          const O_CREAT = 0x40
+          const O_EXCL = 0x80
+          const O_TRUNC = 0x200
+          const O_APPEND = 0x400
+          const O_DIRECTORY = 0x10000
+
+          const accessMode = flags & 3
+          let zenfsFlags = 'r'
+          const create = (flags & O_CREAT) !== 0
+          const directory = (flags & O_DIRECTORY) !== 0
+          const excl = (flags & O_EXCL) !== 0
+          const trunc = (flags & O_TRUNC) !== 0
+          const append = (flags & O_APPEND) !== 0
+
+          if (directory) {
+            zenfsFlags = 'r'
+          } else if (accessMode === O_RDWR) {
+            if (trunc) {
+              zenfsFlags = 'w+'
+            } else if (append) {
+              zenfsFlags = 'a+'
+            } else if (create) {
+              zenfsFlags = 'r+'
+            } else {
+              zenfsFlags = 'r+'
+            }
+          } else if (accessMode === O_WRONLY) {
+            if (trunc || create) {
+              zenfsFlags = 'w'
+            } else if (append) {
+              zenfsFlags = 'a'
+            } else {
+              zenfsFlags = 'w'
+            }
+          } else {
+            zenfsFlags = 'r'
+          }
+
+          const exists = fsSync.existsSync(resolvedPath)
+
+          if (directory) {
+            if (!exists) {
+              return -1
+            }
+            const stat = fsSync.statSync(resolvedPath)
+            if (!stat.isDirectory()) {
+              return -1
+            }
+          }
+
+          if (excl && exists) {
+            return -1
+          }
+
+          if (create && !exists && !directory) {
+            const dir = path.dirname(resolvedPath)
+            if (!fsSync.existsSync(dir)) {
+              fsSync.mkdirSync(dir, { recursive: true })
+            }
+          }
+
+          // Ensure /proc/self/stat exists and is readable before opening
+          if (resolvedPath === '/proc/self/stat') {
+            const currentPid = pid !== undefined ? pid : (() => {
+              const allProcesses = Array.from(this._kernel.processes.all.values())
+              const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+              return lastProcess?.pid || 1
+            })()
+            
+            if (!fsSync.existsSync('/proc/self/stat') || !fsSync.statSync('/proc/self/stat').isFile()) {
+              // Recreate it if it doesn't exist or is invalid
+              const currentProcess = this._kernel.processes.get(currentPid) || null
+              const statFields = [
+                currentPid,
+                '(ecmaos)',
+                'R',
+                currentProcess?.parent || 0,
+                currentPid, currentPid, 0, currentPid, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, Date.now(),
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+              ]
+              const statContent = statFields.join(' ')
+              try {
+                if (!fsSync.existsSync('/proc/self')) {
+                  fsSync.mkdirSync('/proc/self', { recursive: true, mode: 0o555 })
+                }
+                fsSync.writeFileSync('/proc/self/stat', statContent, { mode: 0o444, flag: 'w' })
+              } catch (error) {
+                this._kernel.log.warn(`Failed to ensure /proc/self/stat exists: ${(error as Error).message}`)
+              }
+            }
+          }
+
+            const handle = fsSync.openSync(resolvedPath, zenfsFlags)
+            const stat = fsSync.statSync(resolvedPath)
+            const fd = allocateFd(handle as unknown as FileHandle, resolvedPath, stat.isDirectory())
+            
+            return fd
+        } catch {
+          return -1
+        }
       },
       __syscall_rmdir: (...args: number[]): number => {
         ignore(...args)
         // rmdir - remove directory
         return -1
       },
-      __syscall_stat64: (...args: number[]): number => {
-        ignore(...args)
-        // stat64 - get file status
-        return -1
+      __syscall_stat64: (pathPtr: number, statbuf: number): number => {
+        try {
+          const pathStr = readNullTerminatedString(pathPtr, activeMemory)
+          const resolvedPath = pathStr.startsWith('/') ? pathStr : path.resolve('/', pathStr)
+          
+          // Ensure /proc/self/stat exists before trying to stat it
+          if (resolvedPath === '/proc/self/stat' || resolvedPath.startsWith('/proc/self/')) {
+            const currentPid = pid !== undefined ? pid : (() => {
+              const allProcesses = Array.from(this._kernel.processes.all.values())
+              const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+              return lastProcess?.pid || 1
+            })()
+            
+            if (resolvedPath === '/proc/self/stat') {
+              const currentProcess = this._kernel.processes.get(currentPid) || null
+              const statFields = [
+                currentPid,
+                '(ecmaos)',
+                'R',
+                currentProcess?.parent || 0,
+                currentPid, currentPid, 0, currentPid, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, Date.now(),
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+              ]
+              const statContent = statFields.join(' ') + '\n' // Add newline at end like Linux
+              const fsSync = this._kernel.filesystem.fsSync
+              try {
+                if (!fsSync.existsSync('/proc/self')) {
+                  fsSync.mkdirSync('/proc/self', { recursive: true, mode: 0o555 })
+                }
+                fsSync.writeFileSync('/proc/self/stat', statContent, { mode: 0o444 })
+              } catch (error) {
+                this._kernel.log.warn(`Failed to create /proc/self/stat: ${(error as Error).message}`)
+              }
+            }
+          }
+          
+          const fsSync = this._kernel.filesystem.fsSync
+          const stat = fsSync.statSync(resolvedPath)
+          writeStat64({
+            mode: stat.mode || 0o644,
+            size: stat.size || 0,
+            mtime: stat.mtime?.getTime() || Date.now(),
+            ctime: stat.ctime?.getTime() || Date.now(),
+            ino: stat.ino || 1,
+            dev: 1,
+            nlink: 1,
+            uid: 0,
+            gid: 0,
+            rdev: 0,
+            blksize: 4096,
+            blocks: Math.ceil((stat.size || 0) / 512),
+            atime: stat.atime?.getTime() || Date.now()
+          }, statbuf, activeMemory)
+          return 0
+        } catch {
+          return -1
+        }
       },
-      __syscall_unlinkat: (...args: number[]): number => {
-        ignore(...args)
-        // unlinkat - remove file/directory
-        return -1
+      __syscall_unlinkat: (dirfd: number, pathPtr: number, flags: number): number => {
+        try {
+          const pathStr = readNullTerminatedString(pathPtr, activeMemory)
+          let effectiveDirfd = dirfd
+          if (pathStr.startsWith('/')) {
+            effectiveDirfd = 3
+          } else if (dirfd === -100) {
+            effectiveDirfd = 3
+          } else if (dirfd < 0 || (dirfd > 0 && dirfd < 3)) {
+            effectiveDirfd = 3
+          }
+          const resolvedPath = resolvePath(effectiveDirfd, pathStr)
+          const fsSync = this._kernel.filesystem.fsSync
+
+          const AT_REMOVEDIR = 0x200
+          if ((flags & AT_REMOVEDIR) !== 0) {
+            fsSync.rmdirSync(resolvedPath)
+          } else {
+            fsSync.unlinkSync(resolvedPath)
+          }
+          return 0
+        } catch {
+          return -1
+        }
       },
-      __syscall_fchmod: (...args: number[]): number => {
-        ignore(...args)
-        // fchmod - change file permissions
-        return 0
+      __syscall_fchmod: (fd: number, mode: number): number => {
+        try {
+          if (fd < 0 || fd > 2) {
+            const entry = getFileHandle(fd)
+            if (!entry || entry.isDirectory) {
+              return -1
+            }
+
+            const fsSync = this._kernel.filesystem.fsSync
+            fsSync.chmodSync(entry.path, mode)
+            return 0
+          }
+
+          // Cannot change permissions on stdin/stdout/stderr
+          return -1
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
       },
-      __syscall_chmod: (...args: number[]): number => {
-        ignore(...args)
-        // chmod - change file permissions
-        return 0
+      __syscall_chmod: (pathPtr: number, mode: number): number => {
+        try {
+          const pathStr = readNullTerminatedString(pathPtr, activeMemory)
+          const resolvedPath = pathStr.startsWith('/') ? pathStr : path.resolve('/', pathStr)
+          const fsSync = this._kernel.filesystem.fsSync
+          fsSync.chmodSync(resolvedPath, mode)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
       },
-      __syscall_mkdir: (...args: number[]): number => {
-        ignore(...args)
-        // mkdir - create directory
-        return -1
+      __syscall_mkdir: (pathPtr: number, mode: number): number => {
+        try {
+          const pathStr = readNullTerminatedString(pathPtr, activeMemory)
+          const resolvedPath = pathStr.startsWith('/') ? pathStr : path.resolve('/', pathStr)
+          const fsSync = this._kernel.filesystem.fsSync
+          fsSync.mkdirSync(resolvedPath, { mode, recursive: false })
+          return 0
+        } catch {
+          return -1
+        }
       },
-      __syscall_mkdirat: (...args: number[]): number => {
-        ignore(...args)
-        // mkdirat - create directory relative to directory file descriptor
-        return -1
+      __syscall_mkdirat: (dirfd: number, pathPtr: number, mode: number): number => {
+        try {
+          const pathStr = readNullTerminatedString(pathPtr, activeMemory)
+          let effectiveDirfd = dirfd
+          if (pathStr.startsWith('/')) {
+            effectiveDirfd = 3
+          } else if (dirfd === -100) {
+            effectiveDirfd = 3
+          } else if (dirfd < 0 || (dirfd > 0 && dirfd < 3)) {
+            effectiveDirfd = 3
+          }
+          const resolvedPath = resolvePath(effectiveDirfd, pathStr)
+          const fsSync = this._kernel.filesystem.fsSync
+          fsSync.mkdirSync(resolvedPath, { mode, recursive: false })
+          return 0
+        } catch {
+          return -1
+        }
       },
       __syscall_rmdirat: (...args: number[]): number => {
         ignore(...args)
@@ -539,10 +1354,26 @@ export class Wasm implements IWasm {
         // fstatat64 - get file status relative to directory
         return -1
       },
-      __syscall_fchmodat: (...args: number[]): number => {
-        ignore(...args)
-        // fchmodat - change file permissions relative to directory
-        return 0
+      __syscall_fchmodat: (dirfd: number, pathPtr: number, mode: number, flags: number): number => {
+        try {
+          const pathStr = readNullTerminatedString(pathPtr, activeMemory)
+          let effectiveDirfd = dirfd
+          if (pathStr.startsWith('/')) {
+            effectiveDirfd = 3
+          } else if (dirfd === -100) {
+            effectiveDirfd = 3
+          } else if (dirfd < 0 || (dirfd > 0 && dirfd < 3)) {
+            effectiveDirfd = 3
+          }
+          const resolvedPath = resolvePath(effectiveDirfd, pathStr)
+          const fsSync = this._kernel.filesystem.fsSync
+          // flags can include AT_SYMLINK_NOFOLLOW (0x100) but we ignore it for now
+          ignore(flags)
+          fsSync.chmodSync(resolvedPath, mode)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
       },
       __syscall_fchownat: (...args: number[]): number => {
         ignore(...args)
@@ -649,7 +1480,23 @@ export class Wasm implements IWasm {
       },
       __syscall_getpid: (): number => {
         // getpid - get process ID
-        return 1
+        // Try to get the actual process ID from the kernel
+        if (pid !== undefined) {
+          return pid
+        }
+        // Fallback: get the most recent process or default to 1
+        const allProcesses = Array.from(this._kernel.processes.all.values())
+        const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+        return lastProcess?.pid || 1
+      },
+      __syscall_getpid64: (): number => {
+        // getpid64 - get process ID (64-bit variant)
+        if (pid !== undefined) {
+          return pid
+        }
+        const allProcesses = Array.from(this._kernel.processes.all.values())
+        const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+        return lastProcess?.pid || 1
       },
       __syscall_getuid32: (): number => {
         // getuid32 - get user ID (32-bit)
@@ -698,6 +1545,8 @@ export class Wasm implements IWasm {
         const bytes = new Uint8Array(activeMemory.buffer, ptr, len)
         const str = new TextDecoder().decode(bytes)
         this._kernel.log.info(str)
+        const encoded = new TextEncoder().encode(str + '\n')
+        queueWrite(stdoutWriter, encoded, true)
       },
       emscripten_console_warn: (ptr: number): void => {
         // Warn a string from memory
@@ -824,62 +1673,132 @@ export class Wasm implements IWasm {
 
     const wasiPreview1 = {
       fd_write: (fd: number, iovs: number, iovsLen: number, nwritten: number): number => {
-        let currentState = 0
-        if (hasAsyncify && wasmInstance) {
-          const exports = wasmInstance.exports
-          const getState = exports.asyncify_get_state as (() => number) | undefined
-          if (getState) currentState = getState()
-        }
-        
-        if (currentState === 2) {
-          // During rewind, actually write the data (same as normal execution)
-        }
-        
-        const view = new DataView(activeMemory.buffer)
-        let totalWritten = 0
-        let offset = iovs
-
-        for (let i = 0; i < iovsLen; i++) {
-          const buf = view.getUint32(offset, true)
-          const bufLen = view.getUint32(offset + 4, true)
-          offset += 8
-
-          const data = new Uint8Array(activeMemory.buffer, buf, bufLen).slice()
-          const isStdout = fd === 1
-          const writer = isStdout ? stdoutWriter : stderrWriter
+        if (fd === 1 || fd === 2) {
+          let currentState = 0
+          if (hasAsyncify && wasmInstance) {
+            const exports = wasmInstance.exports
+            const getState = exports.asyncify_get_state as (() => number) | undefined
+            if (getState) currentState = getState()
+          }
           
-          queueWrite(writer, data, isStdout)
-          totalWritten += bufLen
-        }
-
-        view.setUint32(nwritten, totalWritten, true)
-        return 0
-      },
-
-      fd_read: (fd: number, iovs: number, iovsLen: number, nread: number): number => {
-        if (fd !== 0) return 8
-        
-        let currentState = 0
-        if (hasAsyncify && wasmInstance) {
-          const exports = wasmInstance.exports
-          const getState = exports.asyncify_get_state as (() => number) | undefined
-          if (getState) currentState = getState()
-        }
-        
-        if (currentState === 2) {
-          // During rewind, Asyncify replays execution until it reaches the suspend point
-          // At that point, execution CONTINUES - this IS the actual read, not a replay
-          // So we should consume the data normally
+          if (currentState === 2) {
+            // During rewind, actually write the data (same as normal execution)
+          }
+          
           const view = new DataView(activeMemory.buffer)
-          let totalRead = 0
+          let totalWritten = 0
           let offset = iovs
 
-          for (let i = 0; i < iovsLen && stdinBuffer.length > 0; i++) {
+          for (let i = 0; i < iovsLen; i++) {
             const buf = view.getUint32(offset, true)
             const bufLen = view.getUint32(offset + 4, true)
             offset += 8
 
-            const read = readFromStdinBuffer(buf, bufLen, true)
+            const data = new Uint8Array(activeMemory.buffer, buf, bufLen).slice()
+            const isStdout = fd === 1
+            const writer = isStdout ? stdoutWriter : stderrWriter
+            queueWrite(writer, data, isStdout)
+            totalWritten += bufLen
+          }
+
+          view.setUint32(nwritten, totalWritten, true)
+          return 0
+        }
+
+        const entry = getFileHandle(fd)
+        if (!entry || entry.isDirectory) {
+          return 8
+        }
+
+        try {
+          const fsSync = this._kernel.filesystem.fsSync
+          const view = new DataView(activeMemory.buffer)
+          let totalWritten = 0
+          let offset = iovs
+          const currentPos = entry.position || 0
+
+          for (let i = 0; i < iovsLen; i++) {
+            const buf = view.getUint32(offset, true)
+            const bufLen = view.getUint32(offset + 4, true)
+            offset += 8
+
+            const data = new Uint8Array(activeMemory.buffer, buf, bufLen)
+            const bytesWritten = fsSync.writeSync(entry.handle.fd, data, 0, bufLen, currentPos + totalWritten)
+            totalWritten += bytesWritten
+          }
+
+          if (entry.position !== undefined) {
+            entry.position = currentPos + totalWritten
+          }
+
+          view.setUint32(nwritten, totalWritten, true)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
+      },
+
+      fd_read: (fd: number, iovs: number, iovsLen: number, nread: number): number => {
+        if (fd === 0) {
+          let currentState = 0
+          if (hasAsyncify && wasmInstance) {
+            const exports = wasmInstance.exports
+            const getState = exports.asyncify_get_state as (() => number) | undefined
+            if (getState) currentState = getState()
+          }
+          
+          if (currentState === 2) {
+            const view = new DataView(activeMemory.buffer)
+            let totalRead = 0
+            let offset = iovs
+
+            for (let i = 0; i < iovsLen && stdinBuffer.length > 0; i++) {
+              const buf = view.getUint32(offset, true)
+              const bufLen = view.getUint32(offset + 4, true)
+              offset += 8
+
+              const read = readFromStdinBuffer(buf, bufLen, true)
+              totalRead += read
+              if (read < bufLen) break
+            }
+
+            view.setUint32(nread, totalRead, true)
+            return 0
+          }
+          
+          if (stdinBuffer.length === 0) {
+            if (stdinClosed) {
+              const view = new DataView(activeMemory.buffer)
+              view.setUint32(nread, 0, true)
+              return 0
+            }
+            
+            if (hasAsyncify && wasmInstance && currentState === 0 && !asyncifyPending && asyncifyDataAddr !== 0) {
+              const exports = wasmInstance.exports
+              const startUnwind = exports.asyncify_start_unwind as ((addr: number) => void) | undefined
+              
+              if (startUnwind) {
+                const view = new DataView(activeMemory.buffer)
+                view.setUint32(nread, 0, true)
+                asyncifyPending = true
+                startUnwind(asyncifyDataAddr)
+                return 0
+              }
+            }
+            
+            return 6
+          }
+          
+          const view = new DataView(activeMemory.buffer)
+          let totalRead = 0
+          let offset = iovs
+
+          for (let i = 0; i < iovsLen; i++) {
+            const buf = view.getUint32(offset, true)
+            const bufLen = view.getUint32(offset + 4, true)
+            offset += 8
+
+            const read = readFromStdinBuffer(buf, bufLen)
             totalRead += read
             if (read < bufLen) break
           }
@@ -887,77 +1806,295 @@ export class Wasm implements IWasm {
           view.setUint32(nread, totalRead, true)
           return 0
         }
+
+        const entry = getFileHandle(fd)
+        if (!entry || entry.isDirectory) {
+          return 8
+        }
         
-        if (stdinBuffer.length === 0) {
-          if (stdinClosed) {
-            const view = new DataView(activeMemory.buffer)
-            view.setUint32(nread, 0, true)
-            return 0
-          }
+        // Special handling for /proc/self/stat - return content directly from memory
+        if (entry.path === '/proc/self/stat') {
+          const currentPid = pid !== undefined ? pid : (() => {
+            const allProcesses = Array.from(this._kernel.processes.all.values())
+            const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+            return lastProcess?.pid || 1
+          })()
           
-          if (hasAsyncify && wasmInstance && currentState === 0 && !asyncifyPending && asyncifyDataAddr !== 0) {
-            const exports = wasmInstance.exports
-            const startUnwind = exports.asyncify_start_unwind as ((addr: number) => void) | undefined
+          const currentProcess = this._kernel.processes.get(currentPid) || null
+          const statFields = [
+            currentPid,
+            '(ecmaos)',
+            'R',
+            currentProcess?.parent || 0,
+            currentPid, currentPid, 0, currentPid, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, Math.floor(Date.now() / 1000), // starttime in seconds (approximation)
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+          ]
+          const statContent = statFields.join(' ') + '\n' // Add newline at end like Linux
+          const encoder = new TextEncoder()
+          const contentBytes = encoder.encode(statContent)
+          const currentPos = entry.position || 0
+          
+          const view = new DataView(activeMemory.buffer)
+          let totalRead = 0
+          let offset = iovs
+          
+          for (let i = 0; i < iovsLen && (currentPos + totalRead) < contentBytes.length; i++) {
+            const buf = view.getUint32(offset, true)
+            const bufLen = view.getUint32(offset + 4, true)
+            offset += 8
             
-            if (startUnwind) {
-              // Set nread to 0 BEFORE unwind - this matches the execution path during rewind
-              // so Asyncify can correctly replay up to this point
-              const view = new DataView(activeMemory.buffer)
-              view.setUint32(nread, 0, true)
-              asyncifyPending = true
-              startUnwind(asyncifyDataAddr)
-              return 0
+            const remaining = contentBytes.length - (currentPos + totalRead)
+            const bytesToRead = Math.min(bufLen, remaining)
+            
+            if (bytesToRead > 0) {
+              const target = new Uint8Array(activeMemory.buffer, buf, bytesToRead)
+              target.set(contentBytes.slice(currentPos + totalRead, currentPos + totalRead + bytesToRead))
+              totalRead += bytesToRead
+            }
+            
+            if (bytesToRead < bufLen || (currentPos + totalRead) >= contentBytes.length) {
+              break
             }
           }
           
-          return 6
-        }
-        
-        const view = new DataView(activeMemory.buffer)
-        let totalRead = 0
-        let offset = iovs
-
-        for (let i = 0; i < iovsLen; i++) {
-          const buf = view.getUint32(offset, true)
-          const bufLen = view.getUint32(offset + 4, true)
-          offset += 8
-
-          const read = readFromStdinBuffer(buf, bufLen)
-          totalRead += read
-          if (read < bufLen) break
+          if (entry.position !== undefined) {
+            entry.position = currentPos + totalRead
+          }
+          
+          view.setUint32(nread, totalRead, true)
+          return 0
         }
 
-        view.setUint32(nread, totalRead, true)
-        return 0
+        try {
+          const fsSync = this._kernel.filesystem.fsSync
+          const view = new DataView(activeMemory.buffer)
+          let totalRead = 0
+          let offset = iovs
+          const currentPos = entry.position || 0
+
+          for (let i = 0; i < iovsLen; i++) {
+            const buf = view.getUint32(offset, true)
+            const bufLen = view.getUint32(offset + 4, true)
+            offset += 8
+
+            const buffer = Buffer.allocUnsafe(bufLen)
+            const bytesRead = fsSync.readSync(entry.handle.fd, buffer, 0, bufLen, currentPos + totalRead)
+            
+            if (bytesRead === 0) break
+
+            const target = new Uint8Array(activeMemory.buffer, buf, bytesRead)
+            target.set(buffer.slice(0, bytesRead))
+            totalRead += bytesRead
+
+            if (bytesRead < bufLen) break
+          }
+
+          if (entry.position !== undefined) {
+            entry.position = currentPos + totalRead
+          }
+
+          view.setUint32(nread, totalRead, true)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
       },
 
-      fd_seek: (_fd: number, _offset: bigint, _whence: number, _newOffset: number): number => {
-        ignore(_fd, _offset, _whence, _newOffset)
+      fd_seek: (fd: number, offset: bigint, whence: number, newOffset: number): number => {
+        if (fd < 0 || fd > 2) {
+          const entry = getFileHandle(fd)
+          if (!entry || entry.isDirectory) {
+            return 8
+          }
+
+          try {
+            const fsSync = this._kernel.filesystem.fsSync
+            const stat = fsSync.statSync(entry.path)
+            const fileSize = stat.size
+            let newPos = 0
+
+            const SEEK_SET = 0
+            const SEEK_CUR = 1
+            const SEEK_END = 2
+
+            const offsetNum = Number(offset)
+            const currentPos = entry.position || 0
+
+            if (whence === SEEK_SET) {
+              newPos = offsetNum
+            } else if (whence === SEEK_CUR) {
+              newPos = currentPos + offsetNum
+            } else if (whence === SEEK_END) {
+              newPos = fileSize + offsetNum
+            } else {
+              return 28
+            }
+
+            if (newPos < 0) {
+              newPos = 0
+            }
+
+            entry.position = newPos
+
+            const view = new DataView(activeMemory.buffer)
+            view.setBigUint64(newOffset, BigInt(newPos), true)
+            return 0
+          } catch (error) {
+            return mapFilesystemError(error as Error)
+          }
+        }
+
         return 70
       },
 
-      fd_close: (_fd: number): number => {
-        ignore(_fd)
+      fd_close: (fd: number): number => {
+        if (fd < 0 || fd > 2) {
+          const entry = getFileHandle(fd)
+          if (!entry) {
+            return 8
+          }
+
+          try {
+            if (!entry.isDirectory && entry.handle.fd !== -1) {
+              const fsSync = this._kernel.filesystem.fsSync
+              fsSync.closeSync(entry.handle.fd)
+            }
+            fdMap.delete(fd)
+            return 0
+          } catch (error) {
+            return mapFilesystemError(error as Error)
+          }
+        }
+
         return 0
+      },
+
+      fd_readdir: (fd: number, buf: number, bufLen: number, cookie: bigint, bufused: number): number => {
+        const entry = getFileHandle(fd)
+        if (!entry || !entry.isDirectory) {
+          return 8
+        }
+
+        try {
+          const fsSync = this._kernel.filesystem.fsSync
+          const entries = fsSync.readdirSync(entry.path)
+          const cookieNum = Number(cookie)
+          
+          if (cookieNum >= entries.length) {
+            const view = new DataView(activeMemory.buffer)
+            view.setUint32(bufused, 0, true)
+            return 0
+          }
+
+          let offset = 0
+          const view = new DataView(activeMemory.buffer)
+          const encoder = new TextEncoder()
+
+          for (let i = cookieNum; i < entries.length && offset < bufLen; i++) {
+            const entryName = entries[i] as string
+            const entryPath = path.join(entry.path, entryName)
+            
+            let stat
+            try {
+              stat = fsSync.statSync(entryPath)
+            } catch {
+              continue
+            }
+
+            const nameBytes = encoder.encode(entryName)
+            const direntSize = 24 + nameBytes.length + 1
+
+            if (offset + direntSize > bufLen) {
+              break
+            }
+
+            const dNext = BigInt(i + 1)
+            const dIno = BigInt(stat.ino || i + 1)
+            const dNamlen = nameBytes.length
+            const dType = stat.isDirectory() ? 3 : (stat.isFile() ? 4 : 0)
+
+            view.setBigUint64(buf + offset, dNext, true)
+            view.setBigUint64(buf + offset + 8, dIno, true)
+            view.setUint32(buf + offset + 16, dNamlen, true)
+            view.setUint8(buf + offset + 20, dType)
+            offset += 24
+
+            const nameView = new Uint8Array(activeMemory.buffer, buf + offset, nameBytes.length + 1)
+            nameView.set(nameBytes)
+            nameView[nameBytes.length] = 0
+            offset += nameBytes.length + 1
+          }
+
+          view.setUint32(bufused, offset, true)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
       },
 
       fd_sync: (_fd: number): number => {
         ignore(_fd)
-        // Sync file data and metadata to storage
-        // For now, just flush stdout/stderr queues
         flush().catch(() => {})
         return 0
       },
 
-      fd_fdstat_get: (_fd: number, buf: number): number => {
-        ignore(_fd)
+      fd_fdstat_get: (fd: number, buf: number): number => {
         const view = new DataView(activeMemory.buffer)
-        view.setUint8(buf, 0)
-        view.setUint8(buf + 1, 0)
-        view.setUint16(buf + 2, 0, true)
-        view.setBigUint64(buf + 8, 0n, true)
-        view.setBigUint64(buf + 16, 0n, true)
-        return 0
+
+        if (fd === 0) {
+          view.setUint8(buf, 2)
+          view.setUint8(buf + 1, 0)
+          view.setUint16(buf + 2, 0, true)
+          view.setBigUint64(buf + 8, 0x1n, true)
+          view.setBigUint64(buf + 16, 0n, true)
+          return 0
+        }
+
+        if (fd === 1 || fd === 2) {
+          view.setUint8(buf, 2)
+          view.setUint8(buf + 1, 0)
+          view.setUint16(buf + 2, 0, true)
+          view.setBigUint64(buf + 8, 0x2n, true)
+          view.setBigUint64(buf + 16, 0n, true)
+          return 0
+        }
+
+        const entry = getFileHandle(fd)
+        if (!entry) {
+          return 8
+        }
+
+        try {
+          const fsSync = this._kernel.filesystem.fsSync
+          let fileType = 0
+          let rightsBase = 0n
+          let rightsInheriting = 0n
+
+          if (entry.isDirectory) {
+            fileType = 3
+            rightsBase = 0x1n | 0x2n | 0x40n
+            rightsInheriting = 0x1n | 0x2n | 0x40n
+          } else {
+            fileType = 4
+            const stat = fsSync.statSync(entry.path)
+            rightsBase = 0x1n
+            if (stat.mode & 0o222) {
+              rightsBase |= 0x2n
+            }
+            rightsInheriting = 0n
+          }
+
+          view.setUint8(buf, fileType)
+          view.setUint8(buf + 1, 0)
+          view.setUint16(buf + 2, 0, true)
+          view.setBigUint64(buf + 8, rightsBase, true)
+          view.setBigUint64(buf + 16, rightsInheriting, true)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
       },
 
       fd_fdstat_set_flags: (_fd: number, _flags: number): number => {
@@ -965,26 +2102,350 @@ export class Wasm implements IWasm {
         return 0
       },
 
-      fd_prestat_get: (_fd: number, _buf: number): number => {
-        ignore(_fd, _buf)
+      fd_filestat_get: (fd: number, buf: number): number => {
+        try {
+          if (fd === 0 || fd === 1 || fd === 2) {
+            const stat = {
+              dev: 1,
+              ino: 1,
+              nlink: 1,
+              size: 0,
+              atime: Date.now(),
+              mtime: Date.now(),
+              ctime: Date.now(),
+              isDirectory: false,
+              isFile: true
+            }
+            writeFilestat(stat, buf, activeMemory)
+            return 0
+          }
+
+          const entry = getFileHandle(fd)
+          if (!entry) {
+            return 8
+          }
+
+          const fsSync = this._kernel.filesystem.fsSync
+          const stat = fsSync.statSync(entry.path)
+          writeFilestat({
+            dev: 1,
+            ino: stat.ino || 1,
+            nlink: 1,
+            size: stat.size || 0,
+            atime: stat.atime?.getTime() || Date.now(),
+            mtime: stat.mtime?.getTime() || Date.now(),
+            ctime: stat.ctime?.getTime() || Date.now(),
+            isDirectory: stat.isDirectory(),
+            isFile: stat.isFile()
+          }, buf, activeMemory)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
+      },
+
+      fd_filestat_set_size: (fd: number, size: bigint): number => {
+        if (fd < 0 || fd > 2) {
+          const entry = getFileHandle(fd)
+          if (!entry || entry.isDirectory) {
+            return 8
+          }
+
+          try {
+            const fsSync = this._kernel.filesystem.fsSync
+            const sizeNum = Number(size)
+            
+            // Get current file size
+            const stat = fsSync.statSync(entry.path)
+            const currentSize = stat.size || 0
+            
+            if (sizeNum === currentSize) {
+              // No change needed
+              return 0
+            }
+            
+            if (sizeNum < currentSize) {
+              // Truncate: read the file, write back only the first sizeNum bytes
+              const buffer = fsSync.readFileSync(entry.path)
+              const truncated = buffer.slice(0, sizeNum)
+              fsSync.writeFileSync(entry.path, truncated)
+            } else {
+              // Extend: append zeros to reach the desired size
+              const buffer = fsSync.readFileSync(entry.path)
+              const extension = Buffer.alloc(sizeNum - currentSize, 0)
+              fsSync.writeFileSync(entry.path, Buffer.concat([buffer, extension]))
+            }
+            
+            // Update position if it's beyond the new size
+            if (entry.position !== undefined && entry.position > sizeNum) {
+              entry.position = sizeNum
+            }
+            
+            return 0
+          } catch (error) {
+            return mapFilesystemError(error as Error)
+          }
+        }
+
+        // Cannot truncate stdin/stdout/stderr
+        return 70
+      },
+
+      path_filestat_get: (dirfd: number, _flags: number, pathPtr: number, pathLen: number, buf: number): number => {
+        try {
+          const pathStr = readStringFromMemory(pathPtr, pathLen, activeMemory)
+          const resolvedPath = resolvePath(dirfd, pathStr)
+          
+          // Ensure /proc/self/stat exists before trying to stat it
+          if (resolvedPath === '/proc/self/stat' || resolvedPath.startsWith('/proc/self/')) {
+            const currentPid = pid !== undefined ? pid : (() => {
+              const allProcesses = Array.from(this._kernel.processes.all.values())
+              const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+              return lastProcess?.pid || 1
+            })()
+            
+            if (resolvedPath === '/proc/self/stat') {
+              const currentProcess = this._kernel.processes.get(currentPid) || null
+              const statFields = [
+                currentPid,
+                '(ecmaos)',
+                'R',
+                currentProcess?.parent || 0,
+                currentPid, currentPid, 0, currentPid, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, Date.now(),
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+              ]
+              const statContent = statFields.join(' ') + '\n' // Add newline at end like Linux
+              const fsSync = this._kernel.filesystem.fsSync
+              try {
+                if (!fsSync.existsSync('/proc/self')) {
+                  fsSync.mkdirSync('/proc/self', { recursive: true, mode: 0o555 })
+                }
+                fsSync.writeFileSync('/proc/self/stat', statContent, { mode: 0o444 })
+              } catch (error) {
+                this._kernel.log.warn(`Failed to create /proc/self/stat: ${(error as Error).message}`)
+              }
+            }
+          }
+
+          const fsSync = this._kernel.filesystem.fsSync
+          const stat = fsSync.statSync(resolvedPath)
+          writeFilestat({
+            dev: 1,
+            ino: stat.ino || 1,
+            nlink: 1,
+            size: stat.size || 0,
+            atime: stat.atime?.getTime() || Date.now(),
+            mtime: stat.mtime?.getTime() || Date.now(),
+            ctime: stat.ctime?.getTime() || Date.now(),
+            isDirectory: stat.isDirectory(),
+            isFile: stat.isFile()
+          }, buf, activeMemory)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
+      },
+
+      path_filestat_set_times: (dirfd: number, flags: number, pathPtr: number, pathLen: number, atim: bigint, mtim: bigint, fstFlags: number): number => {
+        ignore(dirfd, flags, pathPtr, pathLen, atim, mtim, fstFlags)
+        return 0
+      },
+
+      fd_advise: (_fd: number, _offset: bigint, _len: bigint, _advice: number): number => {
+        ignore(_fd, _offset, _len, _advice)
+        return 0
+      },
+
+      fd_allocate: (_fd: number, _offset: bigint, _len: bigint): number => {
+        ignore(_fd, _offset, _len)
+        return 0
+      },
+
+      fd_datasync: (_fd: number): number => {
+        ignore(_fd)
+        flush().catch(() => {})
+        return 0
+      },
+
+      fd_pread: (fd: number, iovs: number, iovsLen: number, offset: bigint, nread: number): number => {
+        const entry = getFileHandle(fd)
+        if (!entry || entry.isDirectory) {
+          return 8
+        }
+
+        try {
+          const fsSync = this._kernel.filesystem.fsSync
+          const view = new DataView(activeMemory.buffer)
+          let totalRead = 0
+          let iovOffset = iovs
+          const readOffset = Number(offset)
+
+          for (let i = 0; i < iovsLen; i++) {
+            const buf = view.getUint32(iovOffset, true)
+            const bufLen = view.getUint32(iovOffset + 4, true)
+            iovOffset += 8
+
+            const buffer = Buffer.allocUnsafe(bufLen)
+            const bytesRead = fsSync.readSync(entry.handle.fd, buffer, 0, bufLen, readOffset + totalRead)
+            
+            if (bytesRead === 0) break
+
+            const target = new Uint8Array(activeMemory.buffer, buf, bytesRead)
+            target.set(buffer.slice(0, bytesRead))
+            totalRead += bytesRead
+
+            if (bytesRead < bufLen) break
+          }
+
+          view.setUint32(nread, totalRead, true)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
+      },
+
+      fd_pwrite: (fd: number, iovs: number, iovsLen: number, offset: bigint, nwritten: number): number => {
+        const entry = getFileHandle(fd)
+        if (!entry || entry.isDirectory) {
+          return 8
+        }
+
+        try {
+          const fsSync = this._kernel.filesystem.fsSync
+          const view = new DataView(activeMemory.buffer)
+          let totalWritten = 0
+          let iovOffset = iovs
+          const writeOffset = Number(offset)
+
+          for (let i = 0; i < iovsLen; i++) {
+            const buf = view.getUint32(iovOffset, true)
+            const bufLen = view.getUint32(iovOffset + 4, true)
+            iovOffset += 8
+
+            const data = new Uint8Array(activeMemory.buffer, buf, bufLen)
+            const bytesWritten = fsSync.writeSync(entry.handle.fd, data, 0, bufLen, writeOffset + totalWritten)
+            totalWritten += bytesWritten
+          }
+
+          view.setUint32(nwritten, totalWritten, true)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
+      },
+
+      fd_renumber: (from: number, to: number): number => {
+        if (from < 0 || from > 2 || to < 0 || to > 2) {
+          const fromEntry = getFileHandle(from)
+          if (!fromEntry) {
+            return 8
+          }
+          
+          if (to < 0 || to > 2) {
+            const toEntry = getFileHandle(to)
+            if (toEntry) {
+              try {
+                const fsSync = this._kernel.filesystem.fsSync
+                fsSync.closeSync(toEntry.handle.fd)
+              } catch {
+                // Ignore close errors
+              }
+            }
+            
+            fdMap.set(to, fromEntry)
+            fdMap.delete(from)
+          }
+          return 0
+        }
         return 8
       },
 
-      fd_prestat_dir_name: (_fd: number, _path: number, _pathLen: number): number => {
-        ignore(_fd, _path, _pathLen)
-        return 8
+      fd_tell: (fd: number, offset: number): number => {
+        if (fd < 0 || fd > 2) {
+          const entry = getFileHandle(fd)
+          if (!entry) {
+            return 8
+          }
+
+          const view = new DataView(activeMemory.buffer)
+          view.setBigUint64(offset, BigInt(entry.position || 0), true)
+          return 0
+        }
+
+        const view = new DataView(activeMemory.buffer)
+        view.setBigUint64(offset, 0n, true)
+        return 0
+      },
+
+      poll_oneoff: (_in: number, _out: number, _nsubscriptions: number, _nevents: number): number => {
+        ignore(_in, _out, _nsubscriptions, _nevents)
+        return 52
+      },
+
+      fd_prestat_get: (fd: number, buf: number): number => {
+        const entry = fdMap.get(fd)
+        if (!entry || !entry.preOpened || !entry.isDirectory) {
+          return 8
+        }
+
+        const view = new DataView(activeMemory.buffer)
+        view.setUint8(buf, 0)
+        const nameLen = entry.path.length
+        view.setUint32(buf + 4, nameLen, true)
+        return 0
+      },
+
+      fd_prestat_dir_name: (fd: number, pathPtr: number, pathLen: number): number => {
+        const entry = fdMap.get(fd)
+        if (!entry || !entry.preOpened || !entry.isDirectory) {
+          return 8
+        }
+
+        const pathBytes = new TextEncoder().encode(entry.path)
+        if (pathBytes.length > pathLen) {
+          return 52
+        }
+
+        const view = new Uint8Array(activeMemory.buffer, pathPtr, pathBytes.length)
+        view.set(pathBytes)
+        return 0
       },
 
       environ_sizes_get: (environCount: number, environBufSize: number): number => {
         const view = new DataView(activeMemory.buffer)
-        view.setUint32(environCount, 0, true)
-        view.setUint32(environBufSize, 0, true)
+        view.setUint32(environCount, envEntries.length, true)
+        view.setUint32(environBufSize, totalEnvironBufSize, true)
         return 0
       },
 
-      environ_get: (_environ: number, _environBuf: number): number => {
-        ignore(_environ, _environBuf)
-        return 0
+      environ_get: (environ: number, environBuf: number): number => {
+        try {
+          const view = new DataView(activeMemory.buffer)
+          let bufOffset = environBuf
+          
+          // Write each environment variable string to the buffer
+          for (const encodedEnv of encodedEnvVars) {
+            // Write pointer to the string in the environ array
+            view.setUint32(environ, bufOffset, true)
+            environ += 4
+            
+            // Write the "KEY=VALUE\0" string to the buffer
+            const target = new Uint8Array(activeMemory.buffer, bufOffset, encodedEnv.length + 1)
+            target.set(encodedEnv)
+            target[encodedEnv.length] = 0 // null terminator
+            bufOffset += encodedEnv.length + 1
+          }
+          
+          // Write null pointer to terminate the environ array
+          view.setUint32(environ, 0, true)
+          
+          return 0
+        } catch (error) {
+          this._kernel.log.warn(`Failed to write environment variables: ${(error as Error).message}`)
+          return 8 // EBADF or similar error
+        }
       },
 
       args_sizes_get: (argCount: number, argBufSize: number): number => {
@@ -1016,12 +2477,291 @@ export class Wasm implements IWasm {
       },
 
       proc_exit: (code: number): never => {
+        flush().catch(() => {
+          // Ignore flush errors
+        })
         throw new Error(`WASI proc_exit(${code})`)
       },
 
-      path_open: (_dirfd: number, _dirflags: number, _path: number, _pathLen: number, _oflags: number, _fsRightsBase: bigint, _fsRightsInheriting: bigint, _fdFlags: number, _openedFd: number): number => {
-        ignore(_dirfd, _dirflags, _path, _pathLen, _oflags, _fsRightsBase, _fsRightsInheriting, _fdFlags, _openedFd)
-        return 8
+      path_open: (dirfd: number, _dirflags: number, pathPtr: number, pathLen: number, oflags: number, fsRightsBase: bigint, _fsRightsInheriting: bigint, _fdFlags: number, openedFd: number): number => {
+        try {
+          const pathStr = readStringFromMemory(pathPtr, pathLen, activeMemory)
+          const isAbsolute = pathStr.startsWith('/')
+          
+          if (!isAbsolute) {
+            if (dirfd !== 3 && dirfd > 3) {
+              const entry = fdMap.get(dirfd)
+              if (!entry || !entry.preOpened || !entry.isDirectory) {
+                return 8
+              }
+            } else if (dirfd < 0 || (dirfd > 0 && dirfd < 3)) {
+              return 8
+            }
+          } else {
+            if (dirfd !== 3 && dirfd > 3) {
+              const entry = fdMap.get(dirfd)
+              if (entry && (!entry.preOpened || !entry.isDirectory)) {
+                return 8
+              }
+            }
+          }
+          
+          const resolvedPath = resolvePath(dirfd, pathStr)
+          
+          // Ensure /proc/self/stat exists before trying to open it
+          if (resolvedPath === '/proc/self/stat' || resolvedPath.startsWith('/proc/self/')) {
+            const currentPid = pid !== undefined ? pid : (() => {
+              const allProcesses = Array.from(this._kernel.processes.all.values())
+              const lastProcess = allProcesses.length > 0 ? allProcesses[allProcesses.length - 1] : null
+              return lastProcess?.pid || 1
+            })()
+            
+            if (resolvedPath === '/proc/self/stat') {
+              const currentProcess = this._kernel.processes.get(currentPid) || null
+              const statFields = [
+                currentPid,
+                '(ecmaos)',
+                'R',
+                currentProcess?.parent || 0,
+                currentPid, currentPid, 0, currentPid, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, Date.now(),
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+              ]
+              const statContent = statFields.join(' ') + '\n' // Add newline at end like Linux
+              const fsSync = this._kernel.filesystem.fsSync
+              try {
+                if (!fsSync.existsSync('/proc/self')) {
+                  fsSync.mkdirSync('/proc/self', { recursive: true, mode: 0o555 })
+                }
+                fsSync.writeFileSync('/proc/self/stat', statContent, { mode: 0o444 })
+              } catch (error) {
+                this._kernel.log.warn(`Failed to create /proc/self/stat: ${(error as Error).message}`)
+              }
+            } else if (resolvedPath === '/proc/self/exe') {
+              const currentProcess = this._kernel.processes.get(currentPid) || null
+              const exePath = currentProcess?.command || '/bin/ecmaos'
+              const fsSync = this._kernel.filesystem.fsSync
+              try {
+                if (!fsSync.existsSync('/proc/self')) {
+                  fsSync.mkdirSync('/proc/self', { recursive: true, mode: 0o555 })
+                }
+                if (fsSync.existsSync('/proc/self/exe')) {
+                  fsSync.unlinkSync('/proc/self/exe')
+                }
+                fsSync.symlinkSync(exePath, '/proc/self/exe')
+              } catch (error) {
+                this._kernel.log.warn(`Failed to create /proc/self/exe: ${(error as Error).message}`)
+              }
+            }
+          }
+
+          const O_CREAT = 0x0001
+          const O_DIRECTORY = 0x0002
+          const O_EXCL = 0x0004
+          const O_TRUNC = 0x0008
+          const O_APPEND = 0x0010
+
+          let zenfsFlags = 'r'
+          const create = (oflags & O_CREAT) !== 0
+          const directory = (oflags & O_DIRECTORY) !== 0
+          const excl = (oflags & O_EXCL) !== 0
+          const trunc = (oflags & O_TRUNC) !== 0
+          const append = (oflags & O_APPEND) !== 0
+
+          const hasRead = (fsRightsBase & 0x1n) !== 0n
+          const hasWrite = (fsRightsBase & 0x2n) !== 0n
+
+          if (directory) {
+            zenfsFlags = 'r'
+          } else if (hasWrite && hasRead) {
+            if (trunc) {
+              zenfsFlags = 'w+'
+            } else if (append) {
+              zenfsFlags = 'a+'
+            } else if (create) {
+              zenfsFlags = 'r+'
+            } else {
+              zenfsFlags = 'r+'
+            }
+          } else if (hasWrite) {
+            if (trunc || create) {
+              zenfsFlags = 'w'
+            } else if (append) {
+              zenfsFlags = 'a'
+            } else {
+              zenfsFlags = 'w'
+            }
+          } else {
+            zenfsFlags = 'r'
+          }
+
+          try {
+            const fsSync = this._kernel.filesystem.fsSync
+            const exists = fsSync.existsSync(resolvedPath)
+            
+            // If we only have read access but create flag is set and file doesn't exist, use write mode
+            if (!hasWrite && create && !exists && !directory) {
+              zenfsFlags = 'w'
+            }
+            
+            // If file exists and we have write access but not read access, use 'r+' to allow both
+            // (Rust sometimes requests write-only access but then needs to read)
+            if (hasWrite && !hasRead && exists && !directory) {
+              zenfsFlags = 'r+'
+            }
+            
+            if (directory) {
+              if (!exists) {
+                return 2
+              }
+              const stat = fsSync.statSync(resolvedPath)
+              if (!stat.isDirectory()) {
+                return 54
+              }
+              // For directories, we don't use openSync - return a directory handle
+              const dirHandle = { fd: -1 } as unknown as FileHandle
+              const newFd = allocateFd(dirHandle, resolvedPath, true)
+              const view = new DataView(activeMemory.buffer)
+              view.setUint32(openedFd, newFd, true)
+              return 0
+            }
+
+            if (excl && exists) {
+              return 20
+            }
+
+            // Ensure parent directory exists when opening in write mode
+            if (!directory && (hasWrite || create)) {
+              const dir = path.dirname(resolvedPath)
+              const dirExists = fsSync.existsSync(dir)
+              if (!dirExists) {
+                try {
+                  fsSync.mkdirSync(dir, { recursive: true })
+                } catch {
+                  // If parent directory creation fails, still try to open the file
+                  // (the error will be caught by the outer try-catch)
+                }
+              }
+            }
+
+            const handleFd = fsSync.openSync(resolvedPath, zenfsFlags)
+            const stat = fsSync.statSync(resolvedPath)
+            // Wrap the numeric fd in a FileHandle-like object
+            const handle = { fd: handleFd } as unknown as FileHandle
+            const fd = allocateFd(handle, resolvedPath, stat.isDirectory())
+
+            const view = new DataView(activeMemory.buffer)
+            view.setUint32(openedFd, fd, true)
+            return 0
+          } catch (err) {
+            return mapFilesystemError(err as Error)
+          }
+        } catch (err) {
+          return mapFilesystemError(err as Error)
+        }
+      },
+
+      path_create_directory: (dirfd: number, pathPtr: number, pathLen: number): number => {
+        try {
+          if (dirfd !== 3 && dirfd > 3) {
+            const entry = fdMap.get(dirfd)
+            if (!entry || !entry.preOpened || !entry.isDirectory) {
+              return 8
+            }
+          } else if (dirfd < 0 || (dirfd > 0 && dirfd < 3)) {
+            return 8
+          }
+          
+          const pathStr = readStringFromMemory(pathPtr, pathLen, activeMemory)
+          const resolvedPath = resolvePath(dirfd, pathStr)
+
+          const fsSync = this._kernel.filesystem.fsSync
+          fsSync.mkdirSync(resolvedPath, { recursive: false })
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
+      },
+
+      path_readlink: (dirfd: number, pathPtr: number, pathLen: number, buf: number, bufLen: number, bufused: number): number => {
+        try {
+          const pathStr = readStringFromMemory(pathPtr, pathLen, activeMemory)
+          const resolvedPath = resolvePath(dirfd, pathStr)
+
+          const fsSync = this._kernel.filesystem.fsSync
+          const linkTarget = fsSync.readlinkSync(resolvedPath)
+          const linkTargetStr = typeof linkTarget === 'string' ? linkTarget : linkTarget.toString()
+          const linkBytes = new TextEncoder().encode(linkTargetStr)
+
+          if (linkBytes.length > bufLen) {
+            return 52
+          }
+
+          const view = new Uint8Array(activeMemory.buffer, buf, linkBytes.length)
+          view.set(linkBytes)
+
+          const usedView = new DataView(activeMemory.buffer)
+          usedView.setUint32(bufused, linkBytes.length, true)
+          return 0
+        } catch (err) {
+          return mapFilesystemError(err as Error)
+        }
+      },
+
+      path_symlink: (oldPathPtr: number, oldPathLen: number, dirfd: number, newPathPtr: number, newPathLen: number): number => {
+        try {
+          const oldPath = readStringFromMemory(oldPathPtr, oldPathLen, activeMemory)
+          const newPathStr = readStringFromMemory(newPathPtr, newPathLen, activeMemory)
+          const newPath = resolvePath(dirfd, newPathStr)
+
+          const fsSync = this._kernel.filesystem.fsSync
+          fsSync.symlinkSync(oldPath, newPath)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
+      },
+
+      path_unlink_file: (dirfd: number, pathPtr: number, pathLen: number): number => {
+        try {
+          const pathStr = readStringFromMemory(pathPtr, pathLen, activeMemory)
+          const resolvedPath = resolvePath(dirfd, pathStr)
+
+          const fsSync = this._kernel.filesystem.fsSync
+          fsSync.unlinkSync(resolvedPath)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
+      },
+
+      path_remove_directory: (dirfd: number, pathPtr: number, pathLen: number): number => {
+        try {
+          const pathStr = readStringFromMemory(pathPtr, pathLen, activeMemory)
+          const resolvedPath = resolvePath(dirfd, pathStr)
+
+          const fsSync = this._kernel.filesystem.fsSync
+          fsSync.rmdirSync(resolvedPath)
+          return 0
+        } catch (err) {
+          return mapFilesystemError(err as Error)
+        }
+      },
+
+      path_rename: (oldDirfd: number, oldPathPtr: number, oldPathLen: number, newDirfd: number, newPathPtr: number, newPathLen: number): number => {
+        try {
+          const oldPathStr = readStringFromMemory(oldPathPtr, oldPathLen, activeMemory)
+          const newPathStr = readStringFromMemory(newPathPtr, newPathLen, activeMemory)
+          const oldPath = resolvePath(oldDirfd, oldPathStr)
+          const newPath = resolvePath(newDirfd, newPathStr)
+
+          const fsSync = this._kernel.filesystem.fsSync
+          fsSync.renameSync(oldPath, newPath)
+          return 0
+        } catch (error) {
+          return mapFilesystemError(error as Error)
+        }
       },
 
       clock_time_get: (_clockId: number, _precision: bigint, time: number): number => {
@@ -1062,7 +2802,8 @@ export class Wasm implements IWasm {
       getAsyncifyState: () => ({ pending: asyncifyPending, dataAddr: asyncifyDataAddr }),
       resetAsyncifyPending: () => { asyncifyPending = false },
       setAsyncifyDataAddr: (addr: number) => { asyncifyDataAddr = addr },
-      waitForStdinData
+      waitForStdinData,
+      initializePreOpenedDirs
     }
   }
 
@@ -1070,24 +2811,26 @@ export class Wasm implements IWasm {
    * Load a WASI component with stream integration
    * Supports both WASI Preview 1 and Preview 2
    */
-  async loadWasiComponent(path: string, streams: WasiStreamOptions, args: string[] = []): Promise<WasiComponentResult> {
+  async loadWasiComponent(path: string, streams: WasiStreamOptions, args: string[] = [], shell?: Shell, pid?: number): Promise<WasiComponentResult> {
     const wasmBytes = await this._kernel.filesystem.fs.readFile(path)
     const version = await this.detectWasiVersion(wasmBytes)
     
     if (version === 'preview1') {
-      return this.loadWasiPreview1(path, wasmBytes, streams, args)
+      return this.loadWasiPreview1(path, wasmBytes, streams, args, shell, pid)
     }
     
-    return this.loadWasiPreview2(path, wasmBytes, streams, args)
+    return this.loadWasiPreview2(path, wasmBytes, streams, args, shell)
   }
 
   /**
    * Load WASI Preview 1 component
    */
-  private async loadWasiPreview1(path: string, wasmBytes: Uint8Array, streams: WasiStreamOptions, args: string[]): Promise<WasiComponentResult> {
+  private async loadWasiPreview1(path: string, wasmBytes: Uint8Array, streams: WasiStreamOptions, args: string[], shell?: Shell, pid?: number): Promise<WasiComponentResult> {
     const asyncifyInfo = await this.detectAsyncify(wasmBytes)
     const memoryRequirements = await this.detectMemoryImport(wasmBytes, 'env') ?? { initial: 1 }
-    const { imports, setMemory, setInstance, flush, waitForInput, getAsyncifyState, resetAsyncifyPending, setAsyncifyDataAddr, waitForStdinData } = this.createWasiPreview1Bindings(streams, args, asyncifyInfo.hasAsyncify, memoryRequirements)
+    const { imports, setMemory, setInstance, flush, waitForInput, getAsyncifyState, resetAsyncifyPending, setAsyncifyDataAddr, waitForStdinData, initializePreOpenedDirs } = this.createWasiPreview1Bindings(streams, args, asyncifyInfo.hasAsyncify, memoryRequirements, shell, pid)
+    
+    await initializePreOpenedDirs()
     const buffer = wasmBytes.buffer.slice(wasmBytes.byteOffset, wasmBytes.byteOffset + wasmBytes.byteLength) as ArrayBuffer
     
     // Log all required imports for debugging
@@ -1145,9 +2888,28 @@ export class Wasm implements IWasm {
             }
           }
         }
+      } else {
+        // Try calling __wasm_call_ctors if it exists (Emscripten initialization)
+        if (typeof exports.__wasm_call_ctors === 'function') {
+          try {
+            (exports.__wasm_call_ctors as () => void)()
+          } catch {
+            // Ignore initialization errors
+          }
+        }
+        
+        // For library modules without _start, we can't run them as CLI
+        // They need to be used through a JavaScript wrapper
+        this._kernel.log.warn('WASM module has no _start function - it appears to be a library module, not a CLI application')
+        exitCode = 0
       }
       
       await flush()
+      
+      if (exitCode !== undefined) {
+        await new Promise(resolve => setTimeout(resolve, 10))
+        await flush()
+      }
     } catch (error) {
       this._kernel.log.error(`Failed to instantiate WASI Preview 1: ${(error as Error).message}`)
       exitCode = 1
@@ -1322,11 +3084,20 @@ export class Wasm implements IWasm {
    * Load WASI Preview 2 component
    * Uses preview2-shim for WASI Preview2 support
    */
-  private async loadWasiPreview2(path: string, wasmBytes: Uint8Array, streams: WasiStreamOptions, args: string[]): Promise<WasiComponentResult> {
+  private async loadWasiPreview2(path: string, wasmBytes: Uint8Array, streams: WasiStreamOptions, args: string[], shell?: Shell): Promise<WasiComponentResult> {
     const shim = new WASIShim()
-    const shimWithArgs = shim as unknown as { setArgs?: (args: string[]) => void }
+    const shimWithArgs = shim as unknown as { setArgs?: (args: string[]) => void; setEnv?: (env: Record<string, string>) => void }
     if (args.length > 0 && typeof shimWithArgs.setArgs === 'function') {
       shimWithArgs.setArgs(args)
+    }
+    
+    // Set environment variables if shell is provided and shim supports it
+    if (shell && shell.env && typeof shimWithArgs.setEnv === 'function') {
+      const env: Record<string, string> = {}
+      for (const [key, value] of shell.env.entries()) {
+        env[key] = value
+      }
+      shimWithArgs.setEnv(env)
     }
     
     const importObject = shim.getImportObject() as Record<string, unknown>
