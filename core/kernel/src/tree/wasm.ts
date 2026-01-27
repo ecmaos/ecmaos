@@ -322,7 +322,7 @@ export class Wasm implements IWasm {
       return this.loadWasiPreview1(path, wasmBytes, streams, args, shell, pid)
     }
     
-    return this.loadWasiPreview2(path, wasmBytes, streams, args, shell)
+    return this.loadWasiPreview2(path, wasmBytes, streams, args, shell || this._kernel.shell)
   }
 
   /**
@@ -606,8 +606,14 @@ export class Wasm implements IWasm {
    * Load WASI Preview 2 component
    * Uses jco to transpile component model to core wasm + JS, then uses preview2-shim
    */
-  private async loadWasiPreview2(path: string, wasmBytes: Uint8Array, streams: WasiStreamOptions, args: string[], shell?: Shell): Promise<WasiComponentResult> {
-    const result = await createWasiPreview2Bindings(path, wasmBytes, streams, args, this._kernel, shell)
+  private async loadWasiPreview2(path: string, wasmBytes: Uint8Array, streams: WasiStreamOptions, args: string[], shell: Shell): Promise<WasiComponentResult> {
+    const result = await createWasiPreview2Bindings({
+      kernel: this._kernel,
+      streams,
+      args,
+      shell,
+      wasmBytes
+    })
     this._modules.set(path, {
       module: null as unknown as WebAssembly.Module,
       instance: result.instance
