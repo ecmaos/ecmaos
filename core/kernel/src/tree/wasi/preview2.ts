@@ -10,14 +10,19 @@ interface WasiComponentResult {
  * Load a WASI Preview 2 component
  * Uses jco to transpile component model to core wasm + JS, then uses preview2-shim
  */
-export default async function loadWasiPreview2(
-  path: string,
-  wasmBytes: Uint8Array,
+export default async function createWasiPreview2Bindings({
+  kernel,
+  streams,
+  args,
+  shell,
+  wasmBytes,
+}: {
+  kernel: Kernel,
   streams: WasiStreamOptions,
   args: string[],
-  kernel: Kernel,
-  shell?: Shell
-): Promise<WasiComponentResult> {
+  shell: Shell,
+  wasmBytes: Uint8Array
+}): Promise<WasiComponentResult> {
   const stdinReader = streams.stdin.getReader()
   const stdoutWriter = streams.stdout.getWriter()
   const stderrWriter = streams.stderr.getWriter()
