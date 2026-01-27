@@ -1015,8 +1015,11 @@ export class Terminal extends XTerm implements ITerminal {
     const lastWord = parts[parts.length - 1]
     if (!lastWord) return []
     
-    // If this is the first word (command), search in PATH
-    if (parts.length === 1) {
+    // Check if the last word is a path (starts with ./ or / or ~)
+    const isPath = lastWord.startsWith('./') || lastWord.startsWith('/') || lastWord.startsWith('~')
+    
+    // If this is the first word (command), search in PATH (unless it's a path)
+    if (parts.length === 1 && !isPath) {
       const pathDirs = (this._shell.env.get('PATH') || '').split(':')
       const matches: string[] = []
       

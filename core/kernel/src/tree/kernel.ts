@@ -732,6 +732,7 @@ export class Kernel implements IKernel {
         this.shell.env.set('SHELL', user.shell || 'ecmaos')
         this.shell.env.set('HOME', user.home || '/root')
         this.shell.env.set('USER', user.username)
+        this.shell.env.set('HOSTNAME', globalThis.location.hostname || 'localhost')
         process.env = Object.fromEntries(this.shell.env)
         await this.shell.loadEnvFile()
         this.updateLocaleFromEnv()

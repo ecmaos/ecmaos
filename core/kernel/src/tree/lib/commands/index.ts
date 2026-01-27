@@ -214,6 +214,42 @@ export const TerminalCommands = (kernel: Kernel, shell: Shell, terminal: Termina
         return await upload({ kernel, shell, terminal, process, args: argv.path ? [argv.path] : [] })
       }
     }),
+    export: new TerminalCommand({
+      command: 'export',
+      description: 'Set environment variables',
+      kernel,
+      shell,
+      terminal,
+      options: [
+        HelpOption,
+        { name: 'unset', alias: 'n', type: Boolean, description: 'Remove the export property from each name' },
+        { name: 'print', alias: 'p', type: Boolean, description: 'Print all exported variables' },
+        { name: 'vars', type: String, multiple: true, defaultOption: true, description: 'Environment variable assignments (e.g., VAR=value) or variable names to unset' }
+      ],
+      run: async (argv: CommandLineOptions, process?: Process, rawArgv?: string[]) => {
+        if (argv.print) {
+          return await exportCmd({ kernel, shell, terminal, process, args: [], printOnly: true })
+        }
+        
+        let assignments: string[] = []
+        
+        if (argv.vars) {
+          const vars = Array.isArray(argv.vars) ? argv.vars : [argv.vars]
+          assignments = vars.filter(v => v && (argv.unset || v.includes('=')))
+        } else if (rawArgv && rawArgv.length > 1) {
+          assignments = rawArgv.slice(1).filter(arg => {
+            if (!arg || arg.startsWith('-')) return false
+            return argv.unset ? true : arg.includes('=')
+          })
+        }
+        
+        if (assignments.length === 0 && !argv.unset && (!rawArgv || rawArgv.length <= 1)) {
+          return await exportCmd({ kernel, shell, terminal, process, args: [], printOnly: true })
+        }
+        
+        return await exportCmd({ kernel, shell, terminal, process, args: assignments, unset: argv.unset })
+      }
+    }),
   }
 
   // Merge coreutils and kernel commands
@@ -512,5 +548,61 @@ export const upload = async ({ kernel, shell, terminal, process, args }: Command
   }
 
   input.click()
+  return 0
+}
+
+export const exportCmd = async ({ shell, terminal, process, args, printOnly, unset }: CommandArgs & { printOnly?: boolean, unset?: boolean }) => {
+  const assignments = args as string[]
+
+  if (printOnly) {
+    const entries = Array.from(shell.env.entries())
+      .filter(([key]) => /^[A-Z_][A-Z0-9_]*$/i.test(key))
+      .sort(([a], [b]) => a.localeCompare(b))
+    
+    for (const [key, value] of entries) {
+      await writelnStdout(process, terminal, `${key}=${value}`)
+    }
+    return 0
+  }
+
+  if (assignments.length === 0) {
+    return 0
+  }
+
+  for (const assignment of assignments) {
+    if (unset) {
+      const key = assignment.trim()
+      if (!key || !/^[A-Z_][A-Z0-9_]*$/i.test(key)) {
+        await writelnStderr(process, terminal, chalk.red(`export: invalid variable name: ${key}`))
+        return 1
+      }
+      shell.env.delete(key)
+      delete globalThis.process.env[key]
+      continue
+    }
+
+    if (!assignment.includes('=')) {
+      await writelnStderr(process, terminal, chalk.red(`export: invalid assignment: ${assignment}`))
+      return 1
+    }
+
+    const equalIndex = assignment.indexOf('=')
+    const key = assignment.slice(0, equalIndex).trim()
+    let value = assignment.slice(equalIndex + 1)
+
+    if (!key || !/^[A-Z_][A-Z0-9_]*$/i.test(key)) {
+      await writelnStderr(process, terminal, chalk.red(`export: invalid variable name: ${key}`))
+      return 1
+    }
+
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1)
+    }
+
+    shell.env.set(key, value)
+    globalThis.process.env[key] = value
+  }
+
   return 0
 }
