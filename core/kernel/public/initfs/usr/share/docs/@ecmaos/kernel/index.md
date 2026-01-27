@@ -42,7 +42,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 
 ## Features
 
-- TypeScript, WebAssembly, AssemblyScript, C++
+- TypeScript, WebAssembly, AssemblyScript, Rust, C++
 - Filesystem supporting multiple backends powered by [zenfs](https://github.com/zen-fs/core)
 - Terminal interface powered by [xterm.js](https://xtermjs.org)
 - Streams for handling input and output, allowing redirection and piping
@@ -89,11 +89,25 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - The main idea is that data and custom code can be loaded into it from the OS for WASM-native performance, as well as providing various utilities
 - Confusingly, the Kernel loads the BIOS — not the other way around -->
 
+### Binaries
+
+> [/core/kernel/src/tree/wasm.ts](/core/kernel/src/tree/wasm.ts)
+
+- The native binary format for ecmaOS is WebAssembly
+- The kernel supports both WASI Preview 1 and WASI Preview 2 (WIP)
+- You can run WASM binaries directly:
+  - `/root/bin/hello.wasm --help`
+- The `.wasm` extension is optional
+- Compiling can be as simple as:
+  - `$ rustc --target wasm32-wasip1 -o hello.wasm hello.rs`
+  - `$ emcc -o hello.wasm hello.c -sSTANDALONE_WASM`
+- You can also load WASM+JS harnesses manually
+
 ### Commands
 
 > [/core/kernel/src/tree/lib/commands](/core/kernel/src/tree/lib/commands)
 
-- `Commands` are built-in shell commands that are provided by the kernel, e.g. `download`, `install`, `load`, etc.
+- `Commands` are built-in shell commands that are provided by the kernel, e.g. `download`, `install`, `load`, etc. Many or all of these will be migrated to the `@ecmaos/coreutils` package in the future.
 
 ### Coreutils
 
@@ -222,12 +236,12 @@ index.json /mnt/api fetch baseUrl=http://localhost:30808
 - Built-in translations are in the [/core/kernel/locales](/core/kernel/locales) directory and compiled into the kernel at build time
 - Translations can be defined and loaded from the filesystem at runtime
 - Override or add translations in `/usr/share/locales/{lang}/{namespace}.json`
-- e.g. `/usr/share/locales/en/kernel.json`
+  - e.g. `/usr/share/locales/en/kernel.json`
 - System locale can be set from the `/etc/default/locale` file
 - User locale can be set from the `LANG` environment variable
 - `kernel.i18n.t` is the primary translation function for the kernel
 - `kernel.i18n.ns` provides access to translation functions for specific namespaces
-- e.g. `kernel.i18n.ns.common('Hello')`
+  - e.g. `kernel.i18n.ns.common('Hello')`
 
 ### Kernel
 
@@ -254,7 +268,7 @@ index.json /mnt/api fetch baseUrl=http://localhost:30808
   - Telemetry (OpenTelemetry)
   - Terminal (xterm.js)
   - User Manager
-  - WASM Loader
+  - WASM Loader (WASI Preview 1 mostly complete; WASI Preview 2 WIP)
   <!-- - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps -->
   - Web Workers
   - Window Manager (WinBox)
@@ -435,7 +449,7 @@ The [apps](/apps) directory in the repository contains some examples of how to d
 - `@ecmaos-apps/boilerplate`: A minimal boilerplate app for reference
 - `@ecmaos-apps/code`: A simple code editor app using [Monaco](https://microsoft.github.io/monaco-editor/); serves as a good reference for more complex apps
 
-Basically, your app's [bin](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#bin) file has a `main` (or default) function export that is passed the kernel reference and can use it to interact with the system as needed. A shebang line of `#!ecmaos:bin:app:myappname` is required at the top of the bin file to identify it as an app.
+Basically, your app's [bin](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#bin) file has a `main` (or unnamed default) function export that is passed the kernel reference and can use it to interact with the system as needed. A shebang line of `#!ecmaos:bin:app:myappname` is required at the top of the bin file to identify it as an app.
 
 ## App/Kernel Interface Example
 
@@ -464,12 +478,11 @@ ecmaOS is currently in active development. It is not considered stable and the s
 Things to keep in mind:
 
 - If things go wrong or break, clear your browser cache and site data for ecmaOS
-- Things have changed a lot since the tests were written, so they need to be updated and fixed
+- The tests need to be updated and expanded
 - The kernel is designed to be run in an environment with a DOM (i.e. a browser)
 - Many features are only available on Chromium-based browsers, and many more behind feature flags
 - There will be a lot of technical challenges to overcome, and many things will first be implemented in a non-optimal way
 - Command interfaces won't match what you might be used to from a traditional Linux environment; not all commands and options are supported. Over time, Linuxish commands will be fleshed out and made to behave in a more familiar way.
-- Globbing doesn't work in the terminal yet, [but is supported at the filesystem level](https://zenfs.dev/core/functions/fs.promises.glob.html)
 
 ## Development
 
