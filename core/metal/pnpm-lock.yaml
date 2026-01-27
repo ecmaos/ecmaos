@@ -7,8 +7,6 @@ settings:
 overrides:
   cross-spawn: '>=7.0.5'
 
-pnpmfileChecksum: sha256-Zzw6AUu2SJputeGoAFT8YK9JWXNZcYWS/QbYOLDEi5E=
-
 importers:
 
   .:
@@ -18,13 +16,13 @@ importers:
         version: 9.1.0
       '@hono/node-server':
         specifier: ^1.13.2
-        version: 1.13.2(hono@4.11.4)
+        version: 1.13.2(hono@4.11.7)
       '@hono/node-ws':
         specifier: ^1.0.4
-        version: 1.0.4(@hono/node-server@1.13.2(hono@4.11.4))
+        version: 1.0.4(@hono/node-server@1.13.2(hono@4.11.7))
       hono:
         specifier: ^4.6.7
-        version: 4.11.4
+        version: 4.11.7
       jose:
         specifier: ^5.9.6
         version: 5.9.6
@@ -194,6 +192,7 @@ packages:
   '@faker-js/faker@9.1.0':
     resolution: {integrity: sha512-GJvX9iM9PBtKScJVlXQ0tWpihK3i0pha/XAhzQa1hPK/ILLa1Wq3I63Ij7lRtqTwmdTxRCyrUhLC5Sly9SLbug==}
     engines: {node: '>=18.0.0', npm: '>=9.0.0'}
+    deprecated: Please update to a newer version
 
   '@hono/node-server@1.13.2':
     resolution: {integrity: sha512-0w8nEmAyx0Ul0CQp8BL2VtAG4YVdpzXd/mvvM+l0G5Oq22pUyHS+KeFFPSY+czLOF5NAiV3MUNPD1n14Ol5svg==}
@@ -377,8 +376,8 @@ packages:
     resolution: {integrity: sha512-sKJf1+ceQBr4SMkvQnBDNDtf4TXpVhVGateu0t918bl30FnbE2m4vNLX+VWe/dpjlb+HugGYzW7uQXH98HPEYw==}
     engines: {node: '>=4'}
 
-  hono@4.11.4:
-    resolution: {integrity: sha512-U7tt8JsyrxSRKspfhtLET79pU8K+tInj5QZXs1jSugO1Vq5dFj3kmZsRldo29mTBfcjDRVRXrEZ6LS63Cog9ZA==}
+  hono@4.11.7:
+    resolution: {integrity: sha512-l7qMiNee7t82bH3SeyUCt9UF15EVmaBvsppY2zQtrbIhl/yzBTny+YUxsVjSjQ6gaqaeVtZmGocom8TzBlA4Yw==}
     engines: {node: '>=16.9.0'}
 
   http-cache-semantics@4.1.1:
@@ -644,6 +643,7 @@ packages:
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
 
   to-regex-range@5.0.1:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
@@ -778,13 +778,13 @@ snapshots:
 
   '@faker-js/faker@9.1.0': {}
 
-  '@hono/node-server@1.13.2(hono@4.11.4)':
+  '@hono/node-server@1.13.2(hono@4.11.7)':
     dependencies:
-      hono: 4.11.4
+      hono: 4.11.7
 
-  '@hono/node-ws@1.0.4(@hono/node-server@1.13.2(hono@4.11.4))':
+  '@hono/node-ws@1.0.4(@hono/node-server@1.13.2(hono@4.11.7))':
     dependencies:
-      '@hono/node-server': 1.13.2(hono@4.11.4)
+      '@hono/node-server': 1.13.2(hono@4.11.7)
       ws: 8.18.0
     transitivePeerDependencies:
       - bufferutil
@@ -997,7 +997,7 @@ snapshots:
 
   has-flag@3.0.0: {}
 
-  hono@4.11.4: {}
+  hono@4.11.7: {}
 
   http-cache-semantics@4.1.1: {}
 
