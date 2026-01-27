@@ -37,23 +37,25 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 
 [![Discord](https://img.shields.io/discord/1311804229127508081?label=discord&logo=discord&logoColor=white)](https://discord.gg/ZJYGkbVsCh)
 [![Matrix](https://img.shields.io/matrix/ecmaos:matrix.org.svg?label=%23ecmaos%3Amatrix.org&logo=matrix&logoColor=white)](https://matrix.to/#/#ecmaos:matrix.org)
-[![Bluesky](https://img.shields.io/badge/follow-on%20Bluesky-blue?logo=bluesky&logoColor=white)](https://ecmaos.bsky.social)
+[![Bluesky](https://img.shields.io/badge/follow-on%20Bluesky-blue?logo=bluesky&logoColor=white)](https://bsky.app/profile/ecmaos.sh)
 [![Reddit](https://img.shields.io/reddit/subreddit-subscribers/ecmaos?style=flat&logo=reddit&logoColor=white&label=r/ecmaos)](https://www.reddit.com/r/ecmaos)
 
 ## Features
 
-- TypeScript, WebAssembly, AssemblyScript, C++
+- TypeScript, WebAssembly, AssemblyScript, Rust, C++
 - Filesystem supporting multiple backends powered by [zenfs](https://github.com/zen-fs/core)
 - Terminal interface powered by [xterm.js](https://xtermjs.org)
-- Pseudo-streams, allowing redirection and piping
+- Streams for handling input and output, allowing redirection and piping
 - Device framework with a common interface for working with hardware: WebBluetooth, WebSerial, WebHID, WebUSB, etc.
 - Some devices have a builtin CLI, so you can run them like normal commands: `# /dev/bluetooth`
-- Install any client-side npm package (this doesn't mean it will work out of the box as expected)
+- WebAssembly binaries are the native executable format; `# ./hello.wasm --world`
+- Install any client-side npm package; `# install axios`
 - Event manager for dispatching and subscribing to events
 - Process manager for running applications and daemons
 - Interval manager for scheduling recurring operations with support for cron expressions via the `cron` command
 - Memory manager for managing pseudo-memory: Collections, Config, Heap, and Stack
 - Storage manager for managing Storage API capabilities: IndexedDB, localStorage, etc.
+- User manager for managing users and authentication (all client-side, so limited real security but useful for organizational purposes)
 - Internationalization framework for translating text powered by [i18next](https://www.i18next.com)
 - Window manager powered by [WinBox](https://github.com/nextapps-de/winbox)
 <!-- - `BIOS`: A C++ module compiled to WebAssembly with [Emscripten](https://emscripten.org) providing performance-critical functionality -->
@@ -88,17 +90,31 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - The main idea is that data and custom code can be loaded into it from the OS for WASM-native performance, as well as providing various utilities
 - Confusingly, the Kernel loads the BIOS — not the other way around -->
 
+### Binaries
+
+> [/core/kernel/src/tree/wasm.ts](/core/kernel/src/tree/wasm.ts)
+
+- The native binary format for ecmaOS is WebAssembly
+- The kernel supports both WASI Preview 1 and WASI Preview 2 (WIP)
+- You can run WASM binaries directly:
+  - `/root/bin/hello.wasm --help`
+- The `.wasm` extension is optional
+- Compiling can be as simple as:
+  - `$ rustc --target wasm32-wasip1 -o hello.wasm hello.rs`
+  - `$ emcc -o hello.wasm hello.c -sSTANDALONE_WASM`
+- You can also load WASM+JS harnesses manually
+
 ### Commands
 
 > [/core/kernel/src/tree/lib/commands](/core/kernel/src/tree/lib/commands)
 
-- `Commands` are built-in shell commands that are provided by the kernel, e.g. `download`, `install`, `load`, etc.
+- `Commands` are built-in shell commands that are provided by the kernel, e.g. `download`, `install`, `load`, etc. Many or all of these will be migrated to the `@ecmaos/coreutils` package in the future.
 
 ### Coreutils
 
 > [/core/utils](/core/utils)
 
-- `Coreutils` are similar to `Commands`, but are provided by the `@ecmaos/coreutils` package, e.g. `cat`, `cd`, `chmod`, `cp`, `echo`, `ls`, `mkdir`, `mv`, `pwd`, `rm`, `rmdir`, `stat`, `touch`, etc.
+- `Coreutils` are similar to `Commands`, but are provided by the `@ecmaos/coreutils` package, e.g. `cat`, `cd`, `chmod`, `cp`, `echo`, `git`, `ls`, `mkdir`, `mv`, `pwd`, `rm`, `rmdir`, `stat`, `touch`, etc.
 
 ### Devices
 
@@ -214,6 +230,20 @@ index.json /mnt/api fetch baseUrl=http://localhost:30808
 - It's used to tie the kernel into a desktop or mobile environment, allowing for native functionality
 - It needs more work -->
 
+### Internationalization
+
+> [/core/kernel/src/tree/i18n](/core/kernel/src/tree/i18n)
+
+- Built-in translations are in the [/core/kernel/locales](/core/kernel/locales) directory and compiled into the kernel at build time
+- Translations can be defined and loaded from the filesystem at runtime
+- Override or add translations in `/usr/share/locales/{lang}/{namespace}.json`
+  - e.g. `/usr/share/locales/en/kernel.json`
+- System locale can be set from the `/etc/default/locale` file
+- User locale can be set from the `LANG` environment variable
+- `kernel.i18n.t` is the primary translation function for the kernel
+- `kernel.i18n.ns` provides access to translation functions for specific namespaces
+  - e.g. `kernel.i18n.ns.common('Hello')`
+
 ### Kernel
 
 > [/core/kernel](/core/kernel)
@@ -239,7 +269,7 @@ index.json /mnt/api fetch baseUrl=http://localhost:30808
   - Telemetry (OpenTelemetry)
   - Terminal (xterm.js)
   - User Manager
-  - WASM Loader
+  - WASM Loader (WASI Preview 1 mostly complete; WASI Preview 2 WIP)
   <!-- - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps -->
   - Web Workers
   - Window Manager (WinBox)
@@ -336,12 +366,12 @@ cron reload # reload crontabs from files
 cron list # list all cron jobs
 download hello.txt
 edit hello.txt
-env hello --set world ; env
+env hello=world ; env
 fetch https://ipecho.net/plain > /tmp/myip.txt
 fetch -o /tmp/initfs.tar.gz /initfs.tar.gz
-fetch /initfs.tar.gz | head | hex
+fetch /initfs.tar.gz | head | xxd
 fetch /xkcd-os.sixel # xterm.js includes sixel support
-fetch /swapi/fs/home/user/hello.txt # fetch a file from the filesystem
+fetch /swapi/fs/home/user/hello.txt # fetch a file from the filesystem via SWAPI
 fetch /swapi/fake/person/fullName # fetch a random person from the SWAPI
 install jquery
 install @ecmaos-apps/boilerplate
@@ -420,7 +450,7 @@ The [apps](/apps) directory in the repository contains some examples of how to d
 - `@ecmaos-apps/boilerplate`: A minimal boilerplate app for reference
 - `@ecmaos-apps/code`: A simple code editor app using [Monaco](https://microsoft.github.io/monaco-editor/); serves as a good reference for more complex apps
 
-Basically, your app's [bin](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#bin) file has a `main` (or default) function export that is passed the kernel reference and can use it to interact with the system as needed. A shebang line of `#!ecmaos:bin:app:myappname` is required at the top of the bin file to identify it as an app.
+Basically, your app's [bin](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#bin) file has a `main` (or unnamed default) function export that is passed the kernel reference and can use it to interact with the system as needed. A shebang line of `#!ecmaos:bin:app:myappname` is required at the top of the bin file to identify it as an app.
 
 ## App/Kernel Interface Example
 
@@ -449,12 +479,11 @@ ecmaOS is currently in active development. It is not considered stable and the s
 Things to keep in mind:
 
 - If things go wrong or break, clear your browser cache and site data for ecmaOS
-- Things have changed a lot since the tests were written, so they need to be updated and fixed
+- The tests need to be updated and expanded
 - The kernel is designed to be run in an environment with a DOM (i.e. a browser)
 - Many features are only available on Chromium-based browsers, and many more behind feature flags
 - There will be a lot of technical challenges to overcome, and many things will first be implemented in a non-optimal way
 - Command interfaces won't match what you might be used to from a traditional Linux environment; not all commands and options are supported. Over time, Linuxish commands will be fleshed out and made to behave in a more familiar way.
-- Globbing doesn't work in the terminal yet, [but is supported at the filesystem level](https://zenfs.dev/core/functions/fs.promises.glob.html)
 
 ## Development
 

@@ -25,7 +25,7 @@
     "unpublish:dev": "npm unpublish @ecmaos-apps/edit --registry=http://localhost:4873 --force"
   },
   "dependencies": {
-    "ansi-escape-sequences": "^6.2.1"
+    "ansi-escape-sequences": "^6.2.4"
   },
   "devDependencies": {
     "@ecmaos/config-typescript": "workspace:^",

@@ -369,9 +369,9 @@ edit hello.txt
 env hello=world ; env
 fetch https://ipecho.net/plain > /tmp/myip.txt
 fetch -o /tmp/initfs.tar.gz /initfs.tar.gz
-fetch /initfs.tar.gz | head | hex
+fetch /initfs.tar.gz | head | xxd
 fetch /xkcd-os.sixel # xterm.js includes sixel support
-fetch /swapi/fs/home/user/hello.txt # fetch a file from the filesystem
+fetch /swapi/fs/home/user/hello.txt # fetch a file from the filesystem via SWAPI
 fetch /swapi/fake/person/fullName # fetch a random person from the SWAPI
 install jquery
 install @ecmaos-apps/boilerplate

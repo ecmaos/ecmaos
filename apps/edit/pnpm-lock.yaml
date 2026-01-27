@@ -14,7 +14,7 @@ importers:
   .:
     dependencies:
       ansi-escape-sequences:
-        specifier: ^6.2.1
+        specifier: ^6.2.4
         version: 6.2.4
     devDependencies:
       '@ecmaos/config-typescript':

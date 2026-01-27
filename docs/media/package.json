@@ -22,7 +22,7 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@10.28.0",
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "build": "turbo run build",
     "build:docs": "typedoc && echo docs.ecmaos.sh > docs/CNAME",
@@ -41,8 +41,8 @@
     "sync:docs": "cp -r docs core/kernel/public/initfs/usr/share/docs/@ecmaos/kernel",
     "sync:initfs": "tar --owner=root --group=root -czf core/kernel/public/initfs.tar.gz -C core/kernel/public/initfs .",
     "sync:initfs:demo": "tar --owner=root --group=root -czf core/kernel/public/initfs.demo.tar.gz -C core/kernel/public/initfs.demo .",
-    "sync:licenses": "cp LICENSE LICENSE-APACHE LICENSE-MIT core/kernel/public/initfs/usr/share/licenses/@ecmaos/kernel/",
-    "sync:readme": "cp README.md core/kernel/README.md && cp README.md core/kernel/public/initfs/usr/share/docs/@ecmaos/kernel/index.md",
+    "sync:licenses": "cp LICENSE LICENSE-APACHE LICENSE-MIT core/kernel/public/initfs/usr/share/licenses/@ecmaos/kernel/ && cp LICENSE LICENSE-APACHE LICENSE-MIT core/kernel/public/initfs.demo/usr/share/licenses/@ecmaos/kernel/",
+    "sync:readme": "cp README.md core/kernel/README.md && cp README.md core/kernel/public/initfs/usr/share/docs/@ecmaos/kernel/index.md && cp README.md core/kernel/public/initfs.demo/usr/share/docs/@ecmaos/kernel/index.md",
     "sync:tutorials": "./utils/sync-tutorials.sh",
     "sync:version": "pnpm version $(node -e \"console.log(require('./core/kernel/package.json').version)\") --no-git-tag-version || true",
     "sync:version:html": "./utils/sync-html-version.js",
