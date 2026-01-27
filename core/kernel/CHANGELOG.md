@@ -1,5 +1,34 @@
 # @ecmaos/kernel
 
+## 0.9.7
+
+### Patch Changes
+
+- 9864d20: Major Features:
+  Git coreutil: New git command implementation (core/utils/src/commands/git.ts - 843 lines)
+  Export command: Environment variable management with HOSTNAME set in shell environment
+  WASM/WASI improvements: Enhanced WASI support with preview1 and preview2 implementations
+  Web Kernel → Web OS: Renamed across documentation and meta tags
+  Improvements:
+  BIOS improvements (WIP) and UI HTML sync
+  Terminal command refactoring and structure changes
+  Documentation updates (392 files changed, mostly doc regeneration)
+- Updated dependencies [9864d20]
+  - @ecmaos/coreutils@0.5.3
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.9.6
 
 ### Patch Changes
