@@ -48,7 +48,8 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - Streams for handling input and output, allowing redirection and piping
 - Device framework with a common interface for working with hardware: WebBluetooth, WebSerial, WebHID, WebUSB, etc.
 - Some devices have a builtin CLI, so you can run them like normal commands: `# /dev/bluetooth`
-- Install any client-side npm package (this doesn't mean it will work out of the box as expected)
+- WebAssembly binaries are the native executable format; `# ./hello.wasm --world`
+- Install any client-side npm package; `# install axios`
 - Event manager for dispatching and subscribing to events
 - Process manager for running applications and daemons
 - Interval manager for scheduling recurring operations with support for cron expressions via the `cron` command
@@ -113,7 +114,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 
 > [/core/utils](/core/utils)
 
-- `Coreutils` are similar to `Commands`, but are provided by the `@ecmaos/coreutils` package, e.g. `cat`, `cd`, `chmod`, `cp`, `echo`, `ls`, `mkdir`, `mv`, `pwd`, `rm`, `rmdir`, `stat`, `touch`, etc.
+- `Coreutils` are similar to `Commands`, but are provided by the `@ecmaos/coreutils` package, e.g. `cat`, `cd`, `chmod`, `cp`, `echo`, `git`, `ls`, `mkdir`, `mv`, `pwd`, `rm`, `rmdir`, `stat`, `touch`, etc.
 
 ### Devices
 
