@@ -37,10 +37,73 @@ const gzipFixPlugin = () => {
   }
 }
 
+// TODO: Revisit this approach
+const jcoBrowserFixPlugin = () => {
+  return {
+    name: 'jco-browser-fix',
+    enforce: 'pre' as const,
+    transform(code: string, id: string) {
+      if (id.includes('js-component-bindgen-component.js')) {
+        let modified = code
+
+        // Fix base64Compile to always use browser path (atob instead of Buffer)
+        // The Buffer polyfill causes issues with WebAssembly.compile
+        modified = modified.replace(
+          /const\s+base64Compile\s*=\s*str\s*=>\s*WebAssembly\.compile\(typeof\s+Buffer\s*!==\s*['"]undefined['"]\s*\?\s*Buffer\.from\(str,\s*['"]base64['"]\)\s*:\s*Uint8Array\.from\(atob\(str\),\s*b\s*=>\s*b\.charCodeAt\(0\)\)\);?/g,
+          `const base64Compile = str => WebAssembly.compile(Uint8Array.from(atob(str), b => b.charCodeAt(0)));`
+        )
+        
+        // Fix fetchCompile - async function returns Promise without await, causing Promise<Promise<Module>>
+        modified = modified.replace(
+          /return\s+fetch\(url\)\.then\(WebAssembly\.compileStreaming\);/g,
+          `return await fetch(url).then(WebAssembly.compileStreaming);`
+        )
+
+        // Fix instantiateCore to return { exports } instead of Instance, and handle Promise sources
+        const instantiateCorePattern = /const\s+instantiateCore\s*=\s*WebAssembly\.instantiate;?/g
+        if (instantiateCorePattern.test(code)) {
+          modified = modified.replace(
+            instantiateCorePattern,
+            `const _originalInstantiateCore = WebAssembly.instantiate;
+const instantiateCore = (source, imports) => {
+  const sourceHasThen = source && typeof source.then === 'function';
+  const sourceTypeName = source?.constructor?.name;
+  const isLikelyPromise = sourceTypeName === 'Promise' || sourceHasThen;
+  const sourceIsModule = source instanceof WebAssembly.Module;
+  
+  // If source is a Promise (e.g., from fetchCompile), await it first
+  if (isLikelyPromise && !sourceIsModule) {
+    return source.then(resolvedSource => {
+      return _originalInstantiateCore(resolvedSource, imports).then(result => {
+        const exportsValue = result instanceof WebAssembly.Instance ? result.exports : (result?.instance?.exports || result?.exports);
+        return { exports: exportsValue };
+      });
+    });
+  }
+  
+  // If source is not a Promise, proceed normally
+  return _originalInstantiateCore(source, imports).then(result => {
+    const exportsValue = result instanceof WebAssembly.Instance ? result.exports : (result?.instance?.exports || result?.exports);
+    return { exports: exportsValue };
+  });
+};`
+          )
+        }
+
+        if (modified !== code) {
+          return { code: modified, map: null }
+        }
+      }
+      return null
+    }
+  }
+}
+
 export default defineConfig({
   envPrefix: 'ECMAOS_',
   plugins: [
     gzipFixPlugin(),
+    jcoBrowserFixPlugin(),
     nodePolyfills({
       protocolImports: true,
       globals: { Buffer: true, global: true, process: true },
@@ -71,13 +134,15 @@ export default defineConfig({
       // Ensure buffer shim resolves correctly (both singular and plural for compatibility)
       'vite-plugin-node-polyfills/shim/buffer': 'vite-plugin-node-polyfills/shims/buffer',
       'vite-plugin-node-polyfills/shim/global': 'vite-plugin-node-polyfills/shims/global',
-      'vite-plugin-node-polyfills/shim/process': 'vite-plugin-node-polyfills/shims/process'
+      'vite-plugin-node-polyfills/shim/process': 'vite-plugin-node-polyfills/shims/process',
+      // Stub node:fs/promises for browser builds (jco library tries to import it)
+      'node:fs/promises': path.resolve(__dirname, 'src/stubs/node-fs-promises.ts')
     },
     dedupe: ['vite-plugin-node-polyfills']
   },
   optimizeDeps: {
     include: ['vite-plugin-node-polyfills/shims/buffer', 'vite-plugin-node-polyfills/shims/global', 'vite-plugin-node-polyfills/shims/process'],
-    exclude: ['@wasmer/sdk']
+    exclude: ['@wasmer/sdk', '@bytecodealliance/jco']
   },
   server: {
     port: Number(process.env['ECMAOS_PORT']) || 30443,

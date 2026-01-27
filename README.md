@@ -42,7 +42,7 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 
 ## Features
 
-- TypeScript, WebAssembly, AssemblyScript, C++
+- TypeScript, WebAssembly, AssemblyScript, Rust, C++
 - Filesystem supporting multiple backends powered by [zenfs](https://github.com/zen-fs/core)
 - Terminal interface powered by [xterm.js](https://xtermjs.org)
 - Streams for handling input and output, allowing redirection and piping
@@ -89,11 +89,25 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - The main idea is that data and custom code can be loaded into it from the OS for WASM-native performance, as well as providing various utilities
 - Confusingly, the Kernel loads the BIOS — not the other way around -->
 
+### Binaries
+
+> [/core/kernel/src/tree/wasm.ts](/core/kernel/src/tree/wasm.ts)
+
+- The native binary format for ecmaOS is WebAssembly
+- The kernel supports both WASI Preview 1 and WASI Preview 2 (WIP)
+- You can run WASM binaries directly:
+  - `/root/bin/hello.wasm --help`
+- The `.wasm` extension is optional
+- Compiling can be as simple as:
+  - `$ rustc --target wasm32-wasip1 -o hello.wasm hello.rs`
+  - `$ emcc -o hello.wasm hello.c -sSTANDALONE_WASM`
+- You can also load WASM+JS harnesses manually
+
 ### Commands
 
 > [/core/kernel/src/tree/lib/commands](/core/kernel/src/tree/lib/commands)
 
-- `Commands` are built-in shell commands that are provided by the kernel, e.g. `download`, `install`, `load`, etc.
+- `Commands` are built-in shell commands that are provided by the kernel, e.g. `download`, `install`, `load`, etc. Many or all of these will be migrated to the `@ecmaos/coreutils` package in the future.
 
 ### Coreutils
 
@@ -254,7 +268,7 @@ index.json /mnt/api fetch baseUrl=http://localhost:30808
   - Telemetry (OpenTelemetry)
   - Terminal (xterm.js)
   - User Manager
-  - WASM Loader
+  - WASM Loader (WASI Preview 1 mostly complete; WASI Preview 2 WIP)
   <!-- - [WebContainer](https://github.com/stackblitz/webcontainer-core) for running Node.js apps -->
   - Web Workers
   - Window Manager (WinBox)

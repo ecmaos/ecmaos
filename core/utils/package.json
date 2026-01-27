@@ -43,6 +43,7 @@
     "cronstrue": "^3.9.0",
     "dropbox": "^10.34.0",
     "human-format": "^1.2.1",
+    "isomorphic-git": "^1.36.3",
     "marked": "^17.0.1",
     "modern-tar": "^0.7.3"
   },
