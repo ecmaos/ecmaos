@@ -2114,7 +2114,6 @@ export class Kernel implements IKernel {
    */
   async switchTty(ttyNumber: number): Promise<void> {
     if (ttyNumber < 0 || ttyNumber > 9) throw new Error('TTY number must be between 0 and 9')
-
     if (ttyNumber === this._activeTty) return
 
     const previousTty = this._activeTty
@@ -2124,22 +2123,16 @@ export class Kernel implements IKernel {
     if (currentShell) {
       currentShell.terminal.unlisten()
       const currentContainer = document.getElementById(`terminal-tty${previousTty}`)
-      if (currentContainer) {
-        currentContainer.classList.remove('active')
-      }
+      if (currentContainer) currentContainer.classList.remove('active')
     }
 
     const targetContainer = document.getElementById(`terminal-tty${ttyNumber}`)
-    if (targetContainer) {
-      targetContainer.classList.add('active')
-    }
+    if (targetContainer) targetContainer.classList.add('active')
 
     this._showTtyIndicator(ttyNumber)
 
     let targetShell = this._shells.get(ttyNumber)
-    if (!targetShell) {
-      targetShell = await this.createShell(ttyNumber)
-    }
+    if (!targetShell) targetShell = await this.createShell(ttyNumber)
 
     requestAnimationFrame(() => {
       if (targetShell.terminal.addons?.get('fit')) (targetShell.terminal.addons.get('fit') as FitAddon).fit()
@@ -2154,9 +2147,7 @@ export class Kernel implements IKernel {
    */
   private _showTtyIndicator(ttyNumber: number): void {
     const existingIndicator = document.getElementById('tty-indicator')
-    if (existingIndicator) {
-      existingIndicator.remove()
-    }
+    if (existingIndicator) existingIndicator.remove()
 
     const indicator = document.createElement('div')
     indicator.id = 'tty-indicator'
@@ -2164,16 +2155,12 @@ export class Kernel implements IKernel {
     indicator.textContent = `TTY ${ttyNumber}`
     document.body.appendChild(indicator)
 
-    requestAnimationFrame(() => {
-      indicator.classList.add('show')
-    })
+    requestAnimationFrame(() => indicator.classList.add('show'))
 
     setTimeout(() => {
       indicator.classList.remove('show')
       setTimeout(() => {
-        if (indicator.parentNode) {
-          indicator.remove()
-        }
+        if (indicator.parentNode) indicator.remove()
       }, 300)
     }, 1500)
   }

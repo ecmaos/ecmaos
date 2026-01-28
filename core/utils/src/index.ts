@@ -85,6 +85,7 @@ import { createCommand as createTest } from './commands/test.js'
 import { createCommand as createTime } from './commands/time.js'
 import { createCommand as createTr } from './commands/tr.js'
 import { createCommand as createTrue } from './commands/true.js'
+import { createCommand as createTty } from './commands/tty.js'
 import { createCommand as createUname } from './commands/uname.js'
 import { createCommand as createUmount } from './commands/umount.js'
 import { createCommand as createUnexpand } from './commands/unexpand.js'
@@ -162,6 +163,7 @@ export { createCommand as createSleep } from './commands/sleep.js'
 export { createCommand as createSort } from './commands/sort.js'
 export { createCommand as createTest } from './commands/test.js'
 export { createCommand as createTr } from './commands/tr.js'
+export { createCommand as createTty } from './commands/tty.js'
 export { createCommand as createUname } from './commands/uname.js'
 export { createCommand as createUmount } from './commands/umount.js'
 export { createCommand as createUptime } from './commands/uptime.js'
@@ -261,6 +263,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     time: createTime(kernel, shell, terminal),
     tr: createTr(kernel, shell, terminal),
     true: createTrue(kernel, shell, terminal),
+    tty: createTty(kernel, shell, terminal),
     uname: createUname(kernel, shell, terminal),
     umount: createUmount(kernel, shell, terminal),
     unexpand: createUnexpand(kernel, shell, terminal),

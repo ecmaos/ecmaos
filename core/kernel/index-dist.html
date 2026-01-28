@@ -4,7 +4,7 @@
     <title>ecmaos#</title>
 
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <meta name="title" content="ecmaOS - The Web OS | Browser-Based Operating System" />
     <meta name="description" content="ecmaOS is a browser-based operating system kernel and framework for web technologies." />
     <meta name="keywords" content="ecmaOS, web kernel, browser OS, operating system, TypeScript, WebAssembly, web technologies, terminal, filesystem, zenfs" />
@@ -14,14 +14,21 @@
     <meta name="revisit-after" content="7 days" />
 
     <!-- COOP/COEP Service Worker -->
-    <script src="/coi-serviceworker.min.js"></script>
+    <!-- <script src="/coi-serviceworker.min.js"></script> -->
     
     <!-- Theme Color -->
     <meta name="theme-color" content="#000000" />
     
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Apple Mobile Web App -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    
     <!-- Icons -->
     <link rel="icon" type="image/png" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="apple-touch-icon" href="/icons/web/apple-touch-icon.png" />
     
     <!-- Canonical URL -->
     <link rel="canonical" href="https://ecmaos.sh" />
