@@ -74,8 +74,8 @@ importers:
         specifier: ^0.7.3
         version: 0.7.3
       vim-wasm:
-        specifier: mathiscode/vim.wasm#patch-1
-        version: https://codeload.github.com/mathiscode/vim.wasm/tar.gz/301909cd0228776377dd44dd15f6f150288363e8
+        specifier: ^0.0.13
+        version: 0.0.13
     devDependencies:
       '@types/ansi-escape-sequences':
         specifier: ^4.0.4
@@ -963,9 +963,8 @@ packages:
     engines: {node: '>=22.0.0'}
     hasBin: true
 
-  vim-wasm@https://codeload.github.com/mathiscode/vim.wasm/tar.gz/301909cd0228776377dd44dd15f6f150288363e8:
-    resolution: {tarball: https://codeload.github.com/mathiscode/vim.wasm/tar.gz/301909cd0228776377dd44dd15f6f150288363e8}
-    version: 0.0.0
+  vim-wasm@0.0.13:
+    resolution: {integrity: sha512-2EkJ4OfMgvA/bURJeu43wqIQ4tpCJymst++Y4R/AKuQlnrvdI4hTpG2jf0yL5TrLt1ui12leLRghrwPOybyu8w==}
 
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
@@ -2296,7 +2295,7 @@ snapshots:
     optionalDependencies:
       '@xterm/xterm': 5.5.0
 
-  vim-wasm@https://codeload.github.com/mathiscode/vim.wasm/tar.gz/301909cd0228776377dd44dd15f6f150288363e8: {}
+  vim-wasm@0.0.13: {}
 
   wcwidth@1.0.1:
     dependencies:
