@@ -33,6 +33,7 @@
   "tips": [
     "ecmaos.sh has no backend server; all data is stored and processed entirely in your browser",
     "If it ever fails to boot, check your logs, try clearing all data, try incognito mode, or try another browser",
+    "You can switch between TTYs using CTRL+SHIFT+<0-9>",
     "You can run some devices that offer a CLI - e.g. '/dev/battery --help'",
     "Use the 'install' command to install packages - e.g. 'install @ecmaos-apps/news'",
     "You can install any NPM package - e.g. 'install jquery'",

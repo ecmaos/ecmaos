@@ -41,6 +41,7 @@ import { DefaultServiceOptions, Service } from '#service.ts'
 import { Sockets } from '#sockets.ts'
 import { Shell } from '#shell.ts'
 import { Storage } from '#storage.ts'
+import { FitAddon } from '@xterm/addon-fit'
 import { Telemetry } from '#telemetry.ts'
 import { Users } from '#users.ts'
 import { Wasm } from '#wasm.ts'
@@ -206,6 +207,13 @@ export class Kernel implements IKernel {
   private _state: KernelState = KernelState.BOOTING
   get state() { return this._state }
 
+  /** Map of all shells by TTY number */
+  private _shells: Map<number, Shell> = new Map()
+  /** Currently active TTY number */
+  private _activeTty: number = 0
+  get activeTty() { return this._activeTty }
+  get shells() { return this._shells }
+
   /** Add an event listener; alias for `events.on` */
   get addEventListener() { return this.events.on }
   /** Remove an event listener; alias for `events.off` */
@@ -232,10 +240,10 @@ export class Kernel implements IKernel {
     this.sockets = new Sockets({ kernel: this })
     this.screensavers = new Map()
     this.service = new Service({ kernel: this, ...this.options.service })
-    this.shell = new Shell({ kernel: this, uid: 0, gid: 0 })
+    this.shell = new Shell({ kernel: this, uid: 0, gid: 0, tty: 0 })
     this.storage = new Storage({ kernel: this })
     this.telemetry = new Telemetry({ kernel: this })
-    this.terminal = new Terminal({ kernel: this, socket: this.options.socket })
+    this.terminal = new Terminal({ kernel: this, socket: this.options.socket, tty: 0 })
     this.toast = new Notyf(this.options.toast)
     this.users = new Users({ kernel: this })
     this.windows = new Windows()
@@ -243,6 +251,7 @@ export class Kernel implements IKernel {
     this.workers = new Workers()
 
     this.shell.attach(this.terminal)
+    this._shells.set(0, this.shell)
     // createBIOS().then((biosModule: BIOSModule) => {
     //   this.bios = biosModule
     //   resolveMountConfig({ backend: Emscripten, FS: biosModule.FS })
@@ -589,6 +598,7 @@ export class Kernel implements IKernel {
         }, 600)
 
         this.toast.success(`${import.meta.env['NAME']} v${import.meta.env['VERSION']}`)
+        this._showTtyIndicator(this._activeTty)
       }
 
       if (await this.filesystem.fs.exists('/run')) {
@@ -719,159 +729,17 @@ export class Kernel implements IKernel {
 
       // Show login prompt or auto-login
       const authSpan = tracer.startSpan('kernel.boot.authentication', {}, trace.setSpan(context.active(), bootSpan))
-      if (this.options.credentials) {
-        const { user, cred } = await this.users.login(this.options.credentials.username, this.options.credentials.password)
-        this.shell.credentials = cred
-        this.shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
-        this.shell.env.set('UID', user.uid.toString())
-        this.shell.env.set('GID', user.gid.toString())
-        this.shell.env.set('SUID', cred.suid.toString())
-        this.shell.env.set('SGID', cred.sgid.toString())
-        this.shell.env.set('EUID', cred.euid.toString())
-        this.shell.env.set('EGID', cred.egid.toString())
-        this.shell.env.set('SHELL', user.shell || 'ecmaos')
-        this.shell.env.set('HOME', user.home || '/root')
-        this.shell.env.set('USER', user.username)
-        this.shell.env.set('HOSTNAME', globalThis.location.hostname || 'localhost')
-        process.env = Object.fromEntries(this.shell.env)
-        await this.shell.loadEnvFile()
-        this.updateLocaleFromEnv()
+      const autoLogin = this.options.credentials
+        ? { username: this.options.credentials.username, password: this.options.credentials.password }
+        : undefined
+      
+      await this.loginShell(this.shell, autoLogin ? { autoLogin } : undefined)
+      
+      if (autoLogin) {
         authSpan.setAttribute('auth.method', 'auto_login')
-        authSpan.setAttribute('auth.username', this.options.credentials.username)
-        authSpan.end()
-      } else {
-        if (import.meta.env['ECMAOS_APP_SHOW_DEFAULT_LOGIN'] === 'true') this.terminal.writeln(chalk.yellow.bold(`⚠️  ${this.i18n.ns.kernel('defaultLogin')}: root / root\n`))
-
-        // TODO: Pretty US/NA-centric, but it's a simple start
-        const holidayEmojis: Record<string, string> = {
-          '01-01': '🎉 ', // New Year's Day
-          '02-14': '💝 ', // Valentine's Day
-          '03-17': '☘️ ', // St. Patrick's Day
-          '04-01': '🎭 ', // April Fool's Day
-          '05-05': '🇲🇽',  // Cinco de Mayo
-          '06-19': '✊ ', // Juneteenth (TODO: Dark skin tone doesn't work as it uses a modifier)
-          '07-04': '🇺🇸',  // Independence Day
-          '10-31': '🎃 ', // Halloween
-          '11-11': '🪖 ', // Veterans Day
-          '11-24': '🦃 ', // Thanksgiving
-          '12-25': '🎄 ', // Christmas
-          '12-31': '🎇 ', // New Year's Eve
-        }
-
-        const now = new Date()
-        const monthDay = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-        const holidayEmoji = holidayEmojis[monthDay] || '🗓️ '
-        const formattedDate = Intl.DateTimeFormat(this.memory.config.get('locale') as string || 'en-US', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        }).format(now)
-
-        this.terminal.writeln(`${holidayEmoji} ${formattedDate}`)
-
-        // Display issue file if it exists
-        const issue = await this.filesystem.fs.exists('/etc/issue')
-          ? await this.filesystem.fs.readFile('/etc/issue', 'utf-8')
-          : null
-
-        if (issue) this.terminal.writeln(issue)
-
-        // Main login loop
-        while (true) {
-          try {
-            const loc = globalThis.location
-            const protocol = loc?.protocol || 'ecmaos:'
-            const hostname = loc?.hostname || 'localhost'
-            const port = loc && loc.port && loc.port !== '80' && loc.port !== '443' ? `:${loc.port}` : ''
-
-            const isSecure = globalThis.window?.isSecureContext ?? false
-            const protocolStr = isSecure
-              ? chalk.green(protocol)
-              : chalk.red(protocol)
-            const icon = isSecure ? '🔒' : '🔓'
-
-            this.terminal.writeln(`${icon}  ${protocolStr}//${hostname}${port}`)
-
-            const username = await this.terminal.readline(`👤  ${this.i18n.ns.common('Username')}: `)
-            const user = Array.from(this.users.all.values()).find(u => u.username === username)
-            
-            let loginSuccess = false
-            let userCred: { user: User, cred: Credentials } | null = null
-
-            if (user) {
-              const passkeys = await this.users.getPasskeys(user.uid)
-              if (passkeys.length > 0 && this.auth.passkey.isSupported()) {
-                try {
-                  const challenge = crypto.getRandomValues(new Uint8Array(32))
-                  const rpId = globalThis.location.hostname || 'localhost'
-                  
-                  const allowCredentials = passkeys.map(pk => {
-                    const credentialIdBytes = Uint8Array.from(atob(pk.credentialId), c => c.charCodeAt(0))
-                    return {
-                      id: credentialIdBytes.buffer,
-                      type: 'public-key' as const,
-                      transports: ['usb', 'nfc', 'ble', 'internal'] as AuthenticatorTransport[]
-                    }
-                  })
-
-                  const requestOptions: PublicKeyCredentialRequestOptions = {
-                    challenge,
-                    allowCredentials,
-                    rpId,
-                    userVerification: 'preferred',
-                    timeout: 60000
-                  }
-
-                  this.terminal.writeln(chalk.yellow(`🔐  ${this.i18n.ns.kernel('passkeyAuthenticate')}`))
-                  const credential = await this.auth.passkey.get(requestOptions)
-                  
-                  if (credential && credential instanceof PublicKeyCredential) {
-                    userCred = await this.users.login(username, undefined, credential)
-                    loginSuccess = true
-                  } else {
-                    this.terminal.writeln(chalk.yellow(t('kernel.passkeyCancelled', 'Passkey authentication cancelled or failed. Falling back to password...')))
-                  }
-                } catch (err) {
-                  this.terminal.writeln(chalk.yellow(t('kernel.passkeyError', 'Passkey authentication error: {{error}}. Falling back to password...', { error: (err as Error).message })))
-                }
-              }
-            }
-
-            if (!loginSuccess) {
-              const password = await this.terminal.readline(`🔑  ${this.i18n.ns.common('Password')}: `, true)
-              userCred = await this.users.login(username, password)
-            }
-
-            if (!userCred) throw new Error(this.i18n.ns.kernel('loginFailed'))
-
-            authSpan.setAttribute('auth.method', loginSuccess ? 'passkey' : 'password')
-            authSpan.setAttribute('auth.username', username)
-            authSpan.end()
-
-            this.shell.credentials = userCred.cred
-            this.shell.context = bindContext({ root: '/', pwd: '/', credentials: userCred.cred })
-            await this.shell.loadEnvFile()
-            this.shell.env.set('UID', userCred.user.uid.toString())
-            this.shell.env.set('GID', userCred.user.gid.toString())
-            this.shell.env.set('SUID', userCred.cred.suid.toString())
-            this.shell.env.set('SGID', userCred.cred.sgid.toString())
-            this.shell.env.set('EUID', userCred.cred.euid.toString())
-            this.shell.env.set('EGID', userCred.cred.egid.toString())
-            this.shell.env.set('SHELL', userCred.user.shell || 'ecmaos')
-            this.shell.env.set('HOME', userCred.user.home || '/root')
-            this.shell.env.set('USER', userCred.user.username)
-            process.env = Object.fromEntries(this.shell.env)
-            this.updateLocaleFromEnv()
-            break
-          } catch (err) {
-            console.error(err)
-            this.terminal.writeln(chalk.red((err as Error).message) + '\n')
-          }
-        }
+        authSpan.setAttribute('auth.username', autoLogin.username)
       }
+      authSpan.end()
 
       // Display motd if it exists
       const motd = await this.filesystem.fs.exists('/etc/motd')
@@ -1171,7 +1039,8 @@ export class Kernel implements IKernel {
    * @returns Exit code of the command
    */
   async executeCommand(options: KernelExecuteOptions): Promise<number> {
-    const command = this.terminal.commands[options.command as keyof typeof this.terminal.commands]
+    const terminal = options.terminal || this.terminal
+    const command = terminal.commands[options.command as keyof typeof terminal.commands]
     if (!command) return -1
 
     const process = new Process({
@@ -1991,6 +1860,322 @@ export class Kernel implements IKernel {
         this.log.warn(`Failed to update locale from LANG env var: ${(error as Error).message}`)
       }
     }
+  }
+
+  /**
+   * Logs in a shell with user credentials
+   * @param shell - Shell instance to log in
+   * @param options - Login options including auto-login credentials
+   */
+  async loginShell(shell: Shell, options?: { autoLogin?: { username: string, password: string } }): Promise<void> {
+    const terminal = shell.terminal
+    const t = this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')
+
+    if (options?.autoLogin) {
+      const { user, cred } = await this.users.login(options.autoLogin.username, options.autoLogin.password)
+      shell.credentials = cred
+      shell.context = bindContext({ root: '/', pwd: '/', credentials: cred })
+      shell.env.set('UID', user.uid.toString())
+      shell.env.set('GID', user.gid.toString())
+      shell.env.set('SUID', cred.suid.toString())
+      shell.env.set('SGID', cred.sgid.toString())
+      shell.env.set('EUID', cred.euid.toString())
+      shell.env.set('EGID', cred.egid.toString())
+      shell.env.set('SHELL', user.shell || 'ecmaos')
+      shell.env.set('HOME', user.home || '/root')
+      shell.env.set('USER', user.username)
+      shell.env.set('HOSTNAME', globalThis.location.hostname || 'localhost')
+      process.env = Object.fromEntries(shell.env)
+      await shell.loadEnvFile()
+      this.updateLocaleFromEnv()
+      return
+    }
+
+    if (import.meta.env['ECMAOS_APP_SHOW_DEFAULT_LOGIN'] === 'true') {
+      terminal.writeln(chalk.yellow.bold(`⚠️  ${this.i18n.ns.kernel('defaultLogin')}: root / root\n`))
+    }
+
+    const holidayEmojis: Record<string, string> = {
+      '01-01': '🎉 ',
+      '02-14': '💝 ',
+      '03-17': '☘️ ',
+      '04-01': '🎭 ',
+      '05-05': '🇲🇽',
+      '06-19': '✊ ',
+      '07-04': '🇺🇸',
+      '10-31': '🎃 ',
+      '11-11': '🪖 ',
+      '11-24': '🦃 ',
+      '12-25': '🎄 ',
+      '12-31': '🎇 ',
+    }
+
+    const now = new Date()
+    const monthDay = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const holidayEmoji = holidayEmojis[monthDay] || '🗓️ '
+    const formattedDate = Intl.DateTimeFormat(this.memory.config.get('locale') as string || 'en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }).format(now)
+
+    terminal.writeln(`${holidayEmoji} ${formattedDate}`)
+
+    const issue = await this.filesystem.fs.exists('/etc/issue')
+      ? await this.filesystem.fs.readFile('/etc/issue', 'utf-8')
+      : null
+
+    if (issue) terminal.writeln(issue)
+
+    while (true) {
+      try {
+        const loc = globalThis.location
+        const protocol = loc?.protocol || 'ecmaos:'
+        const hostname = loc?.hostname || 'localhost'
+        const port = loc && loc.port && loc.port !== '80' && loc.port !== '443' ? `:${loc.port}` : ''
+
+        const isSecure = globalThis.window?.isSecureContext ?? false
+        const protocolStr = isSecure
+          ? chalk.green(protocol)
+          : chalk.red(protocol)
+        const icon = isSecure ? '🔒' : '🔓'
+
+        terminal.writeln(`${icon}  ${protocolStr}//${hostname}${port}`)
+
+        const username = await terminal.readline(`👤  ${this.i18n.ns.common('Username')}: `)
+        const user = Array.from(this.users.all.values()).find(u => u.username === username)
+        
+        let loginSuccess = false
+        let userCred: { user: User, cred: Credentials } | null = null
+
+        if (user) {
+          const passkeys = await this.users.getPasskeys(user.uid)
+          if (passkeys.length > 0 && this.auth.passkey.isSupported()) {
+            try {
+              const challenge = crypto.getRandomValues(new Uint8Array(32))
+              const rpId = globalThis.location.hostname || 'localhost'
+              
+              const allowCredentials = passkeys.map(pk => {
+                const credentialIdBytes = Uint8Array.from(atob(pk.credentialId), c => c.charCodeAt(0))
+                return {
+                  id: credentialIdBytes.buffer,
+                  type: 'public-key' as const,
+                  transports: ['usb', 'nfc', 'ble', 'internal'] as AuthenticatorTransport[]
+                }
+              })
+
+              const requestOptions: PublicKeyCredentialRequestOptions = {
+                challenge,
+                allowCredentials,
+                rpId,
+                userVerification: 'preferred',
+                timeout: 60000
+              }
+
+              terminal.writeln(chalk.yellow(`🔐  ${this.i18n.ns.kernel('passkeyAuthenticate')}`))
+              const credential = await this.auth.passkey.get(requestOptions)
+              
+              if (credential && credential instanceof PublicKeyCredential) {
+                userCred = await this.users.login(username, undefined, credential)
+                loginSuccess = true
+              } else {
+                terminal.writeln(chalk.yellow(t('kernel.passkeyCancelled', 'Passkey authentication cancelled or failed. Falling back to password...')))
+              }
+            } catch (err) {
+              terminal.writeln(chalk.yellow(t('kernel.passkeyError', 'Passkey authentication error: {{error}}. Falling back to password...', { error: (err as Error).message })))
+            }
+          }
+        }
+
+        if (!loginSuccess) {
+          const password = await terminal.readline(`🔑  ${this.i18n.ns.common('Password')}: `, true)
+          userCred = await this.users.login(username, password)
+        }
+
+        if (!userCred) throw new Error(this.i18n.ns.kernel('loginFailed'))
+
+        shell.credentials = userCred.cred
+        shell.context = bindContext({ root: '/', pwd: '/', credentials: userCred.cred })
+        await shell.loadEnvFile()
+        shell.env.set('UID', userCred.user.uid.toString())
+        shell.env.set('GID', userCred.user.gid.toString())
+        shell.env.set('SUID', userCred.cred.suid.toString())
+        shell.env.set('SGID', userCred.cred.sgid.toString())
+        shell.env.set('EUID', userCred.cred.euid.toString())
+        shell.env.set('EGID', userCred.cred.egid.toString())
+        shell.env.set('SHELL', userCred.user.shell || 'ecmaos')
+        shell.env.set('HOME', userCred.user.home || '/root')
+        shell.env.set('USER', userCred.user.username)
+        process.env = Object.fromEntries(shell.env)
+        
+        const langEnv = shell.env.get('LANG')
+        if (langEnv) {
+          try {
+            this.i18n.setLanguage(langEnv)
+            this.log.debug(`Locale updated from LANG env var: ${langEnv} -> ${this.i18n.language}`)
+          } catch (error) {
+            this.log.warn(`Failed to update locale from LANG env var: ${(error as Error).message}`)
+          }
+        }
+        break
+      } catch (err) {
+        console.error(err)
+        terminal.writeln(chalk.red((err as Error).message) + '\n')
+      }
+    }
+  }
+
+  /**
+   * Gets a shell by TTY number
+   * @param ttyNumber - TTY number (0-9)
+   * @returns Shell instance or undefined if not found
+   */
+  getShell(ttyNumber: number): Shell | undefined {
+    return this._shells.get(ttyNumber)
+  }
+
+  /**
+   * Creates a new shell and terminal for a TTY
+   * @param ttyNumber - TTY number (0-9)
+   * @returns Created shell instance
+   */
+  async createShell(ttyNumber: number): Promise<Shell> {
+    if (ttyNumber < 0 || ttyNumber > 9) {
+      throw new Error('TTY number must be between 0 and 9')
+    }
+
+    if (this._shells.has(ttyNumber)) {
+      return this._shells.get(ttyNumber)!
+    }
+
+    const terminalContainer = document.getElementById(`terminal-tty${ttyNumber}`)
+    if (!terminalContainer) {
+      throw new Error(`Terminal container for TTY ${ttyNumber} not found`)
+    }
+
+    const wasActive = terminalContainer.classList.contains('active')
+    if (!wasActive) {
+      terminalContainer.classList.add('active')
+    }
+
+    const terminal = new Terminal({ kernel: this, tty: ttyNumber })
+    terminal.mount(terminalContainer as HTMLElement)
+
+    if (!wasActive && ttyNumber !== this._activeTty) {
+      terminalContainer.classList.remove('active')
+    }
+
+    const shell = new Shell({ kernel: this, uid: 0, gid: 0, tty: ttyNumber, terminal })
+    terminal.attachShell(shell)
+
+    this._shells.set(ttyNumber, shell)
+
+    const autoLogin = this.options.credentials
+      ? { username: this.options.credentials.username, password: this.options.credentials.password }
+      : undefined
+
+    await this.loginShell(shell, autoLogin ? { autoLogin } : undefined)
+
+    const user = this.users.get(shell.credentials.uid ?? 0)
+    if (!user) throw new Error(this.i18n.i18next.getFixedT(this.i18n.language, 'kernel')('kernel.userNotFound', 'User not found'))
+
+    shell.credentials = {
+      uid: user.uid,
+      gid: user.gid,
+      suid: user.uid,
+      sgid: user.gid,
+      euid: user.uid,
+      egid: user.gid,
+      groups: user.groups
+    }
+
+    shell.cwd = localStorage.getItem(`cwd:${shell.credentials.uid}`) ?? (
+      user.uid === 0 ? '/' : (user.home || '/')
+    )
+
+    const motd = await this.filesystem.fs.exists('/etc/motd')
+      ? await this.filesystem.fs.readFile('/etc/motd', 'utf-8')
+      : null
+
+    if (motd) terminal.writeln('\n' + motd)
+
+    terminal.write(ansi.erase.inLine(2) + terminal.prompt())
+    terminal.focus()
+
+    return shell
+  }
+
+  /**
+   * Switches to a different TTY
+   * @param ttyNumber - TTY number to switch to (0-9)
+   */
+  async switchTty(ttyNumber: number): Promise<void> {
+    if (ttyNumber < 0 || ttyNumber > 9) throw new Error('TTY number must be between 0 and 9')
+
+    if (ttyNumber === this._activeTty) return
+
+    const previousTty = this._activeTty
+    this._activeTty = ttyNumber
+
+    const currentShell = this._shells.get(previousTty)
+    if (currentShell) {
+      currentShell.terminal.unlisten()
+      const currentContainer = document.getElementById(`terminal-tty${previousTty}`)
+      if (currentContainer) {
+        currentContainer.classList.remove('active')
+      }
+    }
+
+    const targetContainer = document.getElementById(`terminal-tty${ttyNumber}`)
+    if (targetContainer) {
+      targetContainer.classList.add('active')
+    }
+
+    this._showTtyIndicator(ttyNumber)
+
+    let targetShell = this._shells.get(ttyNumber)
+    if (!targetShell) {
+      targetShell = await this.createShell(ttyNumber)
+    }
+
+    requestAnimationFrame(() => {
+      if (targetShell.terminal.addons?.get('fit')) (targetShell.terminal.addons.get('fit') as FitAddon).fit()
+      targetShell.terminal.focus()
+      targetShell.terminal.listen()
+    })
+  }
+
+  /**
+   * Shows a quick flash indicator for the TTY number in the top-right corner
+   * @param ttyNumber - TTY number to display
+   */
+  private _showTtyIndicator(ttyNumber: number): void {
+    const existingIndicator = document.getElementById('tty-indicator')
+    if (existingIndicator) {
+      existingIndicator.remove()
+    }
+
+    const indicator = document.createElement('div')
+    indicator.id = 'tty-indicator'
+    indicator.className = 'tty-indicator'
+    indicator.textContent = `TTY ${ttyNumber}`
+    document.body.appendChild(indicator)
+
+    requestAnimationFrame(() => {
+      indicator.classList.add('show')
+    })
+
+    setTimeout(() => {
+      indicator.classList.remove('show')
+      setTimeout(() => {
+        if (indicator.parentNode) {
+          indicator.remove()
+        }
+      }, 300)
+    }, 1500)
   }
 
   /**

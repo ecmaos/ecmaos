@@ -165,8 +165,17 @@ export interface Terminal extends XTerm {
    */
   mount(element: HTMLElement): void
 
+  /**
+   * Attach a shell to the terminal, updating shell reference and commands
+   * @param shell - Shell to attach
+   */
+  attachShell(shell: Shell): void
+
   /** Hide terminal */
   hide(): void
+
+  /** Show terminal */
+  show(): void
 
   /**
    * Create a special terminal link

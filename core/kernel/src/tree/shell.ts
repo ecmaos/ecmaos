@@ -39,6 +39,7 @@ export class Shell implements IShell {
   private _kernel: Kernel
   private _terminal: Terminal
   private _terminalWriter?: WritableStreamDefaultWriter<Uint8Array>
+  private _tty: number
 
   public credentials: Credentials = { uid: 0, gid: 0, suid: 0, sgid: 0, euid: 0, egid: 0, groups: [] }
   public context: BoundContext = bindContext({ root: '/', pwd: '/', credentials: this.credentials })
@@ -52,12 +53,14 @@ export class Shell implements IShell {
   get kernel() { return this._kernel }
   get terminal() { return this._terminal }
   get username() { return this._kernel.users.get(this.credentials.uid)?.username || 'root' }
+  get tty() { return this._tty }
 
-  constructor(_options: ShellOptions) {
+  constructor(_options: ShellOptions & { tty?: number }) {
     const options = { ...DefaultShellOptions, ..._options }
     if (!options.kernel) throw new Error('Kernel is required')
     globalThis.shells?.set(this.id, this)
 
+    this._tty = options.tty ?? 0
     this._cwd = options.cwd || localStorage.getItem(`cwd:${this.credentials.uid}`) || DefaultShellOptions.cwd
     this._env = new Map([...Object.entries(DefaultShellOptions.env), ...Object.entries(options.env)])
     this._kernel = options.kernel
@@ -124,6 +127,10 @@ export class Shell implements IShell {
   }
   
   attach(terminal: Terminal) {
+    if (this._terminalWriter) {
+      try { this._terminalWriter.releaseLock() } catch {}
+    }
+    
     this._terminal = terminal
     this._terminalWriter = terminal.stdout.getWriter()
   }

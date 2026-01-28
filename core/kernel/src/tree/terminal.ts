@@ -149,6 +149,8 @@ export class Terminal extends XTerm implements ITerminal {
   private _resizeTimeout: ReturnType<typeof setTimeout> | null = null
   private _mobileInputElement: HTMLInputElement | null = null
   private _mobileInputListener: IDisposable | null = null
+  private _tty: number
+  private _ttySwitchHandler: ((event: KeyboardEvent) => void) | null = null
 
   get addons() { return this._addons as Map<string, ITerminalAddon> }
   get ansi() { return this._ansi }
@@ -163,16 +165,18 @@ export class Terminal extends XTerm implements ITerminal {
   get stdin() { return this._stdin }
   get stdout() { return this._stdout }
   get stderr() { return this._stderr }
+  get tty() { return this._tty }
 
   get promptTemplate() { return this._promptTemplate }
   set promptTemplate(value: string) { this._promptTemplate = value }
 
-  constructor(options: TerminalOptions = DefaultTerminalOptions) {
+  constructor(options: TerminalOptions & { tty?: number } = DefaultTerminalOptions) {
     if (!options.kernel) {
       const message = globalThis.kernel?.i18n?.ns.terminal('requiresKernel') || 'Terminal requires a kernel'
       throw new Error(message)
     }
     super({ ...DefaultTerminalOptions, ...options })
+    this._tty = options.tty ?? 0
     globalThis.terminals?.set(this.id, this)
 
     // Create the primary stdin stream (terminal's own stdin)
@@ -409,8 +413,17 @@ export class Terminal extends XTerm implements ITerminal {
     this.events.dispatch<TerminalMountEvent>(TerminalEvents.MOUNT, { terminal: this, element })
   }
 
+  attachShell(shell: Shell) {
+    this._shell = shell
+    this._commands = TerminalCommands(this._kernel, this._shell, this)
+  }
+
   hide() {
     if (this.element) this.element.style.display = 'none'
+  }
+
+  show() {
+    if (this.element) this.element.style.display = 'block'
   }
 
   dispose() {
@@ -455,6 +468,29 @@ export class Terminal extends XTerm implements ITerminal {
     if (this._isMobile) {
       this._setupMobileInput()
     } else {
+      if (this.element) {
+        this._ttySwitchHandler = async (event: KeyboardEvent) => {
+          if (event.ctrlKey && event.shiftKey) {
+            const codeMatch = event.code.match(/^Digit([0-9])$/)
+            if (codeMatch && codeMatch[1]) {
+              event.preventDefault()
+              event.stopPropagation()
+              event.stopImmediatePropagation()
+              const ttyNumber = parseInt(codeMatch[1])
+              if (this._kernel.switchTty) {
+                try {
+                  await this._kernel.switchTty(ttyNumber)
+                } catch (err) {
+                  console.error('Failed to switch TTY:', err)
+                }
+              }
+            }
+          }
+        }
+        
+        this.element.addEventListener('keydown', this._ttySwitchHandler, true)
+      }
+      
       this._keyListener = this.onKey(this.keyHandler.bind(this))
     }
     
@@ -614,6 +650,11 @@ export class Terminal extends XTerm implements ITerminal {
   unlisten() {
     try { this._keyListener?.dispose() } catch {}
     try { this._mobileInputListener?.dispose() } catch {}
+    // Remove TTY switch handler
+    if (this.element && this._ttySwitchHandler) {
+      this.element.removeEventListener('keydown', this._ttySwitchHandler, true)
+      this._ttySwitchHandler = null
+    }
     this._keyListener = undefined
     this._mobileInputListener = null
     this.events.dispatch<TerminalUnlistenEvent>(TerminalEvents.UNLISTEN, { terminal: this })
@@ -1130,10 +1171,6 @@ export class Terminal extends XTerm implements ITerminal {
   serialize() {
     if (this.addons?.get('serialize')) return (this.addons.get('serialize') as SerializeAddon).serialize()
     else return null
-  }
-
-  show() {
-    if (this.element) this.element.style.display = ''
   }
 
   override write(data: string | Uint8Array) {

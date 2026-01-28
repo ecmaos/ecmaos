@@ -14,7 +14,7 @@ List information about the FILEs (the current directory by default).
   writelnStderr(process, terminal, usage)
 }
 
-function truncateInfo(text: string, maxWidth: number = 40): string {
+function truncateInfo(text: string, maxWidth: number = 35): string {
   if (!text) return text
   
   // Strip ANSI codes to get visible length

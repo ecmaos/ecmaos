@@ -195,6 +195,21 @@ export interface Kernel {
 
   /** Shutdown the kernel */
   shutdown(): Promise<void>
+
+  /** Switch to a different TTY */
+  switchTty(ttyNumber: number): Promise<void>
+
+  /** Get a shell by TTY number */
+  getShell(ttyNumber: number): Shell | undefined
+
+  /** Create a new shell and terminal for a TTY */
+  createShell(ttyNumber: number): Promise<Shell>
+
+  /** Currently active TTY number */
+  readonly activeTty: number
+
+  /** Map of all shells by TTY number */
+  readonly shells: Map<number, Shell>
 }
 
 /**
