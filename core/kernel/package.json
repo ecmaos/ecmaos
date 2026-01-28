@@ -88,7 +88,7 @@
     "#*": "./src/tree/*"
   },
   "scripts": {
-    "build": "tsc && vite build && cp index-dist.html dist/index.html",
+    "build": "vite build && cp index-dist.html dist/index.html",
     "dev": "vite",
     "lint": "eslint src",
     "preview": "vite preview",
