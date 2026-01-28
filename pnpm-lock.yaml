@@ -55,6 +55,9 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.6.3
+      vim-wasm:
+        specifier: ^0.0.13
+        version: 0.0.13
 
 packages:
 
@@ -1568,6 +1571,9 @@ packages:
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
+
+  vim-wasm@0.0.13:
+    resolution: {integrity: sha512-2EkJ4OfMgvA/bURJeu43wqIQ4tpCJymst++Y4R/AKuQlnrvdI4hTpG2jf0yL5TrLt1ui12leLRghrwPOybyu8w==}
 
   wcwidth@1.0.1:
     resolution: {integrity: sha512-XHPEwS0q6TaxcvG85+8EYkbiCux2XtWG2mkc47Ng2A77BQu9+DqIOJldST4HgPkuea7dvKSj5VgX3P1d4rW8Tg==}
@@ -3323,6 +3329,8 @@ snapshots:
   validate-npm-package-name@5.0.1: {}
 
   vary@1.1.2: {}
+
+  vim-wasm@0.0.13: {}
 
   wcwidth@1.0.1:
     dependencies:

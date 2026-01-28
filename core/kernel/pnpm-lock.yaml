@@ -7,6 +7,8 @@ settings:
 overrides:
   ws: '>=8.17.1'
 
+pnpmfileChecksum: sha256-Zzw6AUu2SJputeGoAFT8YK9JWXNZcYWS/QbYOLDEi5E=
+
 importers:
 
   .:
