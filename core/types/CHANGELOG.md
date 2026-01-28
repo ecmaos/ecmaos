@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.8.2
+
+### Patch Changes
+
+- 0443224: tty device support
+
 ## 0.8.1
 
 ### Patch Changes

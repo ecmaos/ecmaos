@@ -1,5 +1,13 @@
 # @ecmaos/coreutils
 
+## 0.6.1
+
+### Patch Changes
+
+- 0443224: tty device support
+- Updated dependencies [0443224]
+  - @ecmaos/types@0.8.2
+
 ## 0.6.0
 
 ### Minor Changes

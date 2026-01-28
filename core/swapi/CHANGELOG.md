@@ -1,5 +1,11 @@
 # @ecmaos/swapi
 
+## 0.3.1
+
+### Patch Changes
+
+- 0443224: tty device support
+
 ## 0.3.0
 
 ### Minor Changes

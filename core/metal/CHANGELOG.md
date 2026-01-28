@@ -1,5 +1,11 @@
 # @ecmaos/metal
 
+## 0.2.1
+
+### Patch Changes
+
+- 0443224: tty device support
+
 ## 0.2.0
 
 ### Minor Changes
