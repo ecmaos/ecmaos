@@ -122,7 +122,9 @@ export class Terminal extends XTerm implements ITerminal {
   private _commands: { [key: string]: TerminalCommand }
   private _cursorPosition: number = 0
   private _events: Events
-  private _history: Record<number, string[]> = {}
+  private _historyCache: Record<number, string[]> = {}
+  private _historyLineCount: Record<number, number> = {}
+  private _historyFilePath: Record<number, string> = {}
   private _historyPosition: number = 0
   private _id: string = crypto.randomUUID()
   private _kernel: Kernel
@@ -369,8 +371,15 @@ export class Terminal extends XTerm implements ITerminal {
     this._shell = options.shell || options.kernel.shell
     this._kernel = options.kernel
     this._commands = TerminalCommands(this._kernel, this._shell, this)
-    this._history[this._shell.credentials.uid] = this._kernel.storage.local.getItem(`history:${this._shell.credentials.uid}`) ? JSON.parse(this._kernel.storage.local.getItem(`history:${this._shell.credentials.uid}`) || '[]') : []
-    this._historyPosition = this._history[this._shell.credentials.uid]?.length || 0
+    
+    const uid = this._shell.credentials.uid
+    this._historyCache[uid] = []
+    this._historyLineCount[uid] = 0
+    this._historyPosition = 0
+    
+    this._initializeHistory(uid).catch(() => {
+      // Silently fail if filesystem isn't ready yet - will initialize on first use
+    })
 
     this._detectMobileSupport()
 
@@ -416,6 +425,13 @@ export class Terminal extends XTerm implements ITerminal {
   attachShell(shell: Shell) {
     this._shell = shell
     this._commands = TerminalCommands(this._kernel, this._shell, this)
+    const uid = this._shell.credentials.uid
+    if (!this._historyCache[uid]) {
+      this._historyCache[uid] = []
+      this._historyLineCount[uid] = 0
+      this._historyPosition = 0
+      this._initializeHistory(uid)
+    }
   }
 
   hide() {
@@ -1014,15 +1030,18 @@ export class Terminal extends XTerm implements ITerminal {
           this._cmd = ''
           
           // Don't save history if the command begins with a space or is the same as the last command
-          if (cmdToExecute[0] !== ' ' && cmdToExecute !== this._history[uid]?.[this._history[uid]?.length - 1]) {
-            // TODO: Save to $HOME/.history instead and don't load entire history - index history file by line
-            this._history[uid] = this._history[uid] || []
-            this._history[uid].push(cmdToExecute)
-            try { this._kernel.storage.local.setItem(`history:${uid}`, JSON.stringify(this._history[uid] || [])) }
-            catch (error) { this._kernel.log.error(this._kernel.i18n.ns.terminal('failedToSaveHistory'), error) }
+          const lastCommand = this._historyCache[uid]?.[this._historyCache[uid].length - 1]
+          if (cmdToExecute[0] !== ' ' && cmdToExecute !== lastCommand) {
+            // Initialize history if not already done (filesystem might not have been ready earlier)
+            if (this._historyLineCount[uid] === undefined || this._historyLineCount[uid] === 0) {
+              await this._initializeHistory(uid).catch(() => {
+                // Silently fail if filesystem still isn't ready
+              })
+            }
+            await this._appendToHistory(uid, cmdToExecute)
           }
 
-          this._historyPosition = this._history[uid]?.length || 0
+          this._historyPosition = this._historyLineCount[uid] || 0
 
           try {
             this.events.dispatch<TerminalExecuteEvent>(TerminalEvents.EXECUTE, { terminal: this, command: cmdToExecute })
@@ -1059,10 +1078,32 @@ export class Terminal extends XTerm implements ITerminal {
           }
         }
         break
-      case 'ArrowUp':
-        if (this._historyPosition > 0) {
+      case 'ArrowUp': {
+        const uid = this._shell.credentials.uid
+        
+        // Initialize history if not already done (filesystem might not have been ready earlier)
+        if (this._historyLineCount[uid] === undefined || this._historyLineCount[uid] === 0) {
+          await this._initializeHistory(uid).catch(() => {
+            // Silently fail if filesystem still isn't ready
+          })
+        }
+        
+        const totalLines = this._historyLineCount[uid] || 0
+        if (this._historyPosition > 0 && totalLines > 0) {
           this._historyPosition--
-          this._cmd = this._history[this._shell.credentials.uid]?.[this._historyPosition] || ''
+          const cache = this._historyCache[uid] || []
+          const cacheStart = Math.max(0, totalLines - cache.length)
+          const cacheIndex = this._historyPosition - cacheStart
+          
+          let cmd = ''
+          if (cacheIndex >= 0 && cacheIndex < cache.length) {
+            cmd = cache[cacheIndex] || ''
+          } else {
+            const line = await this._readHistoryLine(uid, this._historyPosition)
+            cmd = line || ''
+          }
+          
+          this._cmd = cmd
           this._cursorPosition = this._cmd.length
           this.write('\x1b[2K\r')
           if (this._multiLineMode) {
@@ -1082,10 +1123,35 @@ export class Terminal extends XTerm implements ITerminal {
           }
         }
         break
-      case 'ArrowDown':
-        if (this._historyPosition < (this._history[this._shell.credentials.uid]?.length || 0)) {
+      }
+      case 'ArrowDown': {
+        const uid = this._shell.credentials.uid
+        
+        // Initialize history if not already done (filesystem might not have been ready earlier)
+        if (this._historyLineCount[uid] === undefined || this._historyLineCount[uid] === 0) {
+          await this._initializeHistory(uid).catch(() => {
+            // Silently fail if filesystem still isn't ready
+          })
+        }
+        
+        const totalLines = this._historyLineCount[uid] || 0
+        if (this._historyPosition < totalLines) {
           this._historyPosition++
-          this._cmd = this._history[this._shell.credentials.uid]?.[this._historyPosition] || ''
+          const cache = this._historyCache[uid] || []
+          const cacheStart = Math.max(0, totalLines - cache.length)
+          const cacheIndex = this._historyPosition - cacheStart
+          
+          let cmd = ''
+          if (this._historyPosition === totalLines) {
+            cmd = ''
+          } else if (cacheIndex >= 0 && cacheIndex < cache.length) {
+            cmd = cache[cacheIndex] || ''
+          } else {
+            const line = await this._readHistoryLine(uid, this._historyPosition)
+            cmd = line || ''
+          }
+          
+          this._cmd = cmd
           this._cursorPosition = this._cmd.length
           this.write('\x1b[2K\r')
           if (this._multiLineMode) {
@@ -1105,6 +1171,7 @@ export class Terminal extends XTerm implements ITerminal {
           }
         }
         break
+      }
       case 'ArrowLeft':
         if (this._cursorPosition > 0) { this._cursorPosition--; this.write('\b') }
         break
@@ -1134,7 +1201,7 @@ export class Terminal extends XTerm implements ITerminal {
           const pathArg = this._cmd.split(' ').slice(-1)[0]
           if (!pathArg) break
           const expandedPath = this._shell.expandTilde(pathArg)
-          if (!(await this._kernel.filesystem.fs.exists(expandedPath))) break
+          if (!(await this._shell.context.fs.promises.exists(expandedPath))) break
           await this.write('\n')
           await this._shell.execute(`ls ${expandedPath}`)
           this.write(this.prompt() + this._cmd)
@@ -1617,6 +1684,179 @@ export class Terminal extends XTerm implements ITerminal {
     return result
   }
 
+  private async _initializeHistory(uid: number): Promise<void> {
+    await this._loadHistoryCache(uid)
+    this._historyLineCount[uid] = await this._getHistoryLineCount(uid)
+    this._historyPosition = this._historyLineCount[uid]
+  }
+
+  private _getHistoryFilePath(uid: number): string {
+    if (this._historyFilePath[uid]) {
+      return this._historyFilePath[uid]
+    }
+    const home = this._shell.env.get('HOME') || '/root'
+    const historyPath = path.join(home, '.history')
+    this._historyFilePath[uid] = historyPath
+    return historyPath
+  }
+
+  private async _loadHistoryCache(uid: number): Promise<void> {
+    const historyPath = this._getHistoryFilePath(uid)
+    this._historyCache[uid] = []
+
+    try {
+      if (!this._shell.context?.fs?.promises) {
+        return
+      }
+
+      const exists = await this._shell.context.fs.promises.exists(historyPath)
+      if (!exists) {
+        return
+      }
+
+      const content = await this._shell.context.fs.promises.readFile(historyPath, 'utf-8')
+      const lines = content.split('\n').filter(line => line.length > 0)
+      
+      const cacheSize = 100
+      const startIndex = Math.max(0, lines.length - cacheSize)
+      this._historyCache[uid] = lines.slice(startIndex)
+    } catch (error) {
+      const err = error as { code?: string; message?: string }
+      if (err.code !== 'ENOENT' && !err.message?.includes('No file system')) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        this._kernel.log.error(`${this._kernel.i18n.ns.terminal('failedToLoadHistory')}: ${errorMessage}`)
+      }
+    }
+  }
+
+  private async _getHistoryLineCount(uid: number): Promise<number> {
+    const historyPath = this._getHistoryFilePath(uid)
+
+    try {
+      const exists = await this._shell.context.fs.promises.exists(historyPath)
+      if (!exists) {
+        return 0
+      }
+
+      const content = await this._shell.context.fs.promises.readFile(historyPath, 'utf-8')
+      const lines = content.split('\n').filter(line => line.length > 0)
+      return lines.length
+    } catch (error) {
+      const err = error as { code?: string; message?: string }
+      if (err.code !== 'ENOENT' && !err.message?.includes('No file system')) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        this._kernel.log.error(`${this._kernel.i18n.ns.terminal('failedToLoadHistory')}: ${errorMessage}`)
+      }
+      return 0
+    }
+  }
+
+  private async _readHistoryLine(uid: number, lineIndex: number): Promise<string | null> {
+    const historyPath = this._getHistoryFilePath(uid)
+
+    try {
+      if (!this._shell.context?.fs?.promises) {
+        return null
+      }
+
+      const exists = await this._shell.context.fs.promises.exists(historyPath)
+      if (!exists) {
+        return null
+      }
+
+      const content = await this._shell.context.fs.promises.readFile(historyPath, 'utf-8')
+      const lines = content.split('\n').filter(line => line.length > 0)
+      
+      if (lineIndex >= 0 && lineIndex < lines.length) {
+        const line = lines[lineIndex]
+        if (line) {
+          if (!this._historyCache[uid]) {
+            this._historyCache[uid] = []
+          }
+          if (!this._historyCache[uid].includes(line)) {
+            this._historyCache[uid].push(line)
+            if (this._historyCache[uid].length > 100) {
+              this._historyCache[uid].shift()
+            }
+          }
+        }
+        return line || null
+      }
+      return null
+    } catch (error) {
+      const err = error as { code?: string; message?: string }
+      if (err.code !== 'ENOENT' && !err.message?.includes('No file system')) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        this._kernel.log.error(`${this._kernel.i18n.ns.terminal('failedToLoadHistory')}: ${errorMessage}`)
+      }
+      return null
+    }
+  }
+
+  private async _appendToHistory(uid: number, command: string): Promise<void> {
+    if (!this._shell.context?.fs?.promises) {
+      return
+    }
+
+    const historyPath = this._getHistoryFilePath(uid)
+
+    try {
+      let content = ''
+      let exists = false
+      
+      try {
+        exists = await this._shell.context.fs.promises.exists(historyPath)
+        if (exists) {
+          content = await this._shell.context.fs.promises.readFile(historyPath, 'utf-8')
+        }
+      } catch {
+        exists = false
+      }
+
+      const needsNewline = content.length > 0 && !content.endsWith('\n')
+      const newContent = needsNewline ? `\n${command}` : command
+      
+      await this._shell.context.fs.promises.appendFile(historyPath, newContent, 'utf-8')
+      
+      this._historyCache[uid] = this._historyCache[uid] || []
+      this._historyCache[uid].push(command)
+      if (this._historyCache[uid].length > 100) {
+        this._historyCache[uid].shift()
+      }
+      
+      this._historyLineCount[uid] = (this._historyLineCount[uid] || 0) + 1
+    } catch (error) {
+      const err = error as { code?: string; message?: string }
+      if (!err.message?.includes('No file system')) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        this._kernel.log.error(`${this._kernel.i18n.ns.terminal('failedToSaveHistory')}: ${errorMessage}`)
+      }
+    }
+  }
+
+  async clearHistory(uid: number): Promise<void> {
+    const historyPath = this._getHistoryFilePath(uid)
+    
+    if (!this._shell.context?.fs?.promises) {
+      return
+    }
+
+    try {
+      await this._shell.context.fs.promises.writeFile(historyPath, '', 'utf-8')
+      this._historyCache[uid] = []
+      this._historyLineCount[uid] = 0
+      this._historyPosition = 0
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      this._kernel.log.error(`Failed to clear history: ${errorMessage}`)
+    }
+  }
+
+  async reloadHistory(uid: number): Promise<void> {
+    await this._initializeHistory(uid)
+  }
+
+
   private async getCompletionMatches(partial: string): Promise<string[]> {
     const parts = partial.split(' ')
     const lastWord = parts[parts.length - 1]
@@ -1639,7 +1879,7 @@ export class Terminal extends XTerm implements ITerminal {
       // Then check executables in PATH
       for (const dir of pathDirs) {
         try {
-          const entries = await this._kernel.filesystem.fs.readdir(dir)
+          const entries = await this._shell.context.fs.promises.readdir(dir)
           const dirMatches = entries.filter((entry: string) => 
             entry.toLowerCase().startsWith(lastWord.toLowerCase())
           )
@@ -1666,7 +1906,7 @@ export class Terminal extends XTerm implements ITerminal {
       expandedLastWord
 
     try {
-      const entries = await this._kernel.filesystem.fs.readdir(searchDir)
+      const entries = await this._shell.context.fs.promises.readdir(searchDir)
       const matches = entries.filter((entry: string) => {
         if (!searchTerm) return true
         return entry.toLowerCase().startsWith(searchTerm.toLowerCase())
@@ -1678,7 +1918,7 @@ export class Terminal extends XTerm implements ITerminal {
       
       const matchesMap = await Promise.all(matches.map(async (match: string) => {
         const fullPath = path.join(searchDir, match)
-        const isDirectory = (await this._kernel.filesystem.fs.stat(fullPath)).isDirectory()
+        const isDirectory = (await this._shell.context.fs.promises.stat(fullPath)).isDirectory()
         const escapedMatch = match.replace(/([ ()[\]{}|&;<>`$"'\\])/g, '\\$1')
         const matchWithSlash = isDirectory ? escapedMatch + '/' : escapedMatch
         

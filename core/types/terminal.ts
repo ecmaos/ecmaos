@@ -263,6 +263,18 @@ export interface Terminal extends XTerm {
    * @param data - Text to write
    */
   writeln(data: string | Uint8Array): void
+
+  /**
+   * Clear command history for a user
+   * @param uid - User ID
+   */
+  clearHistory(uid: number): Promise<void>
+
+  /**
+   * Reload command history from file for a user
+   * @param uid - User ID
+   */
+  reloadHistory(uid: number): Promise<void>
 }
 
 export interface TerminalCommand {

@@ -21,6 +21,7 @@ import { createCommand as createGrep } from './commands/grep.js'
 import { createCommand as createGroups } from './commands/groups.js'
 import { createCommand as createHash } from './commands/hash.js'
 import { createCommand as createHead } from './commands/head.js'
+import { createCommand as createHistory } from './commands/history.js'
 import { createCommand as createHostname } from './commands/hostname.js'
 import { createCommand as createLn } from './commands/ln.js'
 import { createCommand as createLs } from './commands/ls.js'
@@ -116,6 +117,7 @@ export { createCommand as createFetch } from './commands/fetch.js'
 export { createCommand as createGrep } from './commands/grep.js'
 export { createCommand as createGroups } from './commands/groups.js'
 export { createCommand as createHash } from './commands/hash.js'
+export { createCommand as createHistory } from './commands/history.js'
 export { createCommand as createLn } from './commands/ln.js'
 export { createCommand as createLs } from './commands/ls.js'
 export { createCommand as createMkdir } from './commands/mkdir.js'
@@ -201,6 +203,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     groups: createGroups(kernel, shell, terminal),
     hash: createHash(kernel, shell, terminal),
     head: createHead(kernel, shell, terminal),
+    history: createHistory(kernel, shell, terminal),
     hostname: createHostname(kernel, shell, terminal),
     ln: createLn(kernel, shell, terminal),
     ls: createLs(kernel, shell, terminal),
