@@ -145,6 +145,11 @@ export default defineConfig({
     exclude: ['@wasmer/sdk', '@bytecodealliance/jco']
   },
   server: {
+    allowedHosts: [
+      'localhost',
+      'ecmaos.local',
+      '.ngrok-free.app'
+    ],
     port: Number(process.env['ECMAOS_PORT']) || 30443,
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',

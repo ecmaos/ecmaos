@@ -126,7 +126,7 @@ export class Terminal extends XTerm implements ITerminal {
   private _historyPosition: number = 0
   private _id: string = crypto.randomUUID()
   private _kernel: Kernel
-  private _keyListener: IDisposable
+  private _keyListener: IDisposable | undefined
   private _promptTemplate: string = '{user}:{cwd}# '
   private _shell: Shell
   private _socket?: WebSocket
@@ -140,6 +140,15 @@ export class Terminal extends XTerm implements ITerminal {
   private _tabCompletionIndex: number = 0
   private _lastTabCommand: string = ''
   private _isTabCycling: boolean = false
+  private _isMobile: boolean = false
+  private _visualViewportSupported: boolean = false
+  private _viewportListeners: Array<() => void> = []
+  private _passwordInputElement: HTMLInputElement | null = null
+  private _isResizing: boolean = false
+  private _lastViewportHeight: number = 0
+  private _resizeTimeout: ReturnType<typeof setTimeout> | null = null
+  private _mobileInputElement: HTMLInputElement | null = null
+  private _mobileInputListener: IDisposable | null = null
 
   get addons() { return this._addons as Map<string, ITerminalAddon> }
   get ansi() { return this._ansi }
@@ -359,19 +368,73 @@ export class Terminal extends XTerm implements ITerminal {
     this._history[this._shell.credentials.uid] = this._kernel.storage.local.getItem(`history:${this._shell.credentials.uid}`) ? JSON.parse(this._kernel.storage.local.getItem(`history:${this._shell.credentials.uid}`) || '[]') : []
     this._historyPosition = this._history[this._shell.credentials.uid]?.length || 0
 
+    this._detectMobileSupport()
+
     this.events.dispatch<TerminalCreatedEvent>(TerminalEvents.CREATED, { terminal: this })
-    this.element?.setAttribute('enterkeyhint', 'send')
+    this.element?.setAttribute('enterkeyhint', 'search')
   }
 
   mount(element: HTMLElement) {
     this.open(element)
     if (this.addons?.get('fit')) (this.addons.get('fit') as FitAddon).fit()
-    element.querySelector('textarea')?.addEventListener('paste', (e: ClipboardEvent) => this.paste(e.clipboardData?.getData('text/plain') || ''))
+    
+    const textarea = element.querySelector('textarea')
+    if (textarea) {
+      textarea.addEventListener('paste', (e: ClipboardEvent) => this.paste(e.clipboardData?.getData('text/plain') || ''))
+      
+      if (this._isMobile) {
+        textarea.setAttribute('inputmode', 'text')
+        textarea.setAttribute('autocapitalize', 'off')
+        textarea.setAttribute('autocorrect', 'off')
+        textarea.setAttribute('spellcheck', 'false')
+        
+        textarea.addEventListener('focus', () => {
+          setTimeout(() => this._resizeTerminalToViewport(), 50)
+          setTimeout(() => this._resizeTerminalToViewport(), 200)
+          setTimeout(() => this._resizeTerminalToViewport(), 500)
+        })
+        
+        textarea.addEventListener('input', () => {
+          setTimeout(() => this._scrollTerminalToBottom(), 0)
+        })
+      }
+    }
+    
+    this._setupKeyboardHandling()
+    
+    if (this._isMobile) {
+      setTimeout(() => this._resizeTerminalToViewport(), 100)
+    }
+    
     this.events.dispatch<TerminalMountEvent>(TerminalEvents.MOUNT, { terminal: this, element })
   }
 
   hide() {
     if (this.element) this.element.style.display = 'none'
+  }
+
+  dispose() {
+    this._cleanupViewportListeners()
+    if (this._resizeTimeout) {
+      clearTimeout(this._resizeTimeout)
+      this._resizeTimeout = null
+    }
+    if (this._passwordInputElement) {
+      this._passwordInputElement.remove()
+      this._passwordInputElement = null
+    }
+    super.dispose()
+  }
+
+  private _cleanupViewportListeners() {
+    for (const cleanup of this._viewportListeners) {
+      try {
+        cleanup()
+      } catch (error) {
+        console.warn('Error cleaning up viewport listener:', error)
+      }
+    }
+    this._viewportListeners = []
   }
 
   createSpecialLink(uri: string, text: string) {
@@ -388,12 +451,171 @@ export class Terminal extends XTerm implements ITerminal {
 
   listen() {
     this.unlisten()
-    this._keyListener = this.onKey(this.keyHandler.bind(this))
+    
+    if (this._isMobile) {
+      this._setupMobileInput()
+    } else {
+      this._keyListener = this.onKey(this.keyHandler.bind(this))
+    }
+    
     this.events.dispatch<TerminalListenEvent>(TerminalEvents.LISTEN, { terminal: this })
+  }
+  
+  private _setupMobileInput() {
+    if (this._mobileInputElement) {
+      this._mobileInputElement.remove()
+    }
+    
+    const mobileInput = document.createElement('input')
+    mobileInput.type = 'text'
+    mobileInput.style.position = 'fixed'
+    mobileInput.style.top = '0'
+    mobileInput.style.left = '0'
+    mobileInput.style.width = '1px'
+    mobileInput.style.height = '1px'
+    mobileInput.style.opacity = '0'
+    mobileInput.style.pointerEvents = 'auto'
+    mobileInput.style.zIndex = '-1'
+    mobileInput.setAttribute('inputmode', 'text')
+    mobileInput.setAttribute('autocapitalize', 'off')
+    mobileInput.setAttribute('autocorrect', 'off')
+    mobileInput.setAttribute('spellcheck', 'false')
+    mobileInput.setAttribute('enterkeyhint', 'search')
+    
+    document.body.appendChild(mobileInput)
+    this._mobileInputElement = mobileInput
+    
+    let lastValue = ''
+    
+    const handleInput = () => {
+      const currentValue = mobileInput.value
+      const diff = currentValue.length - lastValue.length
+      
+      if (diff > 0) {
+        const newChars = currentValue.slice(lastValue.length)
+        for (const char of newChars) {
+          const fakeEvent = new KeyboardEvent('keydown', {
+            key: char,
+            code: `Key${char.toUpperCase()}`,
+            bubbles: true,
+            cancelable: true
+          })
+          Object.defineProperty(fakeEvent, 'target', { value: mobileInput, enumerable: true })
+          this.keyHandler({ key: char, domEvent: fakeEvent as KeyboardEvent })
+        }
+      } else if (diff < 0) {
+        const backspaceEvent = new KeyboardEvent('keydown', {
+          key: 'Backspace',
+          code: 'Backspace',
+          bubbles: true,
+          cancelable: true
+        })
+        Object.defineProperty(backspaceEvent, 'target', { value: mobileInput, enumerable: true })
+        this.keyHandler({ key: '\b', domEvent: backspaceEvent as KeyboardEvent })
+      }
+      
+      lastValue = currentValue
+    }
+    
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if (e.target !== mobileInput) return
+      
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        e.stopPropagation()
+        
+        const enterEvent = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          bubbles: true,
+          cancelable: true
+        })
+        Object.defineProperty(enterEvent, 'target', { value: mobileInput, enumerable: true })
+        
+        await this.keyHandler({ key: '\r', domEvent: enterEvent as KeyboardEvent })
+        
+        setTimeout(() => {
+          mobileInput.value = ''
+          lastValue = ''
+        }, 50)
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') {
+        e.preventDefault()
+        e.stopPropagation()
+        
+        const fakeEvent = new KeyboardEvent('keydown', {
+          key: e.key,
+          code: e.code,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey,
+          metaKey: e.metaKey,
+          bubbles: true,
+          cancelable: true
+        })
+        Object.defineProperty(fakeEvent, 'target', { value: mobileInput, enumerable: true })
+        
+        await this.keyHandler({ key: e.key, domEvent: fakeEvent as KeyboardEvent })
+        
+        setTimeout(() => {
+          mobileInput.value = this._cmd
+          lastValue = this._cmd
+          const cursorPos = this._cursorPosition
+          if (mobileInput.setSelectionRange) {
+            mobileInput.setSelectionRange(cursorPos, cursorPos)
+          }
+        }, 0)
+      } else if (e.ctrlKey && (e.key === 'c' || e.key === 'l' || e.key === 'v')) {
+        e.preventDefault()
+        e.stopPropagation()
+        
+        const fakeEvent = new KeyboardEvent('keydown', {
+          key: e.key,
+          code: e.code,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          altKey: e.altKey,
+          metaKey: e.metaKey,
+          bubbles: true,
+          cancelable: true
+        })
+        Object.defineProperty(fakeEvent, 'target', { value: mobileInput, enumerable: true })
+        
+        await this.keyHandler({ key: e.key, domEvent: fakeEvent as KeyboardEvent })
+      }
+    }
+    
+    mobileInput.addEventListener('input', handleInput)
+    mobileInput.addEventListener('keydown', handleKeyDown)
+    
+    mobileInput.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (mobileInput && document.body.contains(mobileInput) && this._keyListener !== undefined) {
+          mobileInput.focus()
+        }
+      }, 100)
+    })
+    
+    setTimeout(() => {
+      mobileInput.focus()
+    }, 100)
+    
+    this._mobileInputListener = {
+      dispose: () => {
+        mobileInput.removeEventListener('input', handleInput)
+        mobileInput.removeEventListener('keydown', handleKeyDown)
+        if (mobileInput && document.body.contains(mobileInput)) {
+          mobileInput.remove()
+        }
+        this._mobileInputElement = null
+      }
+    }
   }
 
   unlisten() {
-    try { this._keyListener.dispose() } catch {}
+    try { this._keyListener?.dispose() } catch {}
+    try { this._mobileInputListener?.dispose() } catch {}
+    this._keyListener = undefined
+    this._mobileInputListener = null
     this.events.dispatch<TerminalUnlistenEvent>(TerminalEvents.UNLISTEN, { terminal: this })
   }
 
@@ -417,24 +639,42 @@ export class Terminal extends XTerm implements ITerminal {
   }
 
   async readline(prompt: string = '', hide: boolean = false, noListen: boolean = false) {
+    if (hide && this._isMobile) {
+      return this._readlineWithPasswordInput(prompt, noListen)
+    }
+
+    if (this._isMobile) {
+      return this._readlineWithMobileInput(prompt, noListen)
+    }
+
     let input = ''
     let cursor = 0
     const wasListening = this._keyListener !== undefined
     this.unlisten()
     this.write(prompt)
     this.focus()
+    if (this._isMobile) {
+      setTimeout(() => this._scrollTerminalToBottom(), 100)
+      setTimeout(() => this._scrollTerminalToBottom(), 300)
+    }
 
     const result = await new Promise<string>((resolve) => {
       const disposable = this.onKey(({ domEvent }) => {
+        if (domEvent.target && this._passwordInputElement && domEvent.target === this._passwordInputElement) {
+          return
+        }
+        
         domEvent.preventDefault()
         domEvent.stopPropagation()
         
         switch(domEvent.key) {
-          case 'Enter': 
+          case 'Enter': {
+            const finalInput = input
             disposable.dispose()
             this.write('\n')
-            resolve(input)
+            resolve(finalInput)
             break
+          }
           case 'ArrowLeft': 
             if (cursor > 0) {
               this.write(ansi.cursor.back())
@@ -679,8 +919,8 @@ export class Terminal extends XTerm implements ITerminal {
   }
 
   async keyHandler({ key, domEvent }: { key: string; domEvent: KeyboardEvent }) {
-    if (!key) return
     const keyName = domEvent.key
+    if (!key && !keyName) return
     if (domEvent.ctrlKey && domEvent.shiftKey) {
       if (keyName === 'F1' || keyName === 'F2') return // Ignore listen/unlisten keys
     }
@@ -899,11 +1139,17 @@ export class Terminal extends XTerm implements ITerminal {
   override write(data: string | Uint8Array) {
     super.write(data)
     this.events.dispatch<TerminalWriteEvent>(TerminalEvents.WRITE, { text: data instanceof Uint8Array ? new TextDecoder().decode(data) : data })
+    if (this._isMobile) {
+      setTimeout(() => this._scrollTerminalToBottom(), 0)
+    }
   }
 
   override writeln(data: string | Uint8Array) {
     super.writeln(data)
     this.events.dispatch<TerminalWritelnEvent>(TerminalEvents.WRITELN, { text: data instanceof Uint8Array ? new TextDecoder().decode(data) : data })
+    if (this._isMobile) {
+      setTimeout(() => this._scrollTerminalToBottom(), 0)
+    }
   }
 
   /**
@@ -1008,6 +1254,328 @@ export class Terminal extends XTerm implements ITerminal {
     } else {
       this.write(this.prompt() + cmd)
     }
+  }
+
+  private _detectMobileSupport() {
+    this._isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && 'ontouchstart' in window) ||
+      (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
+
+    this._visualViewportSupported = typeof window !== 'undefined' && 
+      'visualViewport' in window &&
+      window.visualViewport !== null
+  }
+
+  private _setupKeyboardHandling() {
+    if (!this._isMobile) return
+
+    if (this._visualViewportSupported) {
+      try {
+        const viewport = window.visualViewport!
+        
+        const handleViewportChange = () => {
+          if (this._resizeTimeout) {
+            clearTimeout(this._resizeTimeout)
+          }
+          this._resizeTimeout = setTimeout(() => {
+            this._resizeTerminalToViewport()
+          }, 50)
+        }
+        
+        viewport.addEventListener('resize', handleViewportChange)
+        
+        const cleanup = () => {
+          if (this._resizeTimeout) {
+            clearTimeout(this._resizeTimeout)
+            this._resizeTimeout = null
+          }
+          viewport.removeEventListener('resize', handleViewportChange)
+        }
+        this._viewportListeners.push(cleanup)
+        
+        this._lastViewportHeight = viewport.height
+        this._resizeTerminalToViewport()
+      } catch (error) {
+        console.warn('Failed to setup Visual Viewport API:', error)
+      }
+    }
+  }
+
+  private _resizeTerminalToViewport() {
+    if (!this._isMobile || this._isResizing) return
+    
+    const viewport = this._visualViewportSupported ? window.visualViewport : null
+    if (!viewport) return
+    
+    const terminalContainer = document.getElementById('terminal')
+    if (!terminalContainer) return
+    
+    const newHeight = viewport.height
+    
+    if (Math.abs(newHeight - this._lastViewportHeight) < 1) {
+      return
+    }
+    
+    this._isResizing = true
+    this._lastViewportHeight = newHeight
+    
+    try {
+      terminalContainer.style.height = `${newHeight}px`
+      terminalContainer.style.maxHeight = `${newHeight}px`
+      
+      if (this.element) {
+        this.element.style.height = `${newHeight}px`
+      }
+      
+      if (this.addons?.get('fit')) {
+        (this.addons.get('fit') as FitAddon).fit()
+      }
+      
+      this._scrollTerminalToBottom()
+    } finally {
+      this._isResizing = false
+    }
+  }
+  
+  private _scrollTerminalToBottom() {
+    if (!this.element) return
+    
+    const viewportElement = this.element.querySelector('.xterm-viewport') as HTMLElement
+    if (viewportElement) {
+      viewportElement.scrollTop = viewportElement.scrollHeight
+    }
+    
+    this.scrollToBottom()
+  }
+
+  private async _readlineWithMobileInput(prompt: string, noListen: boolean): Promise<string> {
+    const wasListening = this._keyListener !== undefined
+    this.unlisten()
+    this.write(prompt)
+    
+    const textInput = document.createElement('input')
+    textInput.type = 'text'
+    textInput.style.position = 'fixed'
+    textInput.style.top = '0'
+    textInput.style.left = '0'
+    textInput.style.width = '1px'
+    textInput.style.height = '1px'
+    textInput.style.opacity = '0'
+    textInput.style.pointerEvents = 'auto'
+    textInput.style.zIndex = '-1'
+    textInput.setAttribute('inputmode', 'text')
+    textInput.setAttribute('autocapitalize', 'off')
+    textInput.setAttribute('autocorrect', 'off')
+    textInput.setAttribute('spellcheck', 'false')
+    textInput.setAttribute('enterkeyhint', 'search')
+    textInput.addEventListener('keydown', (e) => { window.alert(`Keydown: ${e.key}, code: ${e.code}`) })
+    textInput.addEventListener('keyup', (e) => { window.alert(`Keyup: ${e.key}, code: ${e.code}`) })
+    textInput.addEventListener('keypress', (e) => { window.alert(`Keypress: ${e.key}, code: ${e.code}`) })
+    textInput.addEventListener('input', (e) => { window.alert(`Input: ${(e.target as HTMLInputElement).value}`) })
+    
+    document.body.appendChild(textInput)
+    
+    this._scrollTerminalToBottom()
+    this._resizeTerminalToViewport()
+    
+    setTimeout(() => {
+      textInput.focus()
+    }, 100)
+
+    const result = await new Promise<string>((resolve) => {
+      let resolved = false
+      let keyListener: IDisposable | null = null
+      
+      const cleanup = () => {
+        if (resolved) return
+        resolved = true
+        textInput.removeEventListener('input', handleInput)
+        textInput.removeEventListener('keydown', handleKeyDown)
+        textInput.removeEventListener('blur', handleBlur)
+        if (keyListener) {
+          keyListener.dispose()
+          keyListener = null
+        }
+        textInput.remove()
+      }
+      
+      const updateDisplay = () => {
+        const promptLen = prompt.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+        const displayText = textInput.value
+        this.write('\r' + ansi.cursor.horizontalAbsolute(promptLen + 1) + ansi.erase.inLine(0) + displayText)
+      }
+
+      const handleInput = () => {
+        updateDisplay()
+      }
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.target !== textInput) {
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
+        
+        switch (e.key) {
+          case 'Enter': {
+            e.preventDefault()
+            e.stopPropagation()
+            const inputValue = textInput.value.trim()
+            cleanup()
+            this.write('\n')
+            setTimeout(() => {
+              resolve(inputValue)
+            }, 0)
+            break
+          }
+          case 'Escape': {
+            e.preventDefault()
+            e.stopPropagation()
+            cleanup()
+            resolve('')
+            break
+          }
+        }
+      }
+      
+      const handleBlur = () => {
+        setTimeout(() => {
+          if (textInput && document.body.contains(textInput) && !resolved) {
+            textInput.focus()
+          }
+        }, 100)
+      }
+
+      textInput.addEventListener('input', handleInput)
+      textInput.addEventListener('keydown', handleKeyDown)
+      textInput.addEventListener('blur', handleBlur)
+
+      keyListener = this.onKey(({ domEvent }) => {
+        if (domEvent.target !== textInput) {
+          domEvent.preventDefault()
+          domEvent.stopPropagation()
+        }
+      })
+    })
+
+    if (wasListening && !noListen) this.listen()
+    return result
+  }
+
+  private async _readlineWithPasswordInput(prompt: string, noListen: boolean): Promise<string> {
+    const wasListening = this._keyListener !== undefined
+    this.unlisten()
+    this.write(prompt)
+    
+    const passwordInput = document.createElement('input')
+    passwordInput.type = 'password'
+    passwordInput.style.position = 'fixed'
+    passwordInput.style.top = '0'
+    passwordInput.style.left = '0'
+    passwordInput.style.width = '1px'
+    passwordInput.style.height = '1px'
+    passwordInput.style.opacity = '0'
+    passwordInput.style.pointerEvents = 'auto'
+    passwordInput.style.zIndex = '-1'
+    passwordInput.setAttribute('inputmode', 'text')
+    passwordInput.setAttribute('autocapitalize', 'off')
+    passwordInput.setAttribute('autocorrect', 'off')
+    passwordInput.setAttribute('spellcheck', 'false')
+    passwordInput.setAttribute('enterkeyhint', 'search')
+    
+    document.body.appendChild(passwordInput)
+    this._passwordInputElement = passwordInput
+    
+    this._scrollTerminalToBottom()
+    this._resizeTerminalToViewport()
+    
+    setTimeout(() => {
+      passwordInput.focus()
+    }, 100)
+
+    const result = await new Promise<string>((resolve) => {
+      let resolved = false
+      let keyListener: IDisposable | null = null
+      
+      const cleanup = () => {
+        if (resolved) return
+        resolved = true
+        passwordInput.removeEventListener('input', handleInput)
+        passwordInput.removeEventListener('keydown', handleKeyDown)
+        passwordInput.removeEventListener('blur', handleBlur)
+        if (keyListener) {
+          keyListener.dispose()
+          keyListener = null
+        }
+        passwordInput.remove()
+        this._passwordInputElement = null
+      }
+      
+      const updateDisplay = () => {
+        const promptLen = prompt.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+        const stars = '*'.repeat(passwordInput.value.length)
+        this.write('\r' + ansi.cursor.horizontalAbsolute(promptLen + 1) + ansi.erase.inLine(0) + stars)
+      }
+
+      const handleInput = () => {
+        updateDisplay()
+      }
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.target !== passwordInput) {
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
+        
+        switch (e.key) {
+          case 'Enter': {
+            e.preventDefault()
+            e.stopPropagation()
+            const passwordValue = passwordInput.value.trim()
+            cleanup()
+            this.write('\n')
+            setTimeout(() => {
+              resolve(passwordValue)
+            }, 0)
+            break
+          }
+          case 'Escape':
+            e.preventDefault()
+            e.stopPropagation()
+            cleanup()
+            resolve('')
+            break
+        }
+      }
+      
+      const handleBlur = () => {
+        setTimeout(() => {
+          if (passwordInput && document.body.contains(passwordInput) && !resolved) {
+            passwordInput.focus()
+          }
+        }, 100)
+      }
+
+      passwordInput.addEventListener('input', handleInput)
+      passwordInput.addEventListener('keydown', handleKeyDown)
+      passwordInput.addEventListener('blur', handleBlur)
+
+      keyListener = this.onKey(({ domEvent }) => {
+        if (domEvent.target !== passwordInput) {
+          domEvent.preventDefault()
+          domEvent.stopPropagation()
+        }
+      })
+    })
+
+    if (this._passwordInputElement) {
+      this._passwordInputElement.remove()
+      this._passwordInputElement = null
+    }
+
+    if (wasListening && !noListen) this.listen()
+    return result
   }
 
   private async getCompletionMatches(partial: string): Promise<string[]> {
