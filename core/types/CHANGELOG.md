@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.8.0
+
+### Minor Changes
+
+- 1600ef1: multi-TTY support; mobile improvements (WIP)
+
 ## 0.7.4
 
 ### Patch Changes

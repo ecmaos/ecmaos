@@ -1,5 +1,13 @@
 # @ecmaos/coreutils
 
+## 0.5.4
+
+### Patch Changes
+
+- 1600ef1: multi-TTY support; mobile improvements (WIP)
+- Updated dependencies [1600ef1]
+  - @ecmaos/types@0.8.0
+
 ## 0.5.3
 
 ### Patch Changes
