@@ -54,5 +54,8 @@
     "@types/command-line-args": "^5.2.3",
     "@types/command-line-usage": "^5.0.4",
     "user-agent-data-types": "^0.4.2"
+  },
+  "resolutions": {
+    "vim-wasm": "https://github.com/mathiscode/vim-wasm.git#patch-1"
   }
 }
