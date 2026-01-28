@@ -1405,10 +1405,6 @@ export class Terminal extends XTerm implements ITerminal {
     textInput.setAttribute('autocorrect', 'off')
     textInput.setAttribute('spellcheck', 'false')
     textInput.setAttribute('enterkeyhint', 'search')
-    textInput.addEventListener('keydown', (e) => { window.alert(`Keydown: ${e.key}, code: ${e.code}`) })
-    textInput.addEventListener('keyup', (e) => { window.alert(`Keyup: ${e.key}, code: ${e.code}`) })
-    textInput.addEventListener('keypress', (e) => { window.alert(`Keypress: ${e.key}, code: ${e.code}`) })
-    textInput.addEventListener('input', (e) => { window.alert(`Input: ${(e.target as HTMLInputElement).value}`) })
     
     document.body.appendChild(textInput)
     
