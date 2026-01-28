@@ -17,6 +17,7 @@ import * as MIDIDevice from '@ecmaos-devices/midi'
 import * as PresentationDevice from '@ecmaos-devices/presentation'
 import * as SensorsDevice from '@ecmaos-devices/sensors'
 import * as SerialDevice from '@ecmaos-devices/serial'
+import * as TTYDevice from '@ecmaos-devices/tty'
 import * as USBDevice from '@ecmaos-devices/usb'
 import * as WebGLDevice from '@ecmaos-devices/webgl'
 
@@ -34,6 +35,7 @@ export const DefaultDevices: Record<string, KernelDevice> = {
   presentation: PresentationDevice,
   sensors: SensorsDevice,
   serial: SerialDevice,
+  tty: TTYDevice,
   usb: USBDevice,
   webgl: WebGLDevice
 }

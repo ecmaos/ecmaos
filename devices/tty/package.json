@@ -1,0 +1,20 @@
+{
+  "name": "@ecmaos-devices/tty",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "@ecmaos/config-typescript": "workspace:^",
+    "@ecmaos/types": "workspace:^",
+    "@zenfs/core": "^2.4.4",
+    "vite-plugin-node-polyfills": "^0.22.0"
+  }
+}

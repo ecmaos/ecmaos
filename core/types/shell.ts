@@ -42,6 +42,8 @@ export interface Shell {
   context: BoundContext
   /** Current username */
   readonly username: string
+  /** Terminal */
+  terminal: Terminal
 
   /**
    * Attach terminal to shell

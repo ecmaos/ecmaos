@@ -133,30 +133,25 @@ self.addEventListener('fetch', (event) => {
     return
   }
   
-  if (request.method !== 'GET') {
-    return
-  }
+  if (request.method !== 'GET') return
+  if (url.pathname.includes('/swapi.js') || url.pathname.includes('/manifest.json')) return
   
-  if (url.pathname.includes('/swapi.js') || url.pathname.includes('/manifest.json')) {
-    return
-  }
+  const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]'
   
   event.respondWith(
     (async () => {
+      if (isLocalhost) return fetch(request)
+      
       const cache = await caches.open(CACHE_NAME)
       const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|wasm)$/i.test(url.pathname)
       
       if (isStaticAsset) {
         const cachedResponse = await cache.match(request)
-        if (cachedResponse) {
-          return cachedResponse
-        }
+        if (cachedResponse) return cachedResponse
         
         try {
           const networkResponse = await fetch(request)
-          if (networkResponse.ok) {
-            cache.put(request, networkResponse.clone())
-          }
+          if (networkResponse.ok) cache.put(request, networkResponse.clone())
           return networkResponse
         } catch (error) {
           throw error
@@ -164,15 +159,11 @@ self.addEventListener('fetch', (event) => {
       } else {
         try {
           const networkResponse = await fetch(request)
-          if (networkResponse.ok) {
-            cache.put(request, networkResponse.clone())
-          }
+          if (networkResponse.ok) cache.put(request, networkResponse.clone())
           return networkResponse
         } catch (error) {
           const cachedResponse = await cache.match(request)
-          if (cachedResponse) {
-            return cachedResponse
-          }
+          if (cachedResponse) return cachedResponse
           throw error
         }
       }

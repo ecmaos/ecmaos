@@ -171,6 +171,7 @@
     "@ecmaos-devices/presentation": "workspace:^",
     "@ecmaos-devices/sensors": "workspace:^",
     "@ecmaos-devices/serial": "workspace:^",
+    "@ecmaos-devices/tty": "workspace:^",
     "@ecmaos-devices/usb": "workspace:^",
     "@ecmaos-devices/webgl": "workspace:^",
     "@ecmaos/bios": "workspace:^",

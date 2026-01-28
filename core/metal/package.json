@@ -11,7 +11,7 @@
     "start": "tsx src/server.ts"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22"
   },
   "nodemonConfig": {
     "exec": "tsx --inspect=127.0.0.1:30229 src/server.ts",
