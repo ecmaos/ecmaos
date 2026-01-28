@@ -100,6 +100,7 @@ import { createCommand as createZip } from './commands/zip.js'
 import { createCommand as createUnzip } from './commands/unzip.js'
 import { createCommand as createVideo } from './commands/video.js'
 import { createCommand as createView } from './commands/view.js'
+import { createCommand as createVim } from './commands/vim.js'
 import { createCommand as createGit } from './commands/git.js'
 
 // Export individual command factories
@@ -177,6 +178,7 @@ export { createCommand as createZip } from './commands/zip.js'
 export { createCommand as createUnzip } from './commands/unzip.js'
 export { createCommand as createVideo } from './commands/video.js'
 export { createCommand as createView } from './commands/view.js'
+export { createCommand as createVim } from './commands/vim.js'
 export { createCommand as createGit } from './commands/git.js'
 
 /**
@@ -278,6 +280,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     unzip: createUnzip(kernel, shell, terminal),
     video: createVideo(kernel, shell, terminal),
     view: createView(kernel, shell, terminal),
+    vim: createVim(kernel, shell, terminal),
     git: createGit(kernel, shell, terminal)
   }
 }

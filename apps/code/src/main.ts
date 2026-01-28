@@ -31,9 +31,9 @@ const createMenuBar = (
   win: WinBox,
   editor: monaco.editor.IStandaloneCodeEditor,
   params: ProcessEntryParams,
-  filePath: string
+  fileHandle: { truncate: (len?: number) => Promise<void>, writeFile: (data: string | Uint8Array) => Promise<void> }
 ) => {
-  const { kernel, shell } = params
+  const { kernel } = params
   const menuBar = document.createElement('div')
   menuBar.style.cssText = `
     width: 100%;
@@ -136,7 +136,8 @@ const createMenuBar = (
     {
       label: 'Save',
       action: async () => {
-        await shell.context.fs.promises.writeFile(filePath, editor.getValue(), 'utf-8')
+        await fileHandle.truncate(0)
+        await fileHandle.writeFile(editor.getValue())
         kernel.toast.success('File saved')
       }
     },
@@ -239,7 +240,7 @@ const main = async (params: ProcessEntryParams) => {
     automaticLayout: true
   })
 
-  const menuBar = createMenuBar(win, editor, params, file)
+  const menuBar = createMenuBar(win, editor, params, fileHandle)
   container.appendChild(menuBar)
   container.appendChild(editorContainer)
 
@@ -251,7 +252,8 @@ const main = async (params: ProcessEntryParams) => {
   container.addEventListener('keydown', async (e) => {
     if (e.ctrlKey && e.key === 's') {
       e.preventDefault()
-      await shell.context.fs.promises.writeFile(file, editor.getValue(), 'utf-8')
+      await fileHandle.truncate(0)
+      await fileHandle.writeFile(editor.getValue())
       kernel.toast.success('File saved')
     }
   })

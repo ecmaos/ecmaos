@@ -1008,12 +1008,16 @@ export class Terminal extends XTerm implements ITerminal {
         this.write('\n')
 
         if (this._cmd.trim().length > 0) {
+          const cmdToExecute = this._cmd
           const uid = this._shell.credentials.uid
+          
+          this._cmd = ''
+          
           // Don't save history if the command begins with a space or is the same as the last command
-          if (this._cmd[0] !== ' ' && this._cmd !== this._history[uid]?.[this._history[uid]?.length - 1]) {
+          if (cmdToExecute[0] !== ' ' && cmdToExecute !== this._history[uid]?.[this._history[uid]?.length - 1]) {
             // TODO: Save to $HOME/.history instead and don't load entire history - index history file by line
             this._history[uid] = this._history[uid] || []
-            this._history[uid].push(this._cmd)
+            this._history[uid].push(cmdToExecute)
             try { this._kernel.storage.local.setItem(`history:${uid}`, JSON.stringify(this._history[uid] || [])) }
             catch (error) { this._kernel.log.error(this._kernel.i18n.ns.terminal('failedToSaveHistory'), error) }
           }
@@ -1021,16 +1025,18 @@ export class Terminal extends XTerm implements ITerminal {
           this._historyPosition = this._history[uid]?.length || 0
 
           try {
-            this.events.dispatch<TerminalExecuteEvent>(TerminalEvents.EXECUTE, { terminal: this, command: this._cmd })
-            await this._shell.execute(this._cmd)
+            this.events.dispatch<TerminalExecuteEvent>(TerminalEvents.EXECUTE, { terminal: this, command: cmdToExecute })
+            await this._shell.execute(cmdToExecute)
+            this._cursorPosition = 0
+            this.write(ansi.erase.inLine(2) + this.prompt())
           } catch (error) {
             this.writeln(chalk.red(`${error}`))
           }
+        } else {
+          this._cmd = ''
+          this._cursorPosition = 0
+          this.write(ansi.erase.inLine(2) + this.prompt())
         }
-
-        this._cmd = ''
-        this._cursorPosition = 0
-        this.write(ansi.erase.inLine(2) + this.prompt())
         break
       case 'Backspace':
         if (this._cursorPosition > 0) {

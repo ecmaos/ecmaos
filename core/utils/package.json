@@ -45,7 +45,8 @@
     "human-format": "^1.2.1",
     "isomorphic-git": "^1.36.3",
     "marked": "^17.0.1",
-    "modern-tar": "^0.7.3"
+    "modern-tar": "^0.7.3",
+    "vim-wasm": "^0.0.13"
   },
   "devDependencies": {
     "@types/ansi-escape-sequences": "^4.0.4",
