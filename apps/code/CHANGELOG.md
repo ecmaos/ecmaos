@@ -1,5 +1,11 @@
 # @ecmaos-apps/code
 
+## 0.3.3
+
+### Patch Changes
+
+- a1c1dd9: tty and history coreutils; now use .history file; fix code app file saving
+
 ## 0.3.2
 
 ### Patch Changes

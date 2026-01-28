@@ -1,5 +1,11 @@
 # @ecmaos/swapi
 
+## 0.3.0
+
+### Minor Changes
+
+- a1c1dd9: tty and history coreutils; now use .history file; fix code app file saving
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,5 +1,16 @@
 # @ecmaos/coreutils
 
+## 0.6.0
+
+### Minor Changes
+
+- a1c1dd9: tty and history coreutils; now use .history file; fix code app file saving
+
+### Patch Changes
+
+- Updated dependencies [a1c1dd9]
+  - @ecmaos/types@0.8.1
+
 ## 0.5.4
 
 ### Patch Changes

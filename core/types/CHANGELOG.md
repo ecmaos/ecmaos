@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.8.1
+
+### Patch Changes
+
+- a1c1dd9: tty and history coreutils; now use .history file; fix code app file saving
+
 ## 0.8.0
 
 ### Minor Changes
