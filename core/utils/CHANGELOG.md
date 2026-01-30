@@ -1,5 +1,13 @@
 # @ecmaos/coreutils
 
+## 0.6.3
+
+### Patch Changes
+
+- a6b9d3b: revamp execution header parsing
+- Updated dependencies [a6b9d3b]
+  - @ecmaos/types@0.8.4
+
 ## 0.6.2
 
 ### Patch Changes

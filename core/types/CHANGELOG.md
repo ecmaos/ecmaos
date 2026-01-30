@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.8.4
+
+### Patch Changes
+
+- a6b9d3b: revamp execution header parsing
+
 ## 0.8.3
 
 ### Patch Changes
