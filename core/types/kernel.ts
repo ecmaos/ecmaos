@@ -5,7 +5,6 @@
 import type { BIOSModule } from '@ecmaos/bios'
 import type { DeviceDriver } from '@zenfs/core'
 import type { InitOptions } from 'i18next'
-import type { Notyf } from 'notyf'
 import type Module from 'node:module'
 import type { JSONSchemaForNPMPackageJsonFiles } from '@schemastore/package'
 
@@ -144,9 +143,6 @@ export interface Kernel {
   /** Telemetry service for OpenTelemetry tracing */
   readonly telemetry: Telemetry
 
-  /** Toast notification service */
-  readonly toast: Notyf
-
   /** User management service */
   readonly users: Users
 
@@ -254,7 +250,6 @@ export interface KernelOptions {
   log?: LogOptions
   service?: ServiceOptions
   socket?: WebSocket
-  toast?: object
 }
 
 /**

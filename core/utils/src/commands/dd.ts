@@ -316,13 +316,13 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
                 break
               }
 
-              let data = buffer.subarray(0, bytesRead)
+              let data = buffer.slice(0, bytesRead)
 
               if (skipBytes > 0) {
                 const toSkip = Math.min(data.length, skipBytes - skipped)
                 skipped += toSkip
                 if (toSkip < data.length) {
-                  data = data.subarray(toSkip)
+                  data = data.slice(toSkip)
                 } else {
                   continue
                 }

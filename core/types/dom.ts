@@ -1,4 +1,5 @@
 import type { TopbarConfigOptions } from 'topbar'
+import type { Notyf } from 'notyf'
 
 /**
  * DOM types and interfaces
@@ -10,6 +11,8 @@ import type { TopbarConfigOptions } from 'topbar'
 export interface DomOptions {
   /** Whether to show the topbar */
   topbar?: boolean
+  /** Toast notification configuration options */
+  toast?: object
 }
 
 /**
@@ -20,6 +23,8 @@ export interface Dom {
   readonly document: Document
   /** Get the window instance */
   readonly window: Window
+  /** Toast notification service */
+  readonly toast: Notyf
 
   /**
    * Toggle or set the topbar visibility

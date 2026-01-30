@@ -17,12 +17,10 @@ import semver from 'semver'
 import { addDevice, bindContext, Credentials, DeviceDriver } from '@zenfs/core'
 // import { Emscripten } from '@zenfs/emscripten'
 import { JSONSchemaForNPMPackageJsonFiles } from '@schemastore/package'
-import { Notyf } from 'notyf'
 import { WebContainer } from '@webcontainer/api'
 import { context, trace } from '@opentelemetry/api'
 
 import './../themes/default.scss'
-import 'notyf/notyf.min.css'
 
 import { Auth } from '#auth.ts'
 import { Components } from '#components.ts'
@@ -192,8 +190,6 @@ export class Kernel implements IKernel {
   public readonly telemetry: Telemetry
   /** Terminal interface for user interaction */
   public readonly terminal: ITerminal
-  /** Toast notification service */
-  public readonly toast: Notyf
   /** User management service */
   public readonly users: Users
   /** WebAssembly service */
@@ -244,7 +240,6 @@ export class Kernel implements IKernel {
     this.storage = new Storage({ kernel: this })
     this.telemetry = new Telemetry({ kernel: this })
     this.terminal = new Terminal({ kernel: this, socket: this.options.socket, tty: 0 })
-    this.toast = new Notyf(this.options.toast)
     this.users = new Users({ kernel: this })
     this.windows = new Windows()
     this.wasm = new Wasm({ kernel: this })
@@ -565,12 +560,19 @@ export class Kernel implements IKernel {
 
         this.terminal.writeln(import.meta.env['REPOSITORY'] + '\n')
 
-        if (import.meta.env['KNOWN_ISSUES'] && import.meta.env['ECMAOS_BOOT_DISABLE_ISSUES'] !== 'true') {
+        if (
+          import.meta.env['KNOWN_ISSUES']
+          && import.meta.env['ECMAOS_BOOT_DISABLE_ISSUES'] !== 'true'
+          && !this.filesystem.fsSync.existsSync('/etc/noissues')
+        ) {
           this.terminal.writeln(chalk.yellow.bold(this.i18n.ns.kernel('knownIssues')))
           this.terminal.writeln(chalk.yellow(import.meta.env['KNOWN_ISSUES'].map((issue: string) => `- ${issue}`).join('\n')) + '\n')
         }
 
-        if (import.meta.env['ECMAOS_BOOT_DISABLE_TIPS'] !== 'true') {
+        if (
+          import.meta.env['ECMAOS_BOOT_DISABLE_TIPS'] !== 'true'
+          && !this.filesystem.fsSync.existsSync('/etc/notips')
+        ) {
           const tipsList = this.i18n.ns.kernel('tipsList', { returnObjects: true }) as string[]
           if (Array.isArray(tipsList) && tipsList.length > 0) {
             this.terminal.writeln(chalk.green.bold(this.i18n.ns.kernel('tips')))
@@ -597,8 +599,8 @@ export class Kernel implements IKernel {
           globalThis.document.title = globalThis.document.title.includes('_') ? 'ecmaos# ' : 'ecmaos# _'
         }, 600)
 
-        this.toast.success(`${import.meta.env['NAME']} v${import.meta.env['VERSION']}`)
-        this._showTtyIndicator(this._activeTty)
+        this.dom.toast.success(`${import.meta.env['NAME']} v${import.meta.env['VERSION']}`)
+        this.dom.showTtyIndicator(this._activeTty)
       }
 
       if (await this.filesystem.fs.exists('/run')) {
@@ -855,7 +857,7 @@ export class Kernel implements IKernel {
       this.log.error(error)
       this._state = KernelState.PANIC
       this.events.dispatch<KernelPanicEvent>(KernelEvents.PANIC, { error: error as Error })
-      this.toast.error({
+      this.dom.toast.error({
         message: this.i18n.ns.kernel('panic'),
         duration: 0,
         dismissible: false
@@ -2129,7 +2131,7 @@ export class Kernel implements IKernel {
     const targetContainer = document.getElementById(`terminal-tty${ttyNumber}`)
     if (targetContainer) targetContainer.classList.add('active')
 
-    this._showTtyIndicator(ttyNumber)
+    this.dom.showTtyIndicator(ttyNumber)
 
     let targetShell = this._shells.get(ttyNumber)
     if (!targetShell) targetShell = await this.createShell(ttyNumber)
@@ -2139,30 +2141,6 @@ export class Kernel implements IKernel {
       targetShell.terminal.focus()
       targetShell.terminal.listen()
     })
-  }
-
-  /**
-   * Shows a quick flash indicator for the TTY number in the top-right corner
-   * @param ttyNumber - TTY number to display
-   */
-  private _showTtyIndicator(ttyNumber: number): void {
-    const existingIndicator = document.getElementById('tty-indicator')
-    if (existingIndicator) existingIndicator.remove()
-
-    const indicator = document.createElement('div')
-    indicator.id = 'tty-indicator'
-    indicator.className = 'tty-indicator'
-    indicator.textContent = `TTY ${ttyNumber}`
-    document.body.appendChild(indicator)
-
-    requestAnimationFrame(() => indicator.classList.add('show'))
-
-    setTimeout(() => {
-      indicator.classList.remove('show')
-      setTimeout(() => {
-        if (indicator.parentNode) indicator.remove()
-      }, 300)
-    }, 1500)
   }
 
   /**

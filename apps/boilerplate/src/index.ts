@@ -9,7 +9,7 @@ const main = async (params: ProcessEntryParams) => {
   terminal.writeln(`CWD: ${cwd}`)
   terminal.writeln(`ARGS: ${args.join(' ')}`)
 
-  kernel.toast.success('Boilerplate app loaded!')
+  kernel.dom.toast.success('Boilerplate app loaded!')
 }
 
 export default main

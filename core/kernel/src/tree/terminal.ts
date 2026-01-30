@@ -1046,10 +1046,11 @@ export class Terminal extends XTerm implements ITerminal {
           try {
             this.events.dispatch<TerminalExecuteEvent>(TerminalEvents.EXECUTE, { terminal: this, command: cmdToExecute })
             await this._shell.execute(cmdToExecute)
-            this._cursorPosition = 0
-            this.write(ansi.erase.inLine(2) + this.prompt())
           } catch (error) {
             this.writeln(chalk.red(`${error}`))
+          } finally {
+            this._cursorPosition = 0
+            this.write(ansi.erase.inLine(2) + this.prompt())
           }
         } else {
           this._cmd = ''

@@ -138,7 +138,7 @@ const createMenuBar = (
       action: async () => {
         await fileHandle.truncate(0)
         await fileHandle.writeFile(editor.getValue())
-        kernel.toast.success('File saved')
+        kernel.dom.toast.success('File saved')
       }
     },
     { label: '-' },
@@ -254,7 +254,7 @@ const main = async (params: ProcessEntryParams) => {
       e.preventDefault()
       await fileHandle.truncate(0)
       await fileHandle.writeFile(editor.getValue())
-      kernel.toast.success('File saved')
+      kernel.dom.toast.success('File saved')
     }
   })
 

@@ -1,6 +1,6 @@
 {
   "name": "@ecmaos/kernel",
-  "description": "ecmaOS: Micro-kernel and framework for web technologies",
+  "description": "ecmaOS: A web-native operating system and framework for web technologies",
   "version": "0.10.2",
   "license": "MIT+Apache-2.0",
   "homepage": "https://ecmaos.sh",
@@ -22,15 +22,16 @@
     "email": "code@mathis.network"
   },
   "knownIssues": [
+    "To disable known issues, type `touch /etc/noissues`",
     "It's best to stick to Chromium-based browsers for the most features",
     "Keyboard is broken on mobile; ecmaOS is not mobile-friendly at this time",
     "Don't expect any sort of POSIX compliance at this stage",
     "Most commands/devices are very basic implementations, not complete reproductions",
-    "stdin/stdout/stderr streams and redirection can be wonky and don't work everywhere, but are coming along",
     "CTRL-C will return you to a prompt, but doesn't currently interrupt a process",
     "Lots of unfinished work; watch your step"
   ],
   "tips": [
+    "To disable tips, type `touch /etc/notips`",
     "ecmaos.sh has no backend server; all data is stored and processed entirely in your browser",
     "If it ever fails to boot, check your logs, try clearing all data, try incognito mode, or try another browser",
     "You can switch between TTYs using CTRL+SHIFT+<0-9>",
