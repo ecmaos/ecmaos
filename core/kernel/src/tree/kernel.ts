@@ -1481,6 +1481,7 @@ export class Kernel implements IKernel {
         if (filePath.endsWith('.js')) return 'js'
         else if (filePath.endsWith('.md')) return 'view'
         else if (filePath.endsWith('.json')) return 'view'
+        else if (filePath.endsWith('.txt')) return 'view'
         else return 'application/octet-stream'
       }
       

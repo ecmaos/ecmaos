@@ -15,7 +15,7 @@ function detectFileType(filePath: string): FileType {
   if (ext === '.pdf') return 'pdf'
   
   // Markdown
-  const markdownExts = ['.md', '.markdown', '.mdown', '.mkd', '.mkdn']
+  const markdownExts = ['.md', '.markdown', '.mdown', '.mkd', '.mkdn', '.txt']
   if (markdownExts.includes(ext)) return 'markdown'
   
   // JSON
