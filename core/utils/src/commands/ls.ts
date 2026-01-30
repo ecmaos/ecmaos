@@ -114,11 +114,17 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
       const getTimestampString = (timestamp: Date) => {
         const diff = (new Date().getTime() - timestamp.getTime()) / 1000
 
-        if (diff < 24 * 60 * 60) return chalk.green(timestamp.toISOString().slice(0, 19).replace('T', ' '))
-        else if (diff < 7 * 24 * 60 * 60) return chalk.yellow(timestamp.toISOString().slice(0, 19).replace('T', ' '))
-        else if (diff < 30 * 24 * 60 * 60) return chalk.blue(timestamp.toISOString().slice(0, 19).replace('T', ' '))
-        else if (diff < 365 * 24 * 60 * 60) return chalk.magenta(timestamp.toISOString().slice(0, 19).replace('T', ' '))
-        else return chalk.gray(timestamp.toISOString().slice(0, 19).replace('T', ' '))
+        // "Temperature" coloring: red (newest) -> yellow -> green -> cyan -> blue (oldest)
+        if (diff < 24 * 60 * 60) // < 1 day
+          return chalk.red(timestamp.toISOString().slice(0, 19).replace('T', ' '))
+        else if (diff < 7 * 24 * 60 * 60) // < 1 week
+          return chalk.yellow(timestamp.toISOString().slice(0, 19).replace('T', ' '))
+        else if (diff < 30 * 24 * 60 * 60) // < 1 month
+          return chalk.green(timestamp.toISOString().slice(0, 19).replace('T', ' '))
+        else if (diff < 365 * 24 * 60 * 60) // < 1 year
+          return chalk.cyan(timestamp.toISOString().slice(0, 19).replace('T', ' '))
+        else // > 1 year (coldest)
+          return chalk.blue(timestamp.toISOString().slice(0, 19).replace('T', ' '))
       }
 
       const getOwnerString = (stats: Awaited<ReturnType<typeof shell.context.fs.promises.stat>>) => {

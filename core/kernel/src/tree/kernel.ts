@@ -65,6 +65,7 @@ import type {
   KernelExecuteOptions,
   KernelOptions,
   KernelPanicEvent,
+  Shell as IShell,
   Terminal as ITerminal,
   User,
   Wasm as IWasm,
@@ -932,7 +933,7 @@ export class Kernel implements IKernel {
    * @param options - Execution options containing command, args, and shell
    * @returns Exit code of the command
    */
-  async execute(options: KernelExecuteOptions) {
+  async execute(options: KernelExecuteOptions): Promise<number> {
     try {
       if (!await this.filesystem.exists(options.command)) {
         this.log.error(`File not found for execution: ${options.command}`)
@@ -946,7 +947,7 @@ export class Kernel implements IKernel {
         if (device) return await this.executeDevice(device.device, options.args)
       }
 
-      const header = await this.readFileHeader(options.command)
+      const header = await this.readFileHeader(options.command, options.shell)
       if (!header) return -1
 
       let exitCode: number | void = -1
@@ -954,9 +955,18 @@ export class Kernel implements IKernel {
         case 'wasm':
           exitCode = await this.executeWasm(options)
           break
+        case 'js':
+          exitCode = await this.executeJavaScript(options)
+          break
+        case 'view':
+          exitCode = await this.execute({
+            ...options,
+            command: '/bin/view',
+            args: [options.command, ...(options.args || [])]
+          })
+          break
         case 'bin':
           switch (header.namespace) {
-            case 'terminal': // left for backward-compatibility
             case 'command':
               if (!header.name) return -1
               exitCode = await this.executeCommand({ ...options, command: header.name })
@@ -1182,7 +1192,7 @@ export class Kernel implements IKernel {
     let keyListener: { dispose: () => void } | null = null
 
     try {
-      const wasmBytes = await this.shell.context.fs.promises.readFile(options.command)
+      const wasmBytes = await options.shell.context.fs.promises.readFile(options.command)
       const needsWasi = await this.wasm.detectWasiRequirements(wasmBytes)
 
       let stdin: ReadableStream<Uint8Array>
@@ -1307,7 +1317,7 @@ export class Kernel implements IKernel {
    * @returns Exit code of the script
    */
   async executeScript(options: KernelExecuteOptions): Promise<number> {
-    const header = await this.readFileHeader(options.command)
+    const header = await this.readFileHeader(options.command, options.shell)
     if (!header) return -1
 
     if (header.type !== 'bin' || header.namespace !== 'script') {
@@ -1315,7 +1325,7 @@ export class Kernel implements IKernel {
       return -1
     }
 
-    const script = await this.shell.context.fs.promises.readFile(options.command, 'utf-8')
+    const script = await options.shell.context.fs.promises.readFile(options.command, 'utf-8')
     if (script) {
       const terminalCmdBefore = options.terminal?.cmd || ''
       
@@ -1333,6 +1343,29 @@ export class Kernel implements IKernel {
     } else this.log.error(`Script ${options.command} not found`)
 
     return -1
+  }
+
+  /**
+   * Executes a JavaScript file
+   * @param options - Execution options containing JavaScript file path and shell
+   * @returns Exit code of the JavaScript execution
+   */
+  async executeJavaScript(options: KernelExecuteOptions): Promise<number> {
+    try {
+      const code = await options.shell.context.fs.promises.readFile(options.command, 'utf-8')
+      if (!code) {
+        this.log.error(`JavaScript file not found or empty: ${options.command}`)
+        return -1
+      }
+
+      const script = new Function(code)
+      script()
+      return 0
+    } catch (error) {
+      this.log.error(`Failed to execute JavaScript file: ${error}`)
+      options.terminal?.writeln(chalk.red((error as Error).message))
+      return -1
+    }
   }
 
   /**
@@ -1369,9 +1402,10 @@ export class Kernel implements IKernel {
   /**
    * Reads and parses a file header to determine its type
    * @param {string} filePath - Path to the file
+   * @param {IShell} shell - Optional shell instance to use for filesystem operations
    * @returns {Promise<FileHeader|null>} Parsed header information or null if invalid
    */
-  async readFileHeader(filePath: string): Promise<FileHeader | null> {
+  async readFileHeader(filePath: string, shell?: IShell): Promise<FileHeader | null> {
     const parseHeader = (header: string): FileHeader | null => {
       if (!header.startsWith('#!')) return null
       if (header.startsWith('#!ecmaos:')) {
@@ -1384,54 +1418,145 @@ export class Kernel implements IKernel {
       return null
     }
 
-    return new Promise((resolve, reject) => {
-      (async () => {
-        try {
-          if (!await this.shell.context.fs.promises.exists(filePath)) return resolve(null)
+    const checkMagicBytes = (buffer: Uint8Array, magicBytes: Uint8Array, offset: number = 0): boolean => {
+      if (buffer.length < offset + magicBytes.length) return false
+      return magicBytes.every((byte, index) => byte === buffer[offset + index])
+    }
+
+    const checkMagicBytesPattern = (buffer: Uint8Array, pattern: { bytes: Uint8Array; type: string; offset?: number; checker?: (buf: Uint8Array) => boolean }): boolean => {
+      if (pattern.checker) {
+        return pattern.checker(buffer)
+      }
+      return checkMagicBytes(buffer, pattern.bytes, pattern.offset || 0)
+    }
+
+    const shellContext = shell?.context || this.shell.context
+    
+    try {
+      if (!await shellContext.fs.promises.exists(filePath)) return null
+      
+      const magicBytesPatterns: Array<{ bytes: Uint8Array; type: string; offset?: number; checker?: (buf: Uint8Array) => boolean }> = [
+        { bytes: new Uint8Array([0x00, 0x61, 0x73, 0x6D]), type: 'wasm' },
+        { bytes: new Uint8Array([0xFF, 0xD8, 0xFF]), type: 'view' },
+        { bytes: new Uint8Array([0x89, 0x50, 0x4E, 0x47]), type: 'view' },
+        { bytes: new Uint8Array([0x47, 0x49, 0x46, 0x38]), type: 'view' },
+        { bytes: new Uint8Array([0x47, 0x49, 0x46, 0x39]), type: 'view' },
+        { bytes: new Uint8Array([0x42, 0x4D]), type: 'view' },
+        { bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]), type: 'view' },
+        { bytes: new Uint8Array([0x66, 0x4C, 0x61, 0x43]), type: 'view' },
+        { bytes: new Uint8Array([0x4F, 0x67, 0x67, 0x53]), type: 'view' },
+        { bytes: new Uint8Array([0xFF, 0xFB]), type: 'view' },
+        { bytes: new Uint8Array([0xFF, 0xF3]), type: 'view' },
+        { bytes: new Uint8Array([0xFF, 0xF2]), type: 'view' },
+        { bytes: new Uint8Array([0x49, 0x44, 0x33]), type: 'view' },
+        { bytes: new Uint8Array([0x1A, 0x45, 0xDF, 0xA3]), type: 'view' },
+        {
+          bytes: new Uint8Array([0x52, 0x49, 0x46, 0x46]),
+          type: 'view',
+          checker: (buf: Uint8Array) => {
+            if (buf.length < 12) return false
+            if (!checkMagicBytes(buf, new Uint8Array([0x52, 0x49, 0x46, 0x46]))) return false
+            const webp = new Uint8Array([0x57, 0x45, 0x42, 0x50])
+            const wave = new Uint8Array([0x57, 0x41, 0x56, 0x45])
+            return checkMagicBytes(buf, webp, 8) || checkMagicBytes(buf, wave, 8)
+          }
+        },
+        {
+          bytes: new Uint8Array([0x00]),
+          type: 'view',
+          checker: (buf: Uint8Array) => {
+            if (buf.length < 8) return false
+            const ftyp = new Uint8Array([0x66, 0x74, 0x79, 0x70])
+            return checkMagicBytes(buf, ftyp, 4)
+          }
+        }
+      ]
+      
+      const maxMagicBytesLength = Math.max(12, ...magicBytesPatterns.map(p => (p.offset || 0) + p.bytes.length))
+      
+      let handle
+      let firstBytes: Uint8Array | null = null
+
+      const checkExtensionType = (filePath: string): FileHeader['type'] | null => {
+        if (filePath.endsWith('.js')) return 'js'
+        else if (filePath.endsWith('.md')) return 'view'
+        else if (filePath.endsWith('.json')) return 'view'
+        else return 'application/octet-stream'
+      }
+      
+      try {
+        handle = await shellContext.fs.promises.open(filePath, 'r')
+        const buffer = new Uint8Array(maxMagicBytesLength)
+        const result = await handle.read(buffer, 0, maxMagicBytesLength, 0)
+        if (result.bytesRead >= maxMagicBytesLength) firstBytes = buffer
+      } catch {
+        const readable = shellContext.fs.createReadStream(filePath)
+        return new Promise<FileHeader | null>((resolve, reject) => {
+          let firstChunk: Buffer | null = null
           
-          const wasmMagicBytes = new Uint8Array([0x00, 0x61, 0x73, 0x6D])
-          
-          try {
-            const handle = await this.shell.context.fs.promises.open(filePath, 'r')
-            const buffer = new Uint8Array(4)
-            const { bytesRead } = await handle.read(buffer, 0, 4, 0)
-            await handle.close()
-            
-            if (bytesRead >= 4) {
-              const isWasm = wasmMagicBytes.every((byte, index) => byte === buffer[index])
-              if (isWasm) {
-                return resolve({ type: 'wasm' })
-              }
-            }
-          } catch {
-            const readable = this.shell.context.fs.createReadStream(filePath)
-            readable.on('data', (chunk: Buffer) => {
-              if (chunk.length >= 4) {
-                const firstBytes = new Uint8Array(chunk.buffer, chunk.byteOffset, 4)
-                const isWasm = wasmMagicBytes.every((byte, index) => byte === firstBytes[index])
-                if (isWasm) {
-                  readable.destroy()
-                  return resolve({ type: 'wasm' })
+          readable.on('data', (chunk: Buffer) => {
+            if (firstChunk === null) {
+              firstChunk = chunk
+              
+              if (chunk.length >= maxMagicBytesLength) {
+                const chunkBytes = new Uint8Array(chunk.buffer, chunk.byteOffset, maxMagicBytesLength)
+                for (const pattern of magicBytesPatterns) {
+                  if (checkMagicBytesPattern(chunkBytes, pattern)) {
+                    readable.destroy()
+                    return resolve({ type: pattern.type as FileHeader['type'] })
+                  }
                 }
               }
-              resolve(parseHeader(chunk.toString().split('\n')[0] || ''))
+              
+              const firstLine = chunk.toString().split('\n')[0] || ''
+              const header = parseHeader(firstLine)
+              if (header) {
+                readable.destroy()
+                return resolve(header)
+              }
+
               readable.destroy()
-            })
-            readable.on('error', (error: Error) => reject(error))
-            readable.on('close', () => resolve(null))
-            return
-          }
+              const extensionType = checkExtensionType(filePath)
+              return extensionType ? resolve({ type: extensionType }) : resolve(null)
+            }
+          })
           
-          const readable = this.shell.context.fs.createReadStream(filePath)
-          readable.on('data', (chunk: Buffer) => resolve(parseHeader(chunk.toString().split('\n')[0] || '')))
           readable.on('error', (error: Error) => reject(error))
-          readable.on('close', () => resolve(null))
-        } catch (error) {
-          this.log.error(error)
-          reject(error)
+          readable.on('close', () => {
+            readable.destroy()
+            const extensionType = checkExtensionType(filePath)
+            return extensionType ? resolve({ type: extensionType }) : resolve(null)
+          })
+        })
+      }
+      
+      if (!handle) return null
+      
+      if (firstBytes) {
+        for (const pattern of magicBytesPatterns) {
+          if (checkMagicBytesPattern(firstBytes, pattern)) {
+            await handle.close()
+            return { type: pattern.type as FileHeader['type'] }
+          }
         }
-      })()
-    })
+      }
+      
+      const firstLineBuffer = new Uint8Array(512)
+      const firstLineResult = await handle.read(firstLineBuffer, 0, 512, 0)
+      await handle.close()
+      
+      if (firstLineResult.bytesRead > 0) {
+        const firstLine = new TextDecoder().decode(firstLineBuffer.slice(0, firstLineResult.bytesRead)).split('\n')[0] || ''
+        const header = parseHeader(firstLine)
+        if (header) return header
+      }
+      
+      const extensionType = checkExtensionType(filePath)
+      return extensionType ? { type: extensionType } : null
+    } catch (error) {
+      this.log.error(error)
+      throw error
+    }
   }
 
   /**
@@ -1481,6 +1606,31 @@ export class Kernel implements IKernel {
         switch (event) {
           case KernelEvents.PANIC:
             this.log.fatal('KernelPanic:', detail)
+            
+            if (this.telemetry.active) {
+              const tracer = this.telemetry.getTracer('ecmaos.kernel', this.version)
+              const panicSpan = tracer.startSpan('kernel.panic', {
+                attributes: {
+                  'kernel.id': this.id,
+                  'kernel.state': this._state,
+                  'kernel.version': this.version
+                }
+              })
+              
+              const panicDetail = detail as KernelPanicEvent
+              if (panicDetail?.error) {
+                panicSpan.recordException(panicDetail.error)
+                panicSpan.setStatus({ code: 2, message: panicDetail.error.message })
+                panicSpan.setAttribute('error.name', panicDetail.error.name)
+                panicSpan.setAttribute('error.message', panicDetail.error.message)
+                if (panicDetail.error.stack) {
+                  panicSpan.setAttribute('error.stack', panicDetail.error.stack)
+                }
+              }
+              
+              panicSpan.end()
+            }
+            
             break
           // default:
           //   this.log.debug('KernelEvent:', event, { command, args, exitCode })
