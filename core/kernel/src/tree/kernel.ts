@@ -1436,33 +1436,34 @@ export class Kernel implements IKernel {
       if (!await shellContext.fs.promises.exists(filePath)) return null
       
       const magicBytesPatterns: Array<{ bytes: Uint8Array; type: string; offset?: number; checker?: (buf: Uint8Array) => boolean }> = [
-        { bytes: new Uint8Array([0x00, 0x61, 0x73, 0x6D]), type: 'wasm' },
-        { bytes: new Uint8Array([0xFF, 0xD8, 0xFF]), type: 'view' },
-        { bytes: new Uint8Array([0x89, 0x50, 0x4E, 0x47]), type: 'view' },
-        { bytes: new Uint8Array([0x47, 0x49, 0x46, 0x38]), type: 'view' },
-        { bytes: new Uint8Array([0x47, 0x49, 0x46, 0x39]), type: 'view' },
-        { bytes: new Uint8Array([0x42, 0x4D]), type: 'view' },
-        { bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]), type: 'view' },
-        { bytes: new Uint8Array([0x66, 0x4C, 0x61, 0x43]), type: 'view' },
-        { bytes: new Uint8Array([0x4F, 0x67, 0x67, 0x53]), type: 'view' },
-        { bytes: new Uint8Array([0xFF, 0xFB]), type: 'view' },
-        { bytes: new Uint8Array([0xFF, 0xF3]), type: 'view' },
-        { bytes: new Uint8Array([0xFF, 0xF2]), type: 'view' },
-        { bytes: new Uint8Array([0x49, 0x44, 0x33]), type: 'view' },
-        { bytes: new Uint8Array([0x1A, 0x45, 0xDF, 0xA3]), type: 'view' },
+        { bytes: new Uint8Array([0x00, 0x61, 0x73, 0x6D]), type: 'wasm' }, // WebAssembly Binary
+        { bytes: new Uint8Array([0xFF, 0xD8, 0xFF]), type: 'view' }, // JPEG Image (Start of Image / SOI)
+        { bytes: new Uint8Array([0x89, 0x50, 0x4E, 0x47]), type: 'view' }, // PNG Image (ASCII ".PNG")
+        { bytes: new Uint8Array([0x47, 0x49, 0x46, 0x38]), type: 'view' }, // GIF Image (ASCII "GIF8" - matches GIF87a and GIF89a)
+        { bytes: new Uint8Array([0x47, 0x49, 0x46, 0x39]), type: 'view' }, // GIF Image (ASCII "GIF9" - likely a typo intended for GIF89a)
+        { bytes: new Uint8Array([0x42, 0x4D]), type: 'view' }, // BMP Image (ASCII "BM" - Windows Bitmap)
+        { bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46]), type: 'view' }, // PDF Document (ASCII "%PDF")
+        { bytes: new Uint8Array([0x66, 0x4C, 0x61, 0x43]), type: 'view' }, // FLAC Audio (ASCII "fLaC")
+        { bytes: new Uint8Array([0x4F, 0x67, 0x67, 0x53]), type: 'view' }, // Ogg Container (ASCII "OggS" - Vorbis, Theora, etc.)
+        { bytes: new Uint8Array([0xFF, 0xFB]), type: 'view' }, // MP3 Audio (MPEG-1 Layer 3, No CRC)
+        { bytes: new Uint8Array([0xFF, 0xF3]), type: 'view' }, // MP3 Audio (MPEG-2 Layer 3, No CRC - Lower sampling rates)
+        { bytes: new Uint8Array([0xFF, 0xF2]), type: 'view' }, // MP3 Audio (MPEG-2 Layer 3, CRC Protected)
+        { bytes: new Uint8Array([0x49, 0x44, 0x33]), type: 'view' }, // MP3 Metadata (ID3v2 container - often at start of MP3)
+        { bytes: new Uint8Array([0x1A, 0x45, 0xDF, 0xA3]), type: 'view' }, // Matroska / WebM (EBML Header ID)
         {
-          bytes: new Uint8Array([0x52, 0x49, 0x46, 0x46]),
+          bytes: new Uint8Array([0x52, 0x49, 0x46, 0x46]), // RIFF (ASCII "RIFF")
           type: 'view',
           checker: (buf: Uint8Array) => {
             if (buf.length < 12) return false
             if (!checkMagicBytes(buf, new Uint8Array([0x52, 0x49, 0x46, 0x46]))) return false
-            const webp = new Uint8Array([0x57, 0x45, 0x42, 0x50])
-            const wave = new Uint8Array([0x57, 0x41, 0x56, 0x45])
-            return checkMagicBytes(buf, webp, 8) || checkMagicBytes(buf, wave, 8)
+            const avi = new Uint8Array([0x41, 0x56, 0x49, 0x20]) // AVI Video (ASCII "AVI ")
+            const webp = new Uint8Array([0x57, 0x45, 0x42, 0x50]) // WebP Image (ASCII "WEBP")
+            const wave = new Uint8Array([0x57, 0x41, 0x56, 0x45]) // WAV Audio (ASCII "WAVE")
+            return checkMagicBytes(buf, avi, 8) || checkMagicBytes(buf, webp, 8) || checkMagicBytes(buf, wave, 8)
           }
         },
         {
-          bytes: new Uint8Array([0x00]),
+          bytes: new Uint8Array([0x00]), // MP4 Video (ASCII "MP4V")
           type: 'view',
           checker: (buf: Uint8Array) => {
             if (buf.length < 8) return false
