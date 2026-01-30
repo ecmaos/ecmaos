@@ -46,9 +46,10 @@ This is NOT intended to be a "Linux kernel in Javascript" - while it takes its h
 - Filesystem supporting multiple backends powered by [zenfs](https://github.com/zen-fs/core)
 - Terminal interface powered by [xterm.js](https://xtermjs.org)
 - Streams for handling input and output, allowing redirection and piping
-- Device framework with a common interface for working with hardware: WebBluetooth, WebSerial, WebHID, WebUSB, etc.
+- Device framework with a common interface for working with hardware: **WebBluetooth, WebSerial, WebHID, WebUSB, etc.**
 - Some devices have a builtin CLI, so you can run them like normal commands: `# /dev/bluetooth`
 - WebAssembly binaries are the native executable format; `# ./hello.wasm --world`
+- Many common files can be viewed directly: `# ./image.jpg`, `# ./doc.pdf`
 - Install any client-side npm package; `# install axios`
 - Event manager for dispatching and subscribing to events
 - Process manager for running applications and daemons
