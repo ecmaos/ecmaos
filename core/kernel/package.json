@@ -1,7 +1,7 @@
 {
   "name": "@ecmaos/kernel",
   "description": "ecmaOS: A web-native operating system and framework for web technologies",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "license": "MIT+Apache-2.0",
   "homepage": "https://ecmaos.sh",
   "repository": "https://github.com/ecmaos/ecmaos",

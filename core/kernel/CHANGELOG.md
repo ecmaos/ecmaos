@@ -1,5 +1,27 @@
 # @ecmaos/kernel
 
+## 0.10.3
+
+### Patch Changes
+
+- e181f77: add toasters screensaver; tweak terminal height for dock; move toast and ttyIndicator to dom module
+- Updated dependencies [e181f77]
+  - @ecmaos/coreutils@0.6.2
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/tty@0.1.1
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.10.2
 
 ### Patch Changes

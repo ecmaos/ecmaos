@@ -1,6 +1,6 @@
 {
   "name": "@ecmaos/types",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Type definitions for ecmaOS",
   "author": "Jay Mathis",
   "license": "MIT+Apache-2.0",

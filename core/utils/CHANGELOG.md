@@ -1,5 +1,13 @@
 # @ecmaos/coreutils
 
+## 0.6.2
+
+### Patch Changes
+
+- e181f77: add toasters screensaver; tweak terminal height for dock; move toast and ttyIndicator to dom module
+- Updated dependencies [e181f77]
+  - @ecmaos/types@0.8.3
+
 ## 0.6.1
 
 ### Patch Changes

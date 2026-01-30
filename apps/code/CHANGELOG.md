@@ -1,5 +1,11 @@
 # @ecmaos-apps/code
 
+## 0.3.4
+
+### Patch Changes
+
+- e181f77: add toasters screensaver; tweak terminal height for dock; move toast and ttyIndicator to dom module
+
 ## 0.3.3
 
 ### Patch Changes
