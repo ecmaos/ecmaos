@@ -506,6 +506,8 @@ Things to keep in mind:
 
 ## Development
 
+Until v1.0.0, active development will occur on the `main` branch. Once a v1.0.0 release is made, development will shift to a `dev` branch, and `main` will be reserved for stable releases.
+
 [Turborepo](https://turbo.build/repo) is used to manage the monorepo, and [pnpm](https://pnpm.io) is used for package management.
 
 PNPM Workspaces:
