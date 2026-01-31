@@ -535,6 +535,116 @@ export class Shell implements IShell {
     return expandedArgs
   }
 
+  /**
+   * Expands history bang syntax (e.g., !10) to the corresponding command from history
+   * Supports patterns like !N where N is a history line number (1-indexed)
+   * Recursively expands history bangs until no more expansions are possible
+   */
+  private async expandHistoryBang(commandLine: string): Promise<string> {
+    const home = this._env.get('HOME') || '/root'
+    const historyPath = path.join(home, '.history')
+
+    try {
+      if (!await this.context.fs.promises.exists(historyPath)) {
+        return commandLine
+      }
+
+      const content = await this.context.fs.promises.readFile(historyPath, 'utf-8')
+      const historyLines = content.split('\n').filter(line => line.length > 0)
+
+      if (historyLines.length === 0) {
+        return commandLine
+      }
+
+      let result = commandLine
+      let hasExpansion = true
+      const maxIterations = 100
+      let iterations = 0
+
+      while (hasExpansion && iterations < maxIterations) {
+        iterations++
+        hasExpansion = false
+        let inSingleQuote = false
+        let inDoubleQuote = false
+        let escaped = false
+        let i = 0
+
+        while (i < result.length) {
+          const char = result[i]
+
+          if (escaped) {
+            escaped = false
+            i++
+            continue
+          }
+
+          if (char === '\\') {
+            escaped = true
+            i++
+            continue
+          }
+
+          if (char === "'" && !inDoubleQuote) {
+            inSingleQuote = !inSingleQuote
+            i++
+            continue
+          }
+
+          if (char === '"' && !inSingleQuote) {
+            inDoubleQuote = !inDoubleQuote
+            i++
+            continue
+          }
+
+          if (!inSingleQuote && char === '!') {
+            const nextChar = result[i + 1]
+            
+            if (nextChar && /[0-9]/.test(nextChar)) {
+              let numStr = ''
+              let j = i + 1
+              
+              while (j < result.length) {
+                const char = result[j]
+                if (char && /[0-9]/.test(char)) {
+                  numStr += char
+                  j++
+                } else {
+                  break
+                }
+              }
+
+              const historyNum = parseInt(numStr, 10)
+              
+              if (historyNum >= 1 && historyNum <= historyLines.length) {
+                const historyCommand = historyLines[historyNum - 1]
+                if (historyCommand) {
+                  result = result.slice(0, i) + historyCommand + result.slice(j)
+                  hasExpansion = true
+                  break
+                }
+              }
+              
+              throw new Error(`!${historyNum}: event not found`)
+            }
+          }
+
+          i++
+        }
+      }
+
+      if (iterations >= maxIterations) {
+        throw new Error('History expansion exceeded maximum iterations (possible circular reference)')
+      }
+
+      return result
+    } catch (error) {
+      if (error instanceof Error && (error.message.includes('event not found') || error.message.includes('maximum iterations'))) {
+        throw error
+      }
+      return commandLine
+    }
+  }
+
   private parseRedirection(commandLine: string): { 
     command: string, 
     redirections: { type: '>' | '>>' | '<' | '2>' | '2>>' | '2>&1' | '&>' | '&>>', target: string }[] 
@@ -610,6 +720,7 @@ export class Shell implements IShell {
             if (!commandLine) continue
 
             commandLine = await this.parseCommandSubstitution(commandLine)
+            commandLine = await this.expandHistoryBang(commandLine)
             commandLine = this.expandTilde(commandLine)
 
             const { command, redirections } = this.parseRedirection(commandLine)

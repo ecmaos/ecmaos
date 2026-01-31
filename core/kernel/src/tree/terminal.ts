@@ -1060,12 +1060,27 @@ export class Terminal extends XTerm implements ITerminal {
         break
       case 'Backspace':
         if (this._cursorPosition > 0) {
+          const promptText = this.prompt()
+          const promptLen = promptText.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+          const cols = this.cols
+          
+          const currentColumn = (promptLen + this._cursorPosition) % cols
+          const isAtLineStart = currentColumn === 0 && this._cursorPosition > 0
+          
           const tail = this._cmd.slice(this._cursorPosition)
           this._cmd = this._cmd.slice(0, this._cursorPosition - 1) + tail
           this._cursorPosition--
-          this.write('\b' + ansi.erase.inLine(0) + tail)
-          if (tail.length > 0) {
-            this.write(`\x1b[${tail.length}D`)
+          
+          if (isAtLineStart) {
+            this.write('\x1b[1A\r' + ansi.cursor.horizontalAbsolute(promptLen + this._cursorPosition + 1) + ansi.erase.inLine(0) + tail)
+            if (tail.length > 0) {
+              this.write(`\x1b[${tail.length}D`)
+            }
+          } else {
+            this.write('\b' + ansi.erase.inLine(0) + tail)
+            if (tail.length > 0) {
+              this.write(`\x1b[${tail.length}D`)
+            }
           }
         } else this.write('\x07')
         break
@@ -1174,10 +1189,40 @@ export class Terminal extends XTerm implements ITerminal {
         break
       }
       case 'ArrowLeft':
-        if (this._cursorPosition > 0) { this._cursorPosition--; this.write('\b') }
+        if (this._cursorPosition > 0) {
+          const promptText = this.prompt()
+          const promptLen = promptText.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+          const cols = this.cols
+          
+          const currentColumn = (promptLen + this._cursorPosition) % cols
+          const isAtLineStart = currentColumn === 0 && this._cursorPosition > 0
+          
+          this._cursorPosition--
+          
+          if (isAtLineStart) {
+            this.write('\x1b[1A\r' + ansi.cursor.horizontalAbsolute(promptLen + this._cursorPosition + 1))
+          } else {
+            this.write('\b')
+          }
+        }
         break
       case 'ArrowRight':
-        if (this._cursorPosition < this._cmd.length) { this._cursorPosition++; this.write(key) }
+        if (this._cursorPosition < this._cmd.length) {
+          const promptText = this.prompt()
+          const promptLen = promptText.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+          const cols = this.cols
+          
+          const currentColumn = (promptLen + this._cursorPosition) % cols
+          const isAtLineEnd = currentColumn === cols - 1
+          
+          this._cursorPosition++
+          
+          if (isAtLineEnd) {
+            this.write('\n\r')
+          } else {
+            this.write(key)
+          }
+        }
         break
       case 'Home':
         this._cursorPosition = 0

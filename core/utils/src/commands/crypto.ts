@@ -1393,7 +1393,7 @@ async function handleRandom(
 Generate random bytes.
 
 Options:
-  --length, -l LENGTH          Number of bytes to generate (default: 32)
+  --length, -l LENGTH           Number of bytes to generate (default: 32)
   --output, -o FILE             Output file (default: stdout)
   --help                        Display this help`
 
