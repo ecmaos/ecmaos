@@ -14,7 +14,7 @@ import spinners from 'cli-spinners'
 // import * as textCanvas from '@thi.ng/text-canvas'
 // import * as textFormat from '@thi.ng/text-format'
 import * as emoji from '@thi.ng/emoji'
-import { IDisposable, ITerminalAddon, Terminal as XTerm } from '@xterm/xterm'
+import { IDisposable, ITerminalAddon, ITheme, Terminal as XTerm } from '@xterm/xterm'
 import { AttachAddon } from '@xterm/addon-attach'
 import { FitAddon } from '@xterm/addon-fit'
 import { ImageAddon } from '@xterm/addon-image'
@@ -976,13 +976,15 @@ export class Terminal extends XTerm implements ITerminal {
     // If using old format with {placeholders}, convert to new format
     if (promptFormat.includes('{') && !hasEnvPrompt && !text) {
       const user = this._kernel.users.get(this._shell.credentials.euid ?? 0)
-      // @ts-expect-error
-      return this.ansi.style[this.options.theme?.promptColor || 'green'] + promptFormat
+      const promptColor = (this.options.theme as ITheme & { promptColor?: string })?.promptColor || 'green'
+      const colorFn = promptColor.startsWith('#') 
+        ? chalk.hex(promptColor) 
+        : (chalk as unknown as Record<string, (s: string) => string>)[promptColor] || chalk.green
+      return colorFn(promptFormat
         .replace('{cwd}', chalk.cyan(this.cwd))
         .replace('{uid}', chalk.white(user?.uid.toString() || ''))
         .replace('{gid}', chalk.white(user?.gid.toString() || ''))
-        .replace('{user}', chalk.white(user?.username || ''))
-        + this.ansi.style.white
+        .replace('{user}', chalk.white(user?.username || '')))
     }
 
     // Parse the PS1-like format
@@ -992,11 +994,13 @@ export class Terminal extends XTerm implements ITerminal {
       // Fall back to default if parsing fails
       const user = this._kernel.users.get(this._shell.credentials.euid ?? 0)
       const defaultPrompt = user?.uid === 0 ? '{user}:{cwd}# ' : '{user}:{cwd}$ '
-      // @ts-expect-error
-      return this.ansi.style[this.options.theme?.promptColor || 'green'] + defaultPrompt
+      const promptColor = (this.options.theme as ITheme & { promptColor?: string })?.promptColor || 'green'
+      const colorFn = promptColor.startsWith('#') 
+        ? chalk.hex(promptColor) 
+        : (chalk as unknown as Record<string, (s: string) => string>)[promptColor] || chalk.green
+      return colorFn(defaultPrompt
         .replace('{cwd}', chalk.cyan(this.cwd))
-        .replace('{user}', chalk.white(user?.username || ''))
-        + this.ansi.style.white
+        .replace('{user}', chalk.white(user?.username || '')))
     }
   }
 
