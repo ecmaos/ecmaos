@@ -146,9 +146,11 @@ export default defineConfig({
   },
   server: {
     allowedHosts: [
+      '127.0.0.1',
       'localhost',
       'ecmaos.local',
-      '.ngrok-free.app'
+      '.ngrok-free.app',
+      '.share.zrok.io'
     ],
     port: Number(process.env['ECMAOS_PORT']) || 30443,
     headers: {

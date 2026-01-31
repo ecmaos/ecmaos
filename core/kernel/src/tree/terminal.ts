@@ -370,8 +370,8 @@ export class Terminal extends XTerm implements ITerminal {
     }
 
     this.onKey(this.shortcutKeyHandler.bind(this))
+    if (!this._isMobile) this._keyListener = this.onKey(this.keyHandler.bind(this))
 
-    this._keyListener = this.onKey(this.keyHandler.bind(this))
     this._shell = options.shell || options.kernel.shell
     this._kernel = options.kernel
     this._commands = TerminalCommands(this._kernel, this._shell, this)
