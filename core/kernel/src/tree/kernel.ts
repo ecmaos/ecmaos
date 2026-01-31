@@ -429,6 +429,13 @@ export class Kernel implements IKernel {
       filesystemSpan.setAttribute('filesystem.paths_created', requiredPaths.length)
       filesystemSpan.end()
 
+      try {
+        await this.shell.config.loadSystemConfig()
+        this.terminal.updateConfig()
+      } catch (error) {
+        this.log.warn(`Failed to load system shell config: ${(error as Error).message}`)
+      }
+
       const i18nResourcesSpan = tracer.startSpan('kernel.boot.i18n_resources', {}, trace.setSpan(context.active(), bootSpan))
       try {
         const i18nResult = await this.i18n.loadFilesystemResources(
@@ -2041,6 +2048,7 @@ export class Kernel implements IKernel {
       shell.env.set('HOSTNAME', globalThis.location.hostname || 'localhost')
       process.env = Object.fromEntries(shell.env)
       await shell.loadEnvFile()
+      await shell.loadConfig()
       this.updateLocaleFromEnv()
       return
     }
@@ -2154,6 +2162,7 @@ export class Kernel implements IKernel {
         shell.credentials = userCred.cred
         shell.context = bindContext({ root: '/', pwd: '/', credentials: userCred.cred })
         await shell.loadEnvFile()
+        await shell.loadConfig()
         shell.env.set('UID', userCred.user.uid.toString())
         shell.env.set('GID', userCred.user.gid.toString())
         shell.env.set('SUID', userCred.cred.suid.toString())

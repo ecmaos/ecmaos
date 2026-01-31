@@ -69,12 +69,14 @@ export class Shell implements IShell {
     this._kernel = options.kernel
     this._terminal = options.terminal || options.kernel.terminal
     this._terminalWriter = this._terminal?.stdout.getWriter() || new WritableStream().getWriter()
-    
     this.config = new ShellConfig(this)
 
     process.env = Object.fromEntries(this._env)
   }
 
+  /**
+   * Loads environment variables from /etc/env and ~/.env
+   */
   async loadEnvFile() {
     // Load global /etc/env first
     try {
@@ -103,12 +105,19 @@ export class Shell implements IShell {
 
       process.env = Object.fromEntries(this._env)
     } catch {}
+  }
 
-    // Load shell configuration
+  /**
+   * Loads shell configuration from config files and applies to terminal
+   */
+  async loadConfig() {
     await this.config.load()
     this.terminal.updateConfig()
   }
 
+  /**
+   * Parses environment variables from a string
+   */
   parseEnvFile(content: string): Record<string, string> {
     const envVars: Record<string, string> = {}
     const lines = content.split('\n')
@@ -135,6 +144,9 @@ export class Shell implements IShell {
     return envVars
   }
   
+  /**
+   * Attaches a terminal to the shell
+   */
   attach(terminal: ITerminal) {
     if (this._terminalWriter) {
       try { this._terminalWriter.releaseLock() } catch {}
@@ -144,6 +156,9 @@ export class Shell implements IShell {
     this._terminalWriter = terminal.stdout.getWriter()
   }
 
+  /**
+   * Clears positional parameters
+   */
   clearPositionalParameters() {
     for (const key of this.env.keys()) {
       if (!isNaN(parseInt(key))) this.env.delete(key)
@@ -654,6 +669,9 @@ export class Shell implements IShell {
     }
   }
 
+  /**
+   * Parses redirections from a command line
+   */
   private parseRedirection(commandLine: string): { 
     command: string, 
     redirections: { type: '>' | '>>' | '<' | '2>' | '2>>' | '2>&1' | '&>' | '&>>', target: string }[] 
@@ -691,6 +709,9 @@ export class Shell implements IShell {
     return { command, redirections }
   }
 
+  /**
+   * Executes a command line
+   */
   async execute(line: string) {
     const lineWithoutComments = line.split('#')[0]?.trim()
     if (!lineWithoutComments || lineWithoutComments === '') return 0
@@ -739,9 +760,7 @@ export class Shell implements IShell {
               throw new Error(kernel.i18n.t('commandNotFound', { ns: 'kernel', command: commandLine }))
             }
 
-            // Expand glob patterns in arguments
             const args = await this.expandGlobArgs(rawArgs)
-
             const finalCommand = await this.resolveCommand(commandName)
             if (!finalCommand) {
               throw new Error(kernel.i18n.t('commandNotFound', { ns: 'kernel', command: commandName }))
@@ -1022,6 +1041,9 @@ export class Shell implements IShell {
     }
   }
 
+  /**
+   * Resolves a command to its absolute path
+   */
   private async resolveCommand(command: string): Promise<string | undefined> {
     if (command.startsWith('./')) {
       const cwdCommand = path.join(this.cwd, command.slice(2))
@@ -1047,6 +1069,9 @@ export class Shell implements IShell {
     return undefined
   }
 
+  /**
+   * Sets positional parameters
+   */
   setPositionalParameters(args: string[]) {
     this.clearPositionalParameters()
     for (const [index, arg] of args.entries()) this.env.set(`${index}`, arg)
@@ -1109,7 +1134,6 @@ export class ShellConfig implements IShellConfig {
     if (['block', 'underline', 'bar'].includes(config.cursorStyle as string)) this._cursorStyle = config.cursorStyle as 'block' | 'underline' | 'bar'
     if (typeof config.smoothScrollDuration === 'number') this._smoothScrollDuration = config.smoothScrollDuration
     if (typeof config.macOptionIsMeta === 'boolean') this._macOptionIsMeta = config.macOptionIsMeta
-    
     if (config.theme) {
       if (config.theme.name && ThemePresets[config.theme.name]) {
         this._theme = { ...this._theme, ...ThemePresets[config.theme.name] }
@@ -1120,22 +1144,30 @@ export class ShellConfig implements IShellConfig {
   }
 
   /**
+   * Loads system-wide configuration from /etc/shell.toml only
+   * Call this before terminal creation foapply system defaults
+   */
+  async loadSystemConfig() {
+    try {
+      if (await this._shell.context.fs.promises.exists('/etc/shell.toml')) {
+        const content = await this._shell.context.fs.promises.readFile('/etc/shell.toml', 'utf-8')
+        const config = parse(content) as Partial<IShellConfig>
+        this.applyConfig(config)
+      }
+    } catch (error) {
+      console.warn('Failed to load system shell config:', error)
+    }
+  }
+
+  /**
    * Loads configuration from /etc/shell.toml and ~/.config/shell.toml
    */
   async load() {
-    try {
-      // Load system default config first
-      if (await this._shell.context.fs.promises.exists('/etc/shell.toml')) {
-        try {
-          const content = await this._shell.context.fs.promises.readFile('/etc/shell.toml', 'utf-8')
-          const config = parse(content) as Partial<IShellConfig>
-          this.applyConfig(config)
-        } catch (error) {
-          console.warn('Failed to load system shell config:', error)
-        }
-      }
+    // Load system default config first
+    await this.loadSystemConfig()
 
-      // Load user config second (overwrites system defaults)
+    // Load user config second (overwrites system defaults)
+    try {
       const home = this._shell.env.get('HOME')
       if (home) {
         const configPath = `${home}/.config/shell.toml`
@@ -1146,7 +1178,7 @@ export class ShellConfig implements IShellConfig {
         }
       }
     } catch (error) {
-      console.warn('Failed to load shell config:', error)
+      console.warn('Failed to load user shell config:', error)
     }
   }
 
