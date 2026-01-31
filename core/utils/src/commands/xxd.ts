@@ -146,7 +146,12 @@ export function createCommand(kernel: Kernel, shell: Shell, terminal: Terminal):
           const hexString = hexGroups.join(' ').padEnd(47, ' ')
           const asciiString = asciiChars.join('')
           
-          await writelnStdout(process, terminal, `${offsetHex}: ${hexString}  ${asciiString}`)
+          try {
+            await writelnStdout(process, terminal, `${offsetHex}: ${hexString}  ${asciiString}`)
+          } catch {
+            // Ignore write errors (e.g. pipe closed) and exit
+            return 0
+          }
         }
 
         return 0
