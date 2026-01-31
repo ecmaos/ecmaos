@@ -1,5 +1,11 @@
 # @ecmaos/swapi
 
+## 0.3.2
+
+### Patch Changes
+
+- fc0a871: feat: shell config (shell.toml); feat: shell themes, theme coreutil; fix: various UI issues
+
 ## 0.3.1
 
 ### Patch Changes

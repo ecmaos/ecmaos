@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.9.0
+
+### Minor Changes
+
+- fc0a871: feat: shell config (shell.toml); feat: shell themes, theme coreutil; fix: various UI issues
+
 ## 0.8.5
 
 ### Patch Changes

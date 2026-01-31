@@ -1,5 +1,30 @@
 # @ecmaos/kernel
 
+## 0.11.0
+
+### Minor Changes
+
+- fc0a871: feat: shell config (shell.toml); feat: shell themes, theme coreutil; fix: various UI issues
+
+### Patch Changes
+
+- Updated dependencies [fc0a871]
+  - @ecmaos/coreutils@0.6.5
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/tty@0.1.1
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.10.5
 
 ### Patch Changes
