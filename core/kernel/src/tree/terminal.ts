@@ -1060,38 +1060,67 @@ export class Terminal extends XTerm implements ITerminal {
         break
       case 'Backspace':
         if (this._cursorPosition > 0) {
-          const promptText = this.prompt()
-          const promptLen = promptText.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
-          const cols = this.cols
+          const promptLen = this.prompt().replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+          const oldPosLen = promptLen + this._cursorPosition
+          const newPosLen = promptLen + this._cursorPosition - 1
           
-          const currentColumn = (promptLen + this._cursorPosition) % cols
-          const isAtLineStart = currentColumn === 0 && this._cursorPosition > 0
+          const oldLine = Math.floor(oldPosLen / this.cols)
+          const newLine = Math.floor(newPosLen / this.cols)
           
-          const tail = this._cmd.slice(this._cursorPosition)
-          this._cmd = this._cmd.slice(0, this._cursorPosition - 1) + tail
+          // Update model
+          this._cmd = this._cmd.slice(0, this._cursorPosition - 1) + this._cmd.slice(this._cursorPosition)
           this._cursorPosition--
           
-          if (isAtLineStart) {
-            this.write('\x1b[1A\r' + ansi.cursor.horizontalAbsolute(promptLen + this._cursorPosition + 1) + ansi.erase.inLine(0) + tail)
-            if (tail.length > 0) {
-              this.write(`\x1b[${tail.length}D`)
-            }
-          } else {
-            this.write('\b' + ansi.erase.inLine(0) + tail)
-            if (tail.length > 0) {
-              this.write(`\x1b[${tail.length}D`)
-            }
+          // Move cursor to new edit position
+          if (oldLine > newLine) {
+             this.write('\x1b[A') // Move up one line
           }
+          const newCol = (newPosLen % this.cols) + 1
+          this.write(`\x1b[${newCol}G`)
+          
+          // Clear everything from here down to ensure no garbage artifacts on wrapped lines
+          this.write('\x1b[J') // Erase Data (Cursor Down)
+          
+          // Rewrite the tail of the command
+          this.write(this._cmd.slice(this._cursorPosition))
+          
+          // Restore cursor to the correct position (after the edit)
+          // We are currently at the END of the command.
+          const currentTotalLen = promptLen + this._cmd.length
+          const cursorTargetLen = promptLen + this._cursorPosition
+          
+          const endLine = Math.floor(currentTotalLen / this.cols)
+          const targetLine = Math.floor(cursorTargetLen / this.cols)
+          
+          const linesUp = endLine - targetLine
+          const targetCol = (cursorTargetLen % this.cols) + 1
+          
+          if (linesUp > 0) this.write(`\x1b[${linesUp}A`)
+          this.write(`\x1b[${targetCol}G`)
         } else this.write('\x07')
         break
       case 'Delete':
         if (this._cursorPosition < this._cmd.length) {
-          const tail = this._cmd.slice(this._cursorPosition + 1)
-          this._cmd = this._cmd.slice(0, this._cursorPosition) + tail
-          this.write(ansi.erase.inLine(0) + tail)
-          if (tail.length > 0) {
-            this.write(`\x1b[${tail.length}D`)
-          }
+          // Update model
+          this._cmd = this._cmd.slice(0, this._cursorPosition) + this._cmd.slice(this._cursorPosition + 1)
+          
+          // We are at the cursor position. Clear down and rewrite.
+          this.write('\x1b[J') // Erase Data (Cursor Down)
+          this.write(this._cmd.slice(this._cursorPosition))
+          
+          // Restore cursor
+          const promptLen = this.prompt().replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+          const currentTotalLen = promptLen + this._cmd.length
+          const cursorTargetLen = promptLen + this._cursorPosition
+          
+          const endLine = Math.floor(currentTotalLen / this.cols)
+          const targetLine = Math.floor(cursorTargetLen / this.cols)
+          
+          const linesUp = endLine - targetLine
+          const targetCol = (cursorTargetLen % this.cols) + 1
+          
+          if (linesUp > 0) this.write(`\x1b[${linesUp}A`)
+          this.write(`\x1b[${targetCol}G`)
         }
         break
       case 'ArrowUp': {
@@ -1119,9 +1148,9 @@ export class Terminal extends XTerm implements ITerminal {
             cmd = line || ''
           }
           
+          this._clearCurrentCommand()
           this._cmd = cmd
           this._cursorPosition = this._cmd.length
-          this.write('\x1b[2K\r')
           if (this._multiLineMode) {
             const parts = this._cmd.split('#')
             if (parts.length > 1) {
@@ -1167,9 +1196,9 @@ export class Terminal extends XTerm implements ITerminal {
             cmd = line || ''
           }
           
+          this._clearCurrentCommand()
           this._cmd = cmd
           this._cursorPosition = this._cmd.length
-          this.write('\x1b[2K\r')
           if (this._multiLineMode) {
             const parts = this._cmd.split('#')
             if (parts.length > 1) {
@@ -1224,14 +1253,42 @@ export class Terminal extends XTerm implements ITerminal {
           }
         }
         break
-      case 'Home':
+      case 'Home': {
+        const promptTextHome = this.prompt()
+        const promptLenHome = promptTextHome.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+        const colsHome = this.cols
+        const currentLineHome = Math.floor((promptLenHome + this._cursorPosition) / colsHome)
+        
         this._cursorPosition = 0
-        this.write(ansi.cursor.horizontalAbsolute(this.prompt().replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length + 1))
+        
+        if (currentLineHome > 0) {
+          this.write(`\x1b[${currentLineHome}A`)
+        }
+        this.write(`\x1b[${promptLenHome + 1}G`)
         break
-      case 'End':
-        this._cursorPosition = this._cmd.length + 1
-        this.write(ansi.cursor.horizontalAbsolute(this.prompt().replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length + this._cmd.length + 1))
+      }
+      case 'End': {
+        const promptTextEnd = this.prompt()
+        const promptLenEnd = promptTextEnd.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+        const colsEnd = this.cols
+        const currentLineEnd = Math.floor((promptLenEnd + this._cursorPosition) / colsEnd)
+        
+        this._cursorPosition = this._cmd.length
+        
+        const targetLineEnd = Math.floor((promptLenEnd + this._cursorPosition) / colsEnd)
+        const targetColumnEnd = (promptLenEnd + this._cursorPosition) % colsEnd
+        
+        if (targetLineEnd !== currentLineEnd) {
+          const lineDiff = targetLineEnd - currentLineEnd
+          if (lineDiff > 0) {
+            this.write(`\x1b[${lineDiff}B`)
+          } else {
+            this.write(`\x1b[${-lineDiff}A`)
+          }
+        }
+        this.write(`\x1b[${targetColumnEnd + 1}G`)
         break
+      }
       case 'Tab': {
         domEvent.preventDefault()
 
@@ -1277,11 +1334,35 @@ export class Terminal extends XTerm implements ITerminal {
           if (wasAtEnd) {
             this.write(key)
           } else {
-            const tail = this._cmd.slice(this._cursorPosition)
-            this.write(key + tail)
-            if (tail.length > 0) {
-              this.write(`\x1b[${tail.length}D`)
+            // Write the key (so it appears)
+            this.write(key)
+            
+            // Now we need to rewrite the tail and fix the cursor.
+            // We are currently physically at _cursorPosition (because we just wrote `key`).
+            
+            // Clear everything after cursor (lines below included)
+            this.write('\x1b[J') 
+            
+            // Write the rest of the command
+            const textFromInsertion = this._cmd.slice(this._cursorPosition)
+            this.write(textFromInsertion)
+            
+            // Restore Cursor to the correct position (after the insertion)
+            const promptLen = this.prompt().replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+            const currentTotalLen = promptLen + this._cmd.length
+            const cursorTargetLen = promptLen + this._cursorPosition
+            
+            // Calculate where the cursor IS (End of command) vs where it SHOULD BE (Target)
+            const endLine = Math.floor(currentTotalLen / this.cols)
+            const targetLine = Math.floor(cursorTargetLen / this.cols)
+            
+            const linesUp = endLine - targetLine
+            const targetCol = (cursorTargetLen % this.cols) + 1 // 1-based ANSI
+            
+            if (linesUp > 0) {
+              this.write(`\x1b[${linesUp}A`)
             }
+            this.write(`\x1b[${targetCol}G`)
           }
         }
     }
@@ -1457,6 +1538,22 @@ export class Terminal extends XTerm implements ITerminal {
     }
   }
 
+  private _clearCurrentCommand() {
+    const promptLen = this.prompt().replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').length
+    const cursorTargetLen = promptLen + this._cursorPosition
+    
+    // Calculate cursor line relative to start of prompt
+    const targetLine = Math.floor(cursorTargetLen / this.cols)
+    
+    // Move up to the first line of the prompt/command block
+    if (targetLine > 0) {
+      this.write(`\x1b[${targetLine}A`)
+    }
+    
+    // Move to start of line and clear everything down
+    this.write('\r\x1b[J') 
+  }
+  
   private _resizeTerminalToViewport() {
     if (!this._isMobile || this._isResizing) return
     
