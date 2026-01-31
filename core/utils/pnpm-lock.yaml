@@ -73,6 +73,9 @@ importers:
       modern-tar:
         specifier: ^0.7.3
         version: 0.7.3
+      smol-toml:
+        specifier: ^1.6.0
+        version: 1.6.0
       vim-wasm:
         specifier: ^0.0.13
         version: 0.0.13
@@ -92,6 +95,70 @@ importers:
       user-agent-data-types:
         specifier: ^0.4.2
         version: 0.4.2
+
+  ../..: {}
+
+  ../../apps/ai: {}
+
+  ../../apps/boilerplate: {}
+
+  ../../apps/code: {}
+
+  ../../apps/edit: {}
+
+  ../../apps/news: {}
+
+  ../../apps/python: {}
+
+  ../../apps/web3: {}
+
+  ../../apps/webamp: {}
+
+  ../../devices/audio: {}
+
+  ../../devices/battery: {}
+
+  ../../devices/bluetooth: {}
+
+  ../../devices/echo: {}
+
+  ../../devices/gamepad: {}
+
+  ../../devices/geo: {}
+
+  ../../devices/gpu: {}
+
+  ../../devices/hid: {}
+
+  ../../devices/midi: {}
+
+  ../../devices/presentation: {}
+
+  ../../devices/sensors: {}
+
+  ../../devices/serial: {}
+
+  ../../devices/tty: {}
+
+  ../../devices/usb: {}
+
+  ../../devices/webgl: {}
+
+  ../../modules/boilerplate: {}
+
+  ../../utils/config-typescript: {}
+
+  ../bios: {}
+
+  ../jaffa: {}
+
+  ../kernel: {}
+
+  ../metal: {}
+
+  ../swapi: {}
+
+  ../types: {}
 
 packages:
 
@@ -270,8 +337,8 @@ packages:
   '@maxim_mazurok/gapi.client.discovery-v1@0.4.20200806':
     resolution: {integrity: sha512-Jeo/KZqK39DI6ExXHcJ4lqnn1O/wEqboQ6eQ8WnNpu5eJ7wUnX/C5KazOgs1aRhnIB/dVzDe8wm62nmtkMIoaw==}
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260120':
-    resolution: {integrity: sha512-Bet7RguVRwAFGvDXKd5OiYFL/1AZ3RQoeEr2zuQmL49qu3NVlE8v7AxPDRFR5H3GNrySYehdG86EcH5ag7PHNA==}
+  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260128':
+    resolution: {integrity: sha512-W6psU44F3SpoTs7Lm4nK1KYZaIpURD9RfgXRbASmxXrPube1HddwEjb/RNt0fU/4Wv81QZ2UxYx36PSWKRjkHw==}
 
   '@smithy/abort-controller@4.2.7':
     resolution: {integrity: sha512-rzMY6CaKx2qxrbYbqjXWS0plqEy7LOdKHS0bg4ixJ6aoGDPNUcLWk/FRNuCILh7GKLG9TFUXYYeQQldMBBwuyw==}
@@ -515,6 +582,9 @@ packages:
 
   '@types/node-fetch@2.6.13':
     resolution: {integrity: sha512-QGpRVpzSaUs30JBSGPjOg4Uveu384erbHBoT1zeONvyCfwQxIkUshLAOqN/k9EjGviPRmWTTe6aH2qySWKTVSw==}
+
+  '@types/node@22.19.7':
+    resolution: {integrity: sha512-MciR4AKGHWl7xwxkBa6xUGxQJ4VBOmPTF7sL+iGzuahOFaO0jHCsuEfS80pan1ef4gWId1oWOweIhrDEYLuaOw==}
 
   '@types/node@24.10.4':
     resolution: {integrity: sha512-vnDVpYPMzs4wunl27jHrfmwojOGKya0xyM3sH+UE5iv5uPS6vX7UIoh6m+vQc5LGBq52HBKPIn/zcSZVzeDEZg==}
@@ -916,6 +986,10 @@ packages:
   simple-get@4.0.1:
     resolution: {integrity: sha512-brv7p5WgH0jmQJr1ZDDfKDOSeWWg+OVypG99A/5vYGPqJ6pxiaHLy8nxtFjBA7oMa01ebA9gfh1uMCFqOuXxvA==}
 
+  smol-toml@1.6.0:
+    resolution: {integrity: sha512-4zemZi0HvTnYwLfrpk/CF9LOd9Lt87kAt50GnqhMpyF9U3poDAP2+iukq2bZsO/ufegbYehBkqINbsWxj4l4cw==}
+    engines: {node: '>= 18'}
+
   string_decoder@1.3.0:
     resolution: {integrity: sha512-hkRX8U1WjJFd8LsDJ2yQ/wWWxaopEsABU1XfkM8A+j0+85JAGppt16cr1Whg6KIbb4okU6Mql6BOj+uup/wKeA==}
 
@@ -951,6 +1025,9 @@ packages:
   typical@7.3.0:
     resolution: {integrity: sha512-ya4mg/30vm+DOWfBg4YK3j2WD6TWtRkCbasOJr40CseYENzCUby/7rIvXA99JGsQHeNxLbnXdyLLxKSv3tauFw==}
     engines: {node: '>=12.17'}
+
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
   undici-types@7.16.0:
     resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
@@ -1489,7 +1566,7 @@ snapshots:
       '@types/gapi.client.discovery-v1': 0.0.4
     optional: true
 
-  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260120':
+  '@maxim_mazurok/gapi.client.drive-v3@0.1.20260128':
     dependencies:
       '@types/gapi.client': 1.0.8
       '@types/gapi.client.discovery-v1': 0.0.4
@@ -1848,7 +1925,7 @@ snapshots:
 
   '@types/gapi.client.drive-v3@0.0.5':
     dependencies:
-      '@maxim_mazurok/gapi.client.drive-v3': 0.1.20260120
+      '@maxim_mazurok/gapi.client.drive-v3': 0.1.20260128
     optional: true
 
   '@types/gapi.client@1.0.8':
@@ -1859,8 +1936,12 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 24.10.4
+      '@types/node': 22.19.7
       form-data: 4.0.5
+
+  '@types/node@22.19.7':
+    dependencies:
+      undici-types: 6.21.0
 
   '@types/node@24.10.4':
     dependencies:
@@ -2248,6 +2329,8 @@ snapshots:
       once: 1.4.0
       simple-concat: 1.0.1
 
+  smol-toml@1.6.0: {}
+
   string_decoder@1.3.0:
     dependencies:
       safe-buffer: 5.2.1
@@ -2284,6 +2367,8 @@ snapshots:
       is-typed-array: 1.1.15
 
   typical@7.3.0: {}
+
+  undici-types@6.21.0: {}
 
   undici-types@7.16.0: {}
 

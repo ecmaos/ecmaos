@@ -83,6 +83,7 @@ import { createCommand as createTail } from './commands/tail.js'
 import { createCommand as createTar } from './commands/tar.js'
 import { createCommand as createTee } from './commands/tee.js'
 import { createCommand as createTest } from './commands/test.js'
+import { createCommand as createTheme } from './commands/theme.js'
 import { createCommand as createTime } from './commands/time.js'
 import { createCommand as createTouch } from './commands/touch.js'
 import { createCommand as createTr } from './commands/tr.js'
@@ -132,6 +133,7 @@ export { createCommand as createFind } from './commands/find.js'
 export { createCommand as createFmt } from './commands/fmt.js'
 export { createCommand as createFold } from './commands/fold.js'
 export { createCommand as createFormat } from './commands/format.js'
+export { createCommand as createGit } from './commands/git.js'
 export { createCommand as createGrep } from './commands/grep.js'
 export { createCommand as createGroups } from './commands/groups.js'
 export { createCommand as createHash } from './commands/hash.js'
@@ -166,6 +168,8 @@ export { createCommand as createTail } from './commands/tail.js'
 export { createCommand as createTar } from './commands/tar.js'
 export { createCommand as createTee } from './commands/tee.js'
 export { createCommand as createTest } from './commands/test.js'
+export { createCommand as createTheme } from './commands/theme.js'
+export { createCommand as createTime } from './commands/time.js'
 export { createCommand as createTouch } from './commands/touch.js'
 export { createCommand as createTr } from './commands/tr.js'
 export { createCommand as createTty } from './commands/tty.js'
@@ -183,7 +187,6 @@ export { createCommand as createWeb } from './commands/web.js'
 export { createCommand as createWhich } from './commands/which.js'
 export { createCommand as createXxd } from './commands/xxd.js'
 export { createCommand as createZip } from './commands/zip.js'
-export { createCommand as createGit } from './commands/git.js'
 
 /**
  * Creates all coreutils commands.
@@ -267,6 +270,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     tar: createTar(kernel, shell, terminal),
     tee: createTee(kernel, shell, terminal),
     test: createTest(kernel, shell, terminal),
+    theme: createTheme(kernel, shell, terminal),
     time: createTime(kernel, shell, terminal),
     touch: createTouch(kernel, shell, terminal),
     tr: createTr(kernel, shell, terminal),
@@ -279,7 +283,7 @@ export function createAllCommands(kernel: Kernel, shell: Shell, terminal: Termin
     unzip: createUnzip(kernel, shell, terminal),
     uptime: createUptime(kernel, shell, terminal),
     user: createUser(kernel, shell, terminal),
-    vc: createVideo(kernel, shell, terminal), // correction: should be video
+    video: createVideo(kernel, shell, terminal),
     view: createView(kernel, shell, terminal),
     vim: createVim(kernel, shell, terminal),
     wc: createWc(kernel, shell, terminal),

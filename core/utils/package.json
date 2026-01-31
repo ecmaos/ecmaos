@@ -46,6 +46,7 @@
     "isomorphic-git": "^1.36.3",
     "marked": "^17.0.1",
     "modern-tar": "^0.7.3",
+    "smol-toml": "^1.6.0",
     "vim-wasm": "^0.0.13"
   },
   "devDependencies": {

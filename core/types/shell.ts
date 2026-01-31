@@ -44,6 +44,8 @@ export interface Shell {
   readonly username: string
   /** Terminal */
   terminal: Terminal
+  /** Shell configuration */
+  readonly config: ShellConfigManager
 
   /**
    * Attach terminal to shell
@@ -74,4 +76,49 @@ export interface Shell {
    * @returns String with tilde expanded to HOME directory
    */
   expandTilde(input: string): string
+}
+
+/**
+ * Shell configuration
+ */
+export interface ShellConfig {
+  /** Disable the terminal bell */
+  noBell?: boolean
+  /** Font family for the terminal */
+  fontFamily?: string
+  /** Font size in pixels */
+  fontSize?: number
+  /** Whether the cursor should blink */
+  cursorBlink?: boolean
+  /** Style of the cursor */
+  cursorStyle?: 'block' | 'underline' | 'bar'
+  /** Terminal theme colors */
+  theme?: {
+    name?: string
+    background?: string
+    foreground?: string
+    selection?: string
+    cursor?: string
+    promptColor?: string
+  }
+  /** Duration of smooth scrolling in milliseconds */
+  smoothScrollDuration?: number
+  /** Whether Option key on Mac should act as Meta */
+  macOptionIsMeta?: boolean
+}
+
+/**
+ * Shell configuration manager interface
+ */
+export interface ShellConfigManager extends ShellConfig {
+  /**
+   * Load configuration
+   */
+  load(): Promise<void>
+  
+  /**
+   * Set theme
+   * @param theme - Theme name or theme object
+   */
+  setTheme(theme: string | ShellConfig['theme']): void
 }

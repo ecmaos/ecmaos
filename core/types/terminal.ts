@@ -275,6 +275,11 @@ export interface Terminal extends XTerm {
    * @param uid - User ID
    */
   reloadHistory(uid: number): Promise<void>
+
+  /**
+   * Update terminal configuration from shell config
+   */
+  updateConfig(): void
 }
 
 export interface TerminalCommand {

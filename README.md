@@ -309,6 +309,22 @@ index.json /mnt/api fetch baseUrl=http://localhost:30808
 - [JSR](https://jsr.io) may be used with the [NPM compatibility layer](https://jsr.io/docs/npm-compatibility):
   - `# install @jsr/defaude__hello-jsr --registry https://npm.jsr.io`
 
+### Screensavers
+
+- Current options: `blank`, `matrix`, `toasters`
+- This whole system will be revamped in the future
+- Screensavers are currently built into the kernel, but will be migrated to external apps
+- You can start the screensaver with the `screensaver` command
+- You can set the default screensaver with the `screensaver --set <name>` command
+- The screensaver timeout can be set with a `screensaver-timeout` `localStorage` key with the value in milliseconds (default: 60000)
+
+### Shell
+
+- The shell manages the environment, filesystem context, execution, and terminal interface
+- System-wide shell configuration is stored in `/etc/shell.toml`
+- User-specific shell configuration is stored in `~/.config/shell.toml`
+- See [tutorials/shell-customization.md](/tutorials/shell-customization.md) for more information
+
 ### Sockets
 
 - A socket manager is available for creating and managing WebSocket and WebTransport connections
@@ -343,8 +359,10 @@ index.json /mnt/api fetch baseUrl=http://localhost:30808
 - `/dev/`: All devices are here
 - `/etc/crontab`: System-wide crontab file (loaded on boot)
 - `/etc/packages`: A list of installed packages to load on boot
+- `/etc/shell.toml`: System-wide shell configuration
 - `/home/`: Contains user home directories
 - `~/.config/crontab`: User-specific crontab file (loaded on login)
+- `~/.config/shell`: User-specific shell configuration
 - `/proc/`: Contains various dynamic system information
 - `/root/`: The home directory for the root user
 - `/usr/bin/`: Executable packages get linked here

@@ -8,10 +8,11 @@
 
 import path from 'path'
 import shellQuote from 'shell-quote'
-
+import { parse } from 'smol-toml'
 import { bindContext } from '@zenfs/core'
 import type { BoundContext, Credentials } from '@zenfs/core'
-import type { Kernel, Shell as IShell, ShellOptions, Terminal } from '@ecmaos/types'
+import type { Kernel, Shell as IShell, ShellOptions, ShellConfig as IShellConfig, Terminal as ITerminal } from '@ecmaos/types' // TODO: Consistency
+import { ThemePresets } from '@ecmaos/types'
 
 const DefaultShellPath = '$HOME/bin:/bin:/usr/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/sbin'
 const DefaultShellOptions = {
@@ -37,9 +38,11 @@ export class Shell implements IShell {
   private _env: Map<string, string>
   private _id: string = crypto.randomUUID()
   private _kernel: Kernel
-  private _terminal: Terminal
+  private _terminal: ITerminal
   private _terminalWriter?: WritableStreamDefaultWriter<Uint8Array>
   private _tty: number
+  
+  public readonly config: ShellConfig
 
   public credentials: Credentials = { uid: 0, gid: 0, suid: 0, sgid: 0, euid: 0, egid: 0, groups: [] }
   public context: BoundContext = bindContext({ root: '/', pwd: '/', credentials: this.credentials })
@@ -66,6 +69,8 @@ export class Shell implements IShell {
     this._kernel = options.kernel
     this._terminal = options.terminal || options.kernel.terminal
     this._terminalWriter = this._terminal?.stdout.getWriter() || new WritableStream().getWriter()
+    
+    this.config = new ShellConfig(this)
 
     process.env = Object.fromEntries(this._env)
   }
@@ -98,6 +103,10 @@ export class Shell implements IShell {
 
       process.env = Object.fromEntries(this._env)
     } catch {}
+
+    // Load shell configuration
+    await this.config.load()
+    this.terminal.updateConfig()
   }
 
   parseEnvFile(content: string): Record<string, string> {
@@ -126,7 +135,7 @@ export class Shell implements IShell {
     return envVars
   }
   
-  attach(terminal: Terminal) {
+  attach(terminal: ITerminal) {
     if (this._terminalWriter) {
       try { this._terminalWriter.releaseLock() } catch {}
     }
@@ -1041,5 +1050,119 @@ export class Shell implements IShell {
   setPositionalParameters(args: string[]) {
     this.clearPositionalParameters()
     for (const [index, arg] of args.entries()) this.env.set(`${index}`, arg)
+  }
+}
+
+
+
+/**
+ * Default configuration values
+ */
+export const DefaultConfig: IShellConfig = {
+  noBell: false,
+  fontFamily: 'FiraCode Nerd Font Mono, Ubuntu Mono, courier-new, courier, monospace',
+  fontSize: 16,
+  cursorBlink: true,
+  cursorStyle: 'block',
+  theme: {
+    background: '#000000',
+    foreground: '#00FF00',
+    promptColor: 'green'
+  },
+  smoothScrollDuration: 100,
+  macOptionIsMeta: true
+}
+
+export class ShellConfig implements IShellConfig {
+  private _noBell: boolean = DefaultConfig.noBell! // Bang because we know default exists
+  private _fontFamily: string = DefaultConfig.fontFamily!
+  private _fontSize: number = DefaultConfig.fontSize!
+  private _cursorBlink: boolean = DefaultConfig.cursorBlink!
+  private _cursorStyle: 'block' | 'underline' | 'bar' = DefaultConfig.cursorStyle!
+  private _theme: IShellConfig['theme'] = { ...DefaultConfig.theme }
+  private _smoothScrollDuration: number = DefaultConfig.smoothScrollDuration!
+  private _macOptionIsMeta: boolean = DefaultConfig.macOptionIsMeta!
+  
+  private _shell: Shell
+
+  get noBell() { return this._noBell }
+  get fontFamily() { return this._fontFamily }
+  get fontSize() { return this._fontSize }
+  get cursorBlink() { return this._cursorBlink }
+  get cursorStyle() { return this._cursorStyle }
+  get theme() { return this._theme }
+  get smoothScrollDuration() { return this._smoothScrollDuration }
+  get macOptionIsMeta() { return this._macOptionIsMeta }
+
+  constructor(shell: Shell) {
+    this._shell = shell
+  }
+
+  /**
+   * Applies a partial configuration to the current config
+   */
+  private applyConfig(config: Partial<IShellConfig>) {
+    if (typeof config.noBell === 'boolean') this._noBell = config.noBell
+    if (typeof config.fontFamily === 'string') this._fontFamily = config.fontFamily
+    if (typeof config.fontSize === 'number') this._fontSize = config.fontSize
+    if (typeof config.cursorBlink === 'boolean') this._cursorBlink = config.cursorBlink
+    if (['block', 'underline', 'bar'].includes(config.cursorStyle as string)) this._cursorStyle = config.cursorStyle as 'block' | 'underline' | 'bar'
+    if (typeof config.smoothScrollDuration === 'number') this._smoothScrollDuration = config.smoothScrollDuration
+    if (typeof config.macOptionIsMeta === 'boolean') this._macOptionIsMeta = config.macOptionIsMeta
+    
+    if (config.theme) {
+      if (config.theme.name && ThemePresets[config.theme.name]) {
+        this._theme = { ...this._theme, ...ThemePresets[config.theme.name] }
+      } else {
+        this._theme = { ...this._theme, ...config.theme }
+      }
+    }
+  }
+
+  /**
+   * Loads configuration from /etc/shell.toml and ~/.config/shell.toml
+   */
+  async load() {
+    try {
+      // Load system default config first
+      if (await this._shell.context.fs.promises.exists('/etc/shell.toml')) {
+        try {
+          const content = await this._shell.context.fs.promises.readFile('/etc/shell.toml', 'utf-8')
+          const config = parse(content) as Partial<IShellConfig>
+          this.applyConfig(config)
+        } catch (error) {
+          console.warn('Failed to load system shell config:', error)
+        }
+      }
+
+      // Load user config second (overwrites system defaults)
+      const home = this._shell.env.get('HOME')
+      if (home) {
+        const configPath = `${home}/.config/shell.toml`
+        if (await this._shell.context.fs.promises.exists(configPath)) {
+          const content = await this._shell.context.fs.promises.readFile(configPath, 'utf-8')
+          const config = parse(content) as Partial<IShellConfig>
+          this.applyConfig(config)
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load shell config:', error)
+    }
+  }
+
+  setTheme(theme: string | IShellConfig['theme']) {
+    if (typeof theme === 'string') {
+      if (Object.prototype.hasOwnProperty.call(ThemePresets, theme)) {
+        const preset = ThemePresets[theme]
+        this._theme = { ...this._theme, ...preset }
+        if (this._theme) {
+          (this._theme as any).name = theme
+        }
+      }
+    } else {
+      this._theme = { ...this._theme, ...theme }
+    }
+    
+    this._shell.terminal.updateConfig()
   }
 }

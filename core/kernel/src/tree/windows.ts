@@ -33,6 +33,7 @@ const DefaultDialogOptions: WinBox.Params = {
 
 export class Windows implements IWindows {
   private _manager: Map<WindowId, WinBox> = new Map()
+
   get stack() { return WinBox.stack() }
 
   all() {
@@ -41,15 +42,56 @@ export class Windows implements IWindows {
 
   close(id: WindowId) {
     this._manager.get(id)?.close()
-    this.remove(id)
   }
   
   create(_options: WinBox.Params = DefaultWindowOptions): WinBox {
     const options = { ...DefaultWindowOptions, ..._options }
     const id = options.id || Math.random().toString(36).substring(2, 8)
+    
+    const self = this
+    
+    const originalOnMinimize = options.onminimize
+    options.onminimize = function(this: WinBox, force: boolean) {
+      setTimeout(() => self._updateBodyClass(), 0)
+      originalOnMinimize?.call(this, force)
+    }
+
+    const originalOnRestore = options.onrestore
+    options.onrestore = function(this: WinBox) {
+      setTimeout(() => self._updateBodyClass(), 0)
+      originalOnRestore?.call(this)
+    }
+
+    const originalOnMaximize = options.onmaximize
+    options.onmaximize = function(this: WinBox) {
+      setTimeout(() => self._updateBodyClass(), 0)
+      originalOnMaximize?.call(this)
+    }
+
+    const originalOnClose = options.onclose
+    options.onclose = function(this: WinBox, force: boolean) {
+      setTimeout(() => self._updateBodyClass(), 0)
+      self.remove(id)
+      return originalOnClose?.call(this, force)
+    }
+
     const win = new WinBox(options)
     this._manager.set(id, win)
     return win
+  }
+
+  private _updateBodyClass() {
+    let minimizedCount = 0
+    for (const win of this._manager.values()) {
+      // @ts-ignore
+      if (win.min) minimizedCount++
+    }
+
+    if (minimizedCount > 0) {
+      document.body.classList.add('has-minimized-windows')
+    } else {
+      document.body.classList.remove('has-minimized-windows')
+    }
   }
 
   dialog(options: WinBox.Params = DefaultDialogOptions) {

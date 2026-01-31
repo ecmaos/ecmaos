@@ -153,6 +153,7 @@ export class Terminal extends XTerm implements ITerminal {
   private _mobileInputListener: IDisposable | null = null
   private _tty: number
   private _ttySwitchHandler: ((event: KeyboardEvent) => void) | null = null
+  private _resizeObserver: ResizeObserver | null = null
 
   get addons() { return this._addons as Map<string, ITerminalAddon> }
   get ansi() { return this._ansi }
@@ -216,6 +217,8 @@ export class Terminal extends XTerm implements ITerminal {
 
     // Handle bell character
     this.onBell(() => {
+      if (this._shell.config?.noBell) return
+
       const theme = { ...this.options.theme }
       theme.background = '#FFFFFF'
       this.options.theme = theme
@@ -239,7 +242,7 @@ export class Terminal extends XTerm implements ITerminal {
     ])
 
     for (const addon of this._addons.values()) this.loadAddon(addon)
-    if (this.addons?.get('fit')) (this.addons.get('fit') as FitAddon).fit()
+
     if (this.addons?.get('progress')) {
       const defaultBarColors = {
         0: "rgba(26,  188, 156, .9)",
@@ -304,6 +307,7 @@ export class Terminal extends XTerm implements ITerminal {
       })
     }
 
+    if (this.addons?.get('fit')) (this.addons.get('fit') as FitAddon).fit()
     globalThis.addEventListener('resize', () => {
       if (this.addons?.get('fit')) (this.addons.get('fit') as FitAddon).fit()
       this.events.dispatch<TerminalResizeEvent>(TerminalEvents.RESIZE, { cols: this.cols, rows: this.rows })
@@ -371,6 +375,8 @@ export class Terminal extends XTerm implements ITerminal {
     this._shell = options.shell || options.kernel.shell
     this._kernel = options.kernel
     this._commands = TerminalCommands(this._kernel, this._shell, this)
+
+    this.updateConfig()
     
     const uid = this._shell.credentials.uid
     this._historyCache[uid] = []
@@ -418,6 +424,12 @@ export class Terminal extends XTerm implements ITerminal {
     if (this._isMobile) {
       setTimeout(() => this._resizeTerminalToViewport(), 100)
     }
+
+    this._resizeObserver = new ResizeObserver(() => {
+      if (this.addons?.get('fit')) (this.addons.get('fit') as FitAddon).fit()
+      this.events.dispatch<TerminalResizeEvent>(TerminalEvents.RESIZE, { cols: this.cols, rows: this.rows })
+    })
+    this._resizeObserver.observe(element)
     
     this.events.dispatch<TerminalMountEvent>(TerminalEvents.MOUNT, { terminal: this, element })
   }
@@ -432,6 +444,24 @@ export class Terminal extends XTerm implements ITerminal {
       this._historyPosition = 0
       this._initializeHistory(uid)
     }
+  }
+
+  updateConfig() {
+    const config = this._shell.config
+    if (config) {
+      if (config.fontFamily) this.options.fontFamily = config.fontFamily
+      if (config.fontSize) this.options.fontSize = config.fontSize
+      if (config.cursorBlink !== undefined) this.options.cursorBlink = config.cursorBlink
+      if (['block', 'underline', 'bar'].includes(config.cursorStyle as string)) this.options.cursorStyle = config.cursorStyle as 'block' | 'underline' | 'bar'
+      if (config.smoothScrollDuration !== undefined) this.options.smoothScrollDuration = config.smoothScrollDuration
+      if (config.macOptionIsMeta !== undefined) this.options.macOptionIsMeta = config.macOptionIsMeta
+      
+      if (config.theme) {
+        this.options.theme = { ...this.options.theme, ...config.theme }
+      }
+    }
+
+    if (this.addons?.get('fit')) (this.addons.get('fit') as FitAddon).fit()
   }
 
   hide() {
@@ -451,6 +481,10 @@ export class Terminal extends XTerm implements ITerminal {
     if (this._passwordInputElement) {
       this._passwordInputElement.remove()
       this._passwordInputElement = null
+    }
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect()
+      this._resizeObserver = null
     }
     super.dispose()
   }
