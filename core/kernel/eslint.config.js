@@ -15,6 +15,7 @@ export default [
   {
     rules: {
       '@typescript-eslint/ban-ts-comment': 'off',
+      '@typescript-eslint/no-this-alias': 'off',
       'no-control-regex': 'off',
       'no-empty': 'off'
     }

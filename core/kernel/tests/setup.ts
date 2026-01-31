@@ -3,7 +3,14 @@ import { Buffer } from 'node:buffer'
 import 'fake-indexeddb/auto'
 import 'vitest-canvas-mock'
 
-globalThis.Buffer = Buffer
+(globalThis as any).Buffer = Buffer
+
+;(globalThis as any).ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

@@ -1156,7 +1156,7 @@ export class ShellConfig implements IShellConfig {
         const preset = ThemePresets[theme]
         this._theme = { ...this._theme, ...preset }
         if (this._theme) {
-          (this._theme as any).name = theme
+          this._theme.name = theme
         }
       }
     } else {

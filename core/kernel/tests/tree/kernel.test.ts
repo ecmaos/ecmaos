@@ -2,8 +2,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { InMemory } from '@zenfs/core'
 
 import { Kernel } from '#kernel.ts'
-import { KernelState } from '#kernel.ts'
-import { DefaultFilesystemOptionsTest } from '#filesystem.ts'
+import { KernelState } from '@ecmaos/types'
+import { DefaultFilesystemOptions } from '#filesystem.ts'
 
 import { TestDomOptions, TestLogOptions } from './fixtures/kernel.fixtures'
 
@@ -14,7 +14,7 @@ describe('Kernel', () => {
     kernel = new Kernel({
       dom: TestDomOptions,
       log: TestLogOptions,
-      filesystem: DefaultFilesystemOptionsTest
+      filesystem: DefaultFilesystemOptions
     })
   })
 
@@ -47,7 +47,18 @@ describe('Kernel', () => {
     const customMounts = { '/bin': InMemory, '/custom': InMemory }
     const kernelWithCustomFS = new Kernel({
       dom: { topbar: false },
-      filesystem: { uid: 0, gid: 0, addDevices: false, mounts: customMounts, cacheStats: false, disableAccessChecks: true, disableUpdateOnRead: true, onlySyncOnClose: true }
+      filesystem: {
+        uid: 0,
+        gid: 0,
+        addDevices: false,
+        mounts: customMounts,
+        disableAccessChecks: true,
+        onlySyncOnClose: true,
+        defaultDirectories: true,
+        log: {
+          enabled: false
+        }
+      }
     })
 
     expect(kernelWithCustomFS.filesystem).toBeDefined()
