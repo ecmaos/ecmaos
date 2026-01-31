@@ -1,5 +1,27 @@
 # @ecmaos/kernel
 
+## 0.10.5
+
+### Patch Changes
+
+- ce81fd9: add crypto coreutil; add web3 coreutil; add history bang expansion; fix multi-line command editing and navigation
+- Updated dependencies [ce81fd9]
+  - @ecmaos/coreutils@0.6.4
+  - @ecmaos-devices/audio@0.1.0
+  - @ecmaos-devices/battery@0.1.0
+  - @ecmaos-devices/bluetooth@0.1.0
+  - @ecmaos-devices/gamepad@0.1.0
+  - @ecmaos-devices/geo@0.1.0
+  - @ecmaos-devices/gpu@0.1.0
+  - @ecmaos-devices/hid@0.1.0
+  - @ecmaos-devices/midi@0.1.0
+  - @ecmaos-devices/presentation@0.1.0
+  - @ecmaos-devices/sensors@0.1.0
+  - @ecmaos-devices/serial@0.1.0
+  - @ecmaos-devices/tty@0.1.1
+  - @ecmaos-devices/usb@0.1.0
+  - @ecmaos-devices/webgl@0.1.0
+
 ## 0.10.4
 
 ### Patch Changes

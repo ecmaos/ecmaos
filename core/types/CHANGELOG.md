@@ -1,5 +1,11 @@
 # @ecmaos/types
 
+## 0.8.5
+
+### Patch Changes
+
+- ce81fd9: add crypto coreutil; add web3 coreutil; add history bang expansion; fix multi-line command editing and navigation
+
 ## 0.8.4
 
 ### Patch Changes
