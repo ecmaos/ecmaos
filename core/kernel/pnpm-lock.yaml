@@ -7,8 +7,6 @@ settings:
 overrides:
   ws: '>=8.17.1'
 
-pnpmfileChecksum: sha256-Zzw6AUu2SJputeGoAFT8YK9JWXNZcYWS/QbYOLDEi5E=
-
 importers:
 
   .:
@@ -180,7 +178,7 @@ importers:
         version: 1.8.1
       smol-toml:
         specifier: ^1.6.0
-        version: 1.6.0
+        version: 1.6.1
       topbar:
         specifier: ^3.0.0
         version: 3.0.0
@@ -280,7 +278,7 @@ importers:
         version: 0.2.3(typedoc@0.26.11(typescript@5.6.3))
       '@vitest/browser':
         specifier: ^2.1.2
-        version: 2.1.9(@types/node@22.9.1)(playwright@1.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))(vitest@2.1.9)
+        version: 2.1.9(@types/node@22.9.1)(playwright@1.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))(vitest@2.1.9)
       '@vitest/coverage-v8':
         specifier: ^2.1.2
         version: 2.1.5(@vitest/browser@2.1.9)(vitest@2.1.9)
@@ -337,19 +335,19 @@ importers:
         version: 0.4.2
       vite:
         specifier: ^7.3.1
-        version: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)
+        version: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)
       vite-plugin-dts:
         specifier: ^4.3.0
-        version: 4.3.0(@types/node@22.9.1)(rollup@4.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))
+        version: 4.3.0(@types/node@22.9.1)(rollup@4.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))
       vite-plugin-i18next-loader:
         specifier: ^2.0.13
-        version: 2.0.14(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))
+        version: 2.0.14(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))
       vite-plugin-node-polyfills:
         specifier: ^0.22.0
-        version: 0.22.0(rollup@4.55.1)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))
+        version: 0.22.0(rollup@4.55.1)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))
       vite-tsconfig-paths:
         specifier: ^5.0.1
-        version: 5.1.2(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))
+        version: 5.1.2(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))
       vitest:
         specifier: ^2.1.2
         version: 2.1.9(@types/node@22.9.1)(@vitest/browser@2.1.9)(@vitest/ui@2.1.5)(jsdom@25.0.1(canvas@2.11.2))(msw@2.11.6(@types/node@22.9.1)(typescript@5.6.3))(sass-embedded@1.81.0)(terser@5.46.0)
@@ -1921,6 +1919,7 @@ packages:
   are-we-there-yet@2.0.0:
     resolution: {integrity: sha512-Ci/qENmwHnsYo9xKIcUJN5LeDKdJ6R1Z1j9V/J5wyq8nh/mYPEpIKJbBZXtZjG04HiK7zV/p6Vs9952MrMeUIw==}
     engines: {node: '>=10'}
+    deprecated: This package is no longer supported.
 
   arg@5.0.2:
     resolution: {integrity: sha512-PYjyFOLKQ9y57JvQ6QLo8dAgNqswh8M1RMJYdQduT6xbWSgK36P/Z/v+p888pM69jMMfS8Xd8F6I1kQ/I9HUGg==}
@@ -1987,6 +1986,9 @@ packages:
 
   brace-expansion@2.0.1:
     resolution: {integrity: sha512-XnAIvQ8eM+kC6aULx6wuQiwVsnzsi9d3WxzV3FpWTGA19F621kwdbsAcFKXgKUHZWsy+mY6iL1sHTxWEFCytDA==}
+
+  brace-expansion@2.0.2:
+    resolution: {integrity: sha512-Jt0vHyM+jmUBqojB7E1NIYadt0vI0Qxjxd2TErW94wDz+E2LAm5vKMXXwg6ZZBTHPuUlDgQHKXvjGBdfcF1ZDQ==}
 
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -2643,6 +2645,7 @@ packages:
   gauge@3.0.2:
     resolution: {integrity: sha512-+5J6MS/5XksCuXq++uFRsnUd7Ovu1XenbeuIuNRJxYWjgQbPuFhT14lAvsWfqfAmnwluf1OwMjz39HjfLPci0Q==}
     engines: {node: '>=10'}
+    deprecated: This package is no longer supported.
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -2674,10 +2677,12 @@ packages:
 
   glob@10.4.5:
     resolution: {integrity: sha512-7Bv8RF0k6xjo7d4A/PxYLbUCfb6c+Vpd2/mB2yRDlew7Jb5hEXiCD9ibfO7wpk8i4sevK6DFny9h7EYbM3/sHg==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   globals@14.0.0:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
@@ -2835,6 +2840,7 @@ packages:
 
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
+    deprecated: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
 
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
@@ -3074,8 +3080,8 @@ packages:
     resolution: {integrity: sha512-hXdUTZYIVOt1Ex//jAQi+wTZZpUpwBj/0QsOzqegb3rGMMeJiSEu5xLHnYfBrRV4RH2+OCSOO95Is/7x1WJ4bw==}
     engines: {node: '>=10'}
 
-  markdown-it@14.1.0:
-    resolution: {integrity: sha512-a54IwgWPaeBCAAsv13YgmALOF1elABB08FxO9i+r4VFk5Vl4pKokRPeX8u5TCgSsPi6ec1otfLjdOpVcgbpshg==}
+  markdown-it@14.1.1:
+    resolution: {integrity: sha512-BuU2qnTti9YKgK5N+IeMubp14ZUKUUw7yeJbkjtosvHiP0AZ5c8IAgEMk79D0eC8F23r4Ac/q8cAIFdm2FtyoA==}
     hasBin: true
 
   marked-terminal@7.2.1:
@@ -3177,6 +3183,10 @@ packages:
 
   minimatch@9.0.5:
     resolution: {integrity: sha512-G6T0ZX48xgozx7587koeX9Ys2NYy6Gmv//P89sEte9V9whIapMNF4idKxnW2QtCcLiTWlb/wfCabAtAFWhhBow==}
+    engines: {node: '>=16 || 14 >=14.17'}
+
+  minimatch@9.0.9:
+    resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
     engines: {node: '>=16 || 14 >=14.17'}
 
   minimist@1.2.8:
@@ -3315,6 +3325,7 @@ packages:
 
   npmlog@5.0.1:
     resolution: {integrity: sha512-AqZtDUWOMKs1G/8lwylVjrdYgqA4d9nu8hc+0gzRxlDb1I10+FHBGMXs6aiQHFdCUUlqH99MUMuLfzWDNDtfxw==}
+    deprecated: This package is no longer supported.
 
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}
@@ -3648,6 +3659,7 @@ packages:
 
   rimraf@3.0.2:
     resolution: {integrity: sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==}
+    deprecated: Rimraf versions prior to v4 are no longer supported
     hasBin: true
 
   ripemd160@2.0.2:
@@ -3894,8 +3906,8 @@ packages:
     resolution: {integrity: sha512-kUMbT1oBJCpgrnKoSr0o6wPtvRWT9W9UKvGLwfJYO2WuahZRHOpEyL1ckyMGgMWh0UdpmaoFqKKD29WTomNEGA==}
     engines: {node: '>=8'}
 
-  smol-toml@1.6.0:
-    resolution: {integrity: sha512-4zemZi0HvTnYwLfrpk/CF9LOd9Lt87kAt50GnqhMpyF9U3poDAP2+iukq2bZsO/ufegbYehBkqINbsWxj4l4cw==}
+  smol-toml@1.6.1:
+    resolution: {integrity: sha512-dWUG8F5sIIARXih1DTaQAX4SsiTXhInKf1buxdY9DIg4ZYPZK5nGM1VRIYmEbDbsHt7USo99xSLFu5Q1IqTmsg==}
     engines: {node: '>= 18'}
 
   source-map-js@1.2.1:
@@ -4024,6 +4036,7 @@ packages:
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   terser@5.46.0:
     resolution: {integrity: sha512-jTwoImyr/QbOWFFso3YoU3ik0jBBDJ6JTOQiy/J2YxVJdZCc+5u7skhNwiOR3FQIygFqVUPHl7qbbxtjW2K3Qg==}
@@ -4243,8 +4256,8 @@ packages:
   unist-util-visit-parents@6.0.2:
     resolution: {integrity: sha512-goh1s1TBrqSqukSc8wrjwWhL0hiJxgA8m4kFxGlQ+8FYQ3C/m11FcTs4YYem7V664AhHVvgoQLk890Ssdsr2IQ==}
 
-  unist-util-visit@5.0.0:
-    resolution: {integrity: sha512-MR04uvD+07cwl/yhVuVWAtw+3GOR/knlL55Nd/wAdblk27GCVt3lqpTivy/tkJcZoNPzTwS1Y+KMojlLDhoTzg==}
+  unist-util-visit@5.1.0:
+    resolution: {integrity: sha512-m+vIdyeCOpdr/QeQCu2EzxX/ohgS8KbnPDgFni4dQsfSCtpz8UqDyY5GjRru8PDKuYn7Fq19j1CQ+nJSsGKOzg==}
 
   universalify@0.1.2:
     resolution: {integrity: sha512-rBJeI5CXAlmy1pV+617WB9J63U6XcazHHF2f2dbJix4XzpUF0RS3Zbj0FGIOCAva5P/d/GBOYaACQ1w+0azUkg==}
@@ -4556,8 +4569,8 @@ packages:
   yallist@4.0.0:
     resolution: {integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==}
 
-  yaml@2.8.2:
-    resolution: {integrity: sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A==}
+  yaml@2.8.3:
+    resolution: {integrity: sha512-AvbaCLOO2Otw/lW5bmh9d/WEdcDFdQp2Z2ZUH3pX9U2ihyUY0nvLv7J6TrWowklRGPYbB/IuIMfYgxaCPg5Bpg==}
     engines: {node: '>= 14.6'}
     hasBin: true
 
@@ -5716,11 +5729,11 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vitest/browser@2.1.9(@types/node@22.9.1)(playwright@1.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))(vitest@2.1.9)':
+  '@vitest/browser@2.1.9(@types/node@22.9.1)(playwright@1.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))(vitest@2.1.9)':
     dependencies:
       '@testing-library/dom': 10.4.1
       '@testing-library/user-event': 14.6.1(@testing-library/dom@10.4.1)
-      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@22.9.1)(typescript@5.6.3))(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))
+      '@vitest/mocker': 2.1.9(msw@2.11.6(@types/node@22.9.1)(typescript@5.6.3))(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))
       '@vitest/utils': 2.1.9
       magic-string: 0.30.21
       msw: 2.11.6(@types/node@22.9.1)(typescript@5.6.3)
@@ -5753,7 +5766,7 @@ snapshots:
       tinyrainbow: 1.2.0
       vitest: 2.1.9(@types/node@22.9.1)(@vitest/browser@2.1.9)(@vitest/ui@2.1.5)(jsdom@25.0.1(canvas@2.11.2))(msw@2.11.6(@types/node@22.9.1)(typescript@5.6.3))(sass-embedded@1.81.0)(terser@5.46.0)
     optionalDependencies:
-      '@vitest/browser': 2.1.9(@types/node@22.9.1)(playwright@1.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))(vitest@2.1.9)
+      '@vitest/browser': 2.1.9(@types/node@22.9.1)(playwright@1.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))(vitest@2.1.9)
     transitivePeerDependencies:
       - supports-color
 
@@ -5773,14 +5786,14 @@ snapshots:
       msw: 2.11.6(@types/node@22.9.1)(typescript@5.6.3)
       vite: 5.4.21(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)
 
-  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@22.9.1)(typescript@5.6.3))(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))':
+  '@vitest/mocker@2.1.9(msw@2.11.6(@types/node@22.9.1)(typescript@5.6.3))(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))':
     dependencies:
       '@vitest/spy': 2.1.9
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
       msw: 2.11.6(@types/node@22.9.1)(typescript@5.6.3)
-      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)
+      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)
 
   '@vitest/pretty-format@2.1.5':
     dependencies:
@@ -6107,6 +6120,10 @@ snapshots:
       concat-map: 0.0.1
 
   brace-expansion@2.0.1:
+    dependencies:
+      balanced-match: 1.0.2
+
+  brace-expansion@2.0.2:
     dependencies:
       balanced-match: 1.0.2
 
@@ -7317,7 +7334,7 @@ snapshots:
     dependencies:
       semver: 7.6.3
 
-  markdown-it@14.1.0:
+  markdown-it@14.1.1:
     dependencies:
       argparse: 2.0.1
       entities: 4.5.0
@@ -7354,7 +7371,7 @@ snapshots:
       micromark-util-sanitize-uri: 2.0.1
       trim-lines: 3.0.1
       unist-util-position: 5.0.0
-      unist-util-visit: 5.0.0
+      unist-util-visit: 5.1.0
       vfile: 6.0.3
 
   mdurl@2.0.0: {}
@@ -7430,6 +7447,10 @@ snapshots:
   minimatch@9.0.5:
     dependencies:
       brace-expansion: 2.0.1
+
+  minimatch@9.0.9:
+    dependencies:
+      brace-expansion: 2.0.2
 
   minimist@1.2.8: {}
 
@@ -8235,7 +8256,7 @@ snapshots:
     dependencies:
       unicode-emoji-modifier-base: 1.0.0
 
-  smol-toml@1.6.0: {}
+  smol-toml@1.6.1: {}
 
   source-map-js@1.2.1: {}
 
@@ -8478,11 +8499,11 @@ snapshots:
   typedoc@0.26.11(typescript@5.6.3):
     dependencies:
       lunr: 2.3.9
-      markdown-it: 14.1.0
-      minimatch: 9.0.5
+      markdown-it: 14.1.1
+      minimatch: 9.0.9
       shiki: 1.29.2
       typescript: 5.6.3
-      yaml: 2.8.2
+      yaml: 2.8.3
 
   typescript-eslint@8.15.0(eslint@9.15.0)(typescript@5.6.3):
     dependencies:
@@ -8534,7 +8555,7 @@ snapshots:
       '@types/unist': 3.0.3
       unist-util-is: 6.0.1
 
-  unist-util-visit@5.0.0:
+  unist-util-visit@5.1.0:
     dependencies:
       '@types/unist': 3.0.3
       unist-util-is: 6.0.1
@@ -8608,7 +8629,7 @@ snapshots:
       - supports-color
       - terser
 
-  vite-plugin-dts@4.3.0(@types/node@22.9.1)(rollup@4.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)):
+  vite-plugin-dts@4.3.0(@types/node@22.9.1)(rollup@4.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)):
     dependencies:
       '@microsoft/api-extractor': 7.48.0(@types/node@22.9.1)
       '@rollup/pluginutils': 5.1.3(rollup@4.55.1)
@@ -8621,13 +8642,13 @@ snapshots:
       magic-string: 0.30.13
       typescript: 5.6.3
     optionalDependencies:
-      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)
+      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)
     transitivePeerDependencies:
       - '@types/node'
       - rollup
       - supports-color
 
-  vite-plugin-i18next-loader@2.0.14(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)):
+  vite-plugin-i18next-loader@2.0.14(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)):
     dependencies:
       dot-prop: 9.0.0
       glob-all: 3.3.1
@@ -8635,23 +8656,23 @@ snapshots:
       marked: 13.0.3
       marked-terminal: 7.2.1(marked@13.0.3)
       ts-deepmerge: 7.0.1
-      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)
+      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)
 
-  vite-plugin-node-polyfills@0.22.0(rollup@4.55.1)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)):
+  vite-plugin-node-polyfills@0.22.0(rollup@4.55.1)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)):
     dependencies:
       '@rollup/plugin-inject': 5.0.5(rollup@4.55.1)
       node-stdlib-browser: 1.2.1
-      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)
+      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)
     transitivePeerDependencies:
       - rollup
 
-  vite-tsconfig-paths@5.1.2(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)):
+  vite-tsconfig-paths@5.1.2(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)):
     dependencies:
       debug: 4.3.7(supports-color@5.5.0)
       globrex: 0.1.2
       tsconfck: 3.1.4(typescript@5.6.3)
     optionalDependencies:
-      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2)
+      vite: 7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3)
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -8667,7 +8688,7 @@ snapshots:
       sass-embedded: 1.81.0
       terser: 5.46.0
 
-  vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2):
+  vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3):
     dependencies:
       esbuild: 0.27.2
       fdir: 6.5.0(picomatch@4.0.3)
@@ -8680,7 +8701,7 @@ snapshots:
       fsevents: 2.3.3
       sass-embedded: 1.81.0
       terser: 5.46.0
-      yaml: 2.8.2
+      yaml: 2.8.3
 
   vitest-canvas-mock@0.3.3(vitest@2.1.9):
     dependencies:
@@ -8711,7 +8732,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.9.1
-      '@vitest/browser': 2.1.9(@types/node@22.9.1)(playwright@1.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.2))(vitest@2.1.9)
+      '@vitest/browser': 2.1.9(@types/node@22.9.1)(playwright@1.55.1)(typescript@5.6.3)(vite@7.3.1(@types/node@22.9.1)(sass-embedded@1.81.0)(terser@5.46.0)(yaml@2.8.3))(vitest@2.1.9)
       '@vitest/ui': 2.1.5(vitest@2.1.9)
       jsdom: 25.0.1(canvas@2.11.2)
     transitivePeerDependencies:
@@ -8824,7 +8845,7 @@ snapshots:
 
   yallist@4.0.0: {}
 
-  yaml@2.8.2: {}
+  yaml@2.8.3: {}
 
   yargs-parser@18.1.3:
     dependencies:
